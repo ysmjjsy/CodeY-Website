@@ -1,0 +1,25 @@
+---
+import LandingLayout from '../layouts/LandingLayout.astro'
+import SiteNav from '../components/SiteNav.astro'
+import Hero from '../components/Hero.astro'
+import Features from '../components/Features.astro'
+import Architecture from '../components/Architecture.astro'
+import SdkSection from '../components/SdkSection.astro'
+import GetStarted from '../components/GetStarted.astro'
+import SiteFooter from '../components/SiteFooter.astro'
+---
+
+<LandingLayout
+  title="CodeY — 本地 AI Agent 桌面工作台"
+  description="具备持久化执行、显式权限控制与可复用运行时的本地 AI Agent 桌面工作台。TypeScript、Python、Rust SDK 共用同一套本地运行时。"
+>
+  <SiteNav />
+  <main>
+    <Hero />
+    <Features />
+    <Architecture />
+    <SdkSection />
+    <GetStarted />
+  </main>
+  <SiteFooter />
+</LandingLayout>

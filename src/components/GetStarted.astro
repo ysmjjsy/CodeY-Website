@@ -1,0 +1,130 @@
+---
+
+---
+
+<section class="section" id="get-started">
+  <div class="container">
+    <div class="start-panel reveal">
+      <div class="start-copy">
+        <p class="section-tag">开始使用</p>
+        <h2 class="section-title">四条命令，跑起来</h2>
+        <p class="section-desc">
+          CodeY 处于 0.1.x 活跃开发阶段，暂未发布安装包，请从源码构建。<code>pnpm dev</code>
+          会先构建守护进程 sidecar 和原生运行时，再启动桌面应用。
+        </p>
+        <div class="req-chips">
+          <span>Node.js 24.12</span>
+          <span>pnpm 11.7</span>
+          <span>Rust 1.96+</span>
+          <span>Tauri 2 系统依赖</span>
+        </div>
+        <a class="btn btn-primary" href="/docs/getting-started/">查看完整指南</a>
+      </div>
+      <div class="start-terminal" aria-label="构建命令">
+        <div class="term-bar">
+          <span class="term-dot"></span>
+          <span class="term-dot"></span>
+          <span class="term-dot"></span>
+          <span class="term-name">zsh</span>
+        </div>
+        <pre><code><span class="term-prompt">$</span> git clone https://github.com/ysmjjsy/CodeY.git
+<span class="term-prompt">$</span> cd CodeY
+<span class="term-prompt">$</span> pnpm install
+<span class="term-prompt">$</span> pnpm dev
+<span class="term-comment"># 首次启动后：打开项目目录 → 设置 → 模型 → 创建会话</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .start-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 56px;
+    align-items: center;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    padding: 56px;
+    background:
+      radial-gradient(ellipse 60% 90% at 100% 0%, rgba(6, 182, 212, 0.08), transparent),
+      var(--surface);
+  }
+
+  .start-copy .section-desc code {
+    font-size: 0.85em;
+    color: var(--accent-bright);
+  }
+
+  .req-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 28px 0 32px;
+  }
+
+  .req-chips span {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--fg-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 14px;
+  }
+
+  .start-terminal {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: #0a0a0d;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .term-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .term-name {
+    margin-left: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--fg-faint);
+  }
+
+  .start-terminal pre {
+    margin: 0;
+    padding: 20px 22px;
+    font-size: 0.84rem;
+    line-height: 2.1;
+    overflow-x: auto;
+    color: var(--fg);
+  }
+
+  .term-prompt {
+    color: var(--accent-bright);
+    user-select: none;
+  }
+
+  .term-comment {
+    color: var(--fg-faint);
+  }
+
+  @media (max-width: 920px) {
+    .start-panel {
+      grid-template-columns: 1fr;
+      padding: 36px 28px;
+      gap: 36px;
+    }
+  }
+</style>

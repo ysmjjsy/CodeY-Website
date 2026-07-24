@@ -1,0 +1,528 @@
+---
+
+---
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <p class="hero-badge">
+        <span class="badge-dot"></span>
+        v0.1.x Alpha · 活跃开发中
+      </p>
+      <h1 class="hero-title">
+        本地 AI Agent<br />
+        <span class="hero-title-accent">桌面工作台</span>
+      </h1>
+      <p class="hero-sub">
+        持久化执行、显式权限控制、可复用运行时。任务在本地守护进程中可靠运行，UI
+        随时断开重连，同一套 Agent Harness 通过 SDK 服务你的应用。
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/docs/getting-started/">快速开始</a>
+        <a
+          class="btn btn-ghost"
+          href="https://github.com/ysmjjsy/CodeY"
+          target="_blank"
+          rel="noopener"
+        >
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+            ></path>
+          </svg>
+          GitHub
+        </a>
+      </div>
+      <p class="hero-meta">
+        Apache-2.0 开源 · macOS / Windows / Linux · TypeScript / Python / Rust SDK
+      </p>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-window">
+        <div class="win-titlebar">
+          <span class="win-dot"></span>
+          <span class="win-dot"></span>
+          <span class="win-dot"></span>
+          <span class="win-title">CodeY — 任务工作台</span>
+          <span class="win-status">
+            <span class="status-dot status-dot-green"></span>
+            守护进程已连接
+          </span>
+        </div>
+        <div class="win-body">
+          <div class="win-sidebar">
+            <span class="side-icon is-active"></span>
+            <span class="side-icon"></span>
+            <span class="side-icon"></span>
+            <span class="side-icon"></span>
+          </div>
+          <div class="win-main">
+            <div class="task-head">
+              <span class="task-name">重构权限流恢复逻辑</span>
+              <span class="task-state">
+                <span class="status-dot status-dot-cyan pulse"></span>
+                运行中
+              </span>
+            </div>
+            <div class="timeline">
+              <div class="tl-item" style="--i: 0">
+                <span class="tl-icon tl-icon-ok">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 6.5 4.8 9 10 3.5"></path>
+                  </svg>
+                </span>
+                <span class="tl-text">计划已生成 · 3 个步骤</span>
+              </div>
+              <div class="tl-item tl-item-cmd" style="--i: 1">
+                <span class="tl-prompt">$</span>
+                <code>pnpm check:rust:fast</code>
+                <span class="tl-pass">通过</span>
+              </div>
+              <div class="tl-item" style="--i: 2">
+                <span class="tl-icon tl-icon-file">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M3 1h4l2.5 2.5V11H3z"></path>
+                  </svg>
+                </span>
+                <span class="tl-text">
+                  <code class="tl-path">recovery.rs</code>
+                  <span class="diff-add">+42</span>
+                  <span class="diff-del">−7</span>
+                </span>
+              </div>
+              <div class="tl-item tl-item-perm" style="--i: 3">
+                <div class="perm-row">
+                  <span class="tl-icon tl-icon-perm">
+                    <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M6 1 2 2.6v3.2c0 2.5 1.7 4.3 4 5.2 2.3-.9 4-2.7 4-5.2V2.6z"></path>
+                    </svg>
+                  </span>
+                  <span class="tl-text">权限请求 · 写入 <code class="tl-path">crates/permission/</code></span>
+                </div>
+                <div class="perm-actions">
+                  <span class="perm-btn perm-allow">允许</span>
+                  <span class="perm-btn perm-deny">拒绝</span>
+                </div>
+              </div>
+              <div class="tl-item tl-item-typing" style="--i: 4">
+                <span class="tl-text">正在应用修复</span>
+                <span class="caret"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-glow hero-glow-cyan"></div>
+      <div class="hero-glow hero-glow-amber"></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding-top: 172px;
+    padding-bottom: 120px;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 78%);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+    gap: 64px;
+    align-items: center;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 24px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    color: var(--fg-muted);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+  }
+
+  .hero-title {
+    font-size: clamp(2.6rem, 5.6vw, 4rem);
+    font-weight: 700;
+    line-height: 1.14;
+  }
+
+  .hero-title-accent {
+    color: var(--accent-bright);
+  }
+
+  .hero-sub {
+    color: var(--fg-muted);
+    font-size: 1.08rem;
+    max-width: 34em;
+    margin: 24px 0 36px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta {
+    margin-top: 28px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--fg-faint);
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- 窗口模拟 ---------- */
+
+  .hero-visual {
+    position: relative;
+  }
+
+  .hero-window {
+    position: relative;
+    z-index: 1;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    background: rgba(19, 19, 22, 0.9);
+    backdrop-filter: blur(8px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 24px 64px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+  }
+
+  .win-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .win-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .win-title {
+    margin-left: 10px;
+    font-size: 0.78rem;
+    color: var(--fg-faint);
+  }
+
+  .win-status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .status-dot-green {
+    background: var(--success);
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.8);
+  }
+
+  .status-dot-cyan {
+    background: var(--accent-bright);
+    box-shadow: 0 0 6px rgba(34, 211, 238, 0.8);
+  }
+
+  .pulse {
+    animation: dot-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .win-body {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    min-height: 330px;
+  }
+
+  .win-sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-top: 18px;
+    border-right: 1px solid var(--border);
+  }
+
+  .side-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .side-icon.is-active {
+    background: var(--accent-soft);
+    outline: 1px solid rgba(6, 182, 212, 0.4);
+  }
+
+  .win-main {
+    padding: 18px 20px;
+  }
+
+  .task-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .task-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+
+  .task-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.74rem;
+    font-family: var(--font-mono);
+    color: var(--accent-bright);
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 16px;
+  }
+
+  .tl-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: var(--fg-muted);
+    opacity: 0;
+    animation: tl-in 0.6s var(--ease-out) forwards;
+    animation-delay: calc(0.35s + var(--i) * 0.45s);
+  }
+
+  @keyframes tl-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .tl-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .tl-icon-ok {
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.12);
+  }
+
+  .tl-icon-file {
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+  }
+
+  .tl-icon-perm {
+    color: var(--amber);
+    background: var(--amber-soft);
+  }
+
+  .tl-item-cmd {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+
+  .tl-prompt {
+    color: var(--accent-bright);
+  }
+
+  .tl-item-cmd code {
+    color: var(--fg);
+  }
+
+  .tl-pass {
+    margin-left: auto;
+    color: var(--success);
+    font-size: 0.72rem;
+  }
+
+  .tl-path {
+    color: var(--fg);
+    font-size: 0.78rem;
+  }
+
+  .diff-add {
+    color: var(--success);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    margin-left: 8px;
+  }
+
+  .diff-del {
+    color: var(--danger);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    margin-left: 4px;
+  }
+
+  .tl-item-perm {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: var(--amber-soft);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  .perm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .perm-actions {
+    display: flex;
+    gap: 8px;
+    padding-left: 30px;
+  }
+
+  .perm-btn {
+    font-size: 0.72rem;
+    padding: 3px 14px;
+    border-radius: 6px;
+  }
+
+  .perm-allow {
+    background: var(--amber);
+    color: #1a1205;
+    font-weight: 600;
+  }
+
+  .perm-deny {
+    border: 1px solid var(--border-strong);
+    color: var(--fg-muted);
+  }
+
+  .tl-item-typing {
+    font-size: 0.8rem;
+  }
+
+  .caret {
+    width: 7px;
+    height: 15px;
+    background: var(--accent-bright);
+    animation: caret-blink 1s steps(1) infinite;
+  }
+
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ---------- 光晕 ---------- */
+
+  .hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+  }
+
+  .hero-glow-cyan {
+    width: 420px;
+    height: 420px;
+    top: -120px;
+    right: -80px;
+    background: rgba(6, 182, 212, 0.16);
+  }
+
+  .hero-glow-amber {
+    width: 260px;
+    height: 260px;
+    bottom: -80px;
+    left: -60px;
+    background: rgba(245, 158, 11, 0.1);
+  }
+
+  @media (max-width: 920px) {
+    .hero {
+      padding-top: 140px;
+      padding-bottom: 80px;
+    }
+
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 56px;
+    }
+  }
+</style>
