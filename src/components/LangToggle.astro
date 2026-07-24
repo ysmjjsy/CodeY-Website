@@ -1,0 +1,51 @@
+---
+import type { Locale } from '../i18n/ui'
+import { switchLocalePath, t } from '../i18n/utils'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const other: Locale = locale === 'en' ? 'zh-CN' : 'en'
+const href = switchLocalePath(locale)
+const label = other === 'en' ? t(locale, 'nav.lang.en') : t(locale, 'nav.lang.zh')
+const hreflang = other === 'en' ? 'en' : 'zh-CN'
+---
+
+<a
+  class="lang-toggle"
+  href={href}
+  hreflang={hreflang}
+  lang={hreflang}
+  data-set-locale={other}
+>
+  {label}
+</a>
+
+<style>
+  .lang-toggle {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 6px 10px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .lang-toggle:hover {
+    color: var(--fg);
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLAnchorElement>('[data-set-locale]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const value = link.dataset.setLocale
+      if (value === 'en' || value === 'zh-CN') {
+        document.cookie = `codey-locale=${value}; path=/; max-age=31536000; samesite=lax`
+      }
+    })
+  })
+</script>

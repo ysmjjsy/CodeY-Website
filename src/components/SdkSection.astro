@@ -1,19 +1,27 @@
 ---
 import { Code } from 'astro:components'
 import githubDark from 'shiki/themes/github-dark-default.mjs'
+import type { Locale } from '../i18n/ui'
+import { docsPath, t } from '../i18n/utils'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
 
 const tsCode = `import { CodeY } from '@codey/agent-sdk'
 
-// 启动或连接本地运行时
+// ${t(locale, 'sdk.comment.start')}
 await using runtime = await CodeY.start({
   applicationId: 'com.example.agent',
 })
 
-// 提供商配置与凭据只在守护进程内解析
+// ${t(locale, 'sdk.comment.creds')}
 const profile = await runtime.client.providers.put({ /* ... */ })
 const credential = await runtime.client.credentials.put({ /* ... */ })
 
-// 创建不可变的 AgentDefinition 修订并执行
+// ${t(locale, 'sdk.comment.def')}
 const definition = await runtime.client.definitions.create(spec)
 const run = await runtime.client.agent(definition.id).query({
   blocks: [{ type: 'text', text: 'Review this project.' }],
@@ -24,11 +32,11 @@ console.log(await run.result())`
 const pyCode = `from codey_agent_sdk import CodeY
 
 async with await CodeY.start("com.example.agent") as runtime:
-    # 提供商配置与凭据只在守护进程内解析
+    # ${t(locale, 'sdk.comment.creds')}
     profile = await runtime.client.providers.put({...})
     credential = await runtime.client.credentials.put({...})
 
-    # 创建不可变的 AgentDefinition 修订并执行
+    # ${t(locale, 'sdk.comment.def')}
     definition = await runtime.client.definitions.create(spec)
     run = await runtime.client.agent(definition["id"]).query(
         {"blocks": [{"type": "text", "text": "Review this project."}]}
@@ -37,30 +45,40 @@ async with await CodeY.start("com.example.agent") as runtime:
 
 const rsCode = `use codey_agent_client::{AgentClient, AgentClientOptions};
 
-// 连接本地 Agent Runtime 协议
+// ${t(locale, 'sdk.comment.rs')}
 let client = AgentClient::connect(options).await?;
 
 let capabilities = client.capabilities().await?;
 println!("runtime {}", capabilities.runtime_version);
 
 client.close().await;`
+
+const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
 ---
 
 <section class="section" id="sdk">
   <div class="container sdk-grid">
     <div class="sdk-copy reveal">
-      <p class="section-tag">Agent Runtime SDK</p>
-      <h2 class="section-title">一套运行时，三种语言</h2>
-      <p class="section-desc">
-        TypeScript、Python、Rust 客户端使用同一份语言无关 Schema 和同一条守护进程执行路径。
-      </p>
+      <p class="section-tag">{t(locale, 'sdk.tag')}</p>
+      <h2 class="section-title">{t(locale, 'sdk.title')}</h2>
+      <p class="section-desc">{t(locale, 'sdk.desc')}</p>
       <ul class="sdk-points">
-        <li><code>RunHandle.result()</code> 不需要消费事件迭代器，内部事件泵负责游标恢复与去重。</li>
-        <li>密钥只在写入时提交，读取只返回元数据，永远不进入事件、日志或快照。</li>
-        <li>运行时与 SDK 严格成对，清单校验目标、哈希与存储 Schema 范围后才启动。</li>
+        <li>
+          {
+            point1Parts.map((part) =>
+              part.startsWith('`') && part.endsWith('`') ? (
+                <code>{part.slice(1, -1)}</code>
+              ) : (
+                part
+              ),
+            )
+          }
+        </li>
+        <li>{t(locale, 'sdk.point2')}</li>
+        <li>{t(locale, 'sdk.point3')}</li>
       </ul>
-      <a class="sdk-link" href="/docs/sdk/overview/">
-        阅读 SDK 文档
+      <a class="sdk-link" href={docsPath(locale, 'sdk/overview')}>
+        {t(locale, 'sdk.link')}
         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 8h10M9 4l4 4-4 4"></path>
         </svg>
@@ -68,7 +86,7 @@ client.close().await;`
     </div>
 
     <div class="sdk-code reveal" style="--reveal-delay: 0.1s">
-      <div class="code-tabs" role="tablist" aria-label="SDK 语言">
+      <div class="code-tabs" role="tablist" aria-label={t(locale, 'sdk.tabs')}>
         <button class="code-tab is-active" role="tab" aria-selected="true" data-tab="ts">TypeScript</button>
         <button class="code-tab" role="tab" aria-selected="false" data-tab="py">Python</button>
         <button class="code-tab" role="tab" aria-selected="false" data-tab="rs">Rust</button>
@@ -141,11 +159,11 @@ client.close().await;`
   .sdk-code {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg);
-    background: #0c0c0f;
+    background: var(--code-bg);
     overflow: hidden;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      0 20px 50px rgba(0, 0, 0, 0.45);
+      inset 0 1px 0 var(--panel-inset),
+      var(--shadow-window);
   }
 
   .code-tabs {
@@ -153,7 +171,7 @@ client.close().await;`
     gap: 4px;
     padding: 10px 12px;
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--ghost-bg);
   }
 
   .code-tab {
@@ -176,7 +194,7 @@ client.close().await;`
   .code-tab.is-active {
     color: var(--accent-bright);
     background: var(--accent-soft);
-    border-color: rgba(6, 182, 212, 0.3);
+    border-color: var(--accent-ring);
   }
 
   .code-panel {

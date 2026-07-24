@@ -1,5 +1,12 @@
 ---
+import type { Locale } from '../i18n/ui'
+import { docsPath, t } from '../i18n/utils'
 
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
 ---
 
 <section class="hero">
@@ -8,18 +15,15 @@
     <div class="hero-copy">
       <p class="hero-badge">
         <span class="badge-dot"></span>
-        v0.1.x Alpha · 活跃开发中
+        {t(locale, 'hero.badge')}
       </p>
       <h1 class="hero-title">
-        本地 AI Agent<br />
-        <span class="hero-title-accent">桌面工作台</span>
+        {t(locale, 'hero.title.line1')}<br />
+        <span class="hero-title-accent">{t(locale, 'hero.title.line2')}</span>
       </h1>
-      <p class="hero-sub">
-        持久化执行、显式权限控制、可复用运行时。任务在本地守护进程中可靠运行，UI
-        随时断开重连，同一套 Agent Harness 通过 SDK 服务你的应用。
-      </p>
+      <p class="hero-sub">{t(locale, 'hero.sub')}</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="/docs/getting-started/">快速开始</a>
+        <a class="btn btn-primary" href={docsPath(locale, 'getting-started')}>{t(locale, 'hero.cta')}</a>
         <a
           class="btn btn-ghost"
           href="https://github.com/ysmjjsy/CodeY"
@@ -34,9 +38,7 @@
           GitHub
         </a>
       </div>
-      <p class="hero-meta">
-        Apache-2.0 开源 · macOS / Windows / Linux · TypeScript / Python / Rust SDK
-      </p>
+      <p class="hero-meta">{t(locale, 'hero.meta')}</p>
     </div>
 
     <div class="hero-visual" aria-hidden="true">
@@ -45,10 +47,10 @@
           <span class="win-dot"></span>
           <span class="win-dot"></span>
           <span class="win-dot"></span>
-          <span class="win-title">CodeY — 任务工作台</span>
+          <span class="win-title">{t(locale, 'hero.win.title')}</span>
           <span class="win-status">
             <span class="status-dot status-dot-green"></span>
-            守护进程已连接
+            {t(locale, 'hero.win.status')}
           </span>
         </div>
         <div class="win-body">
@@ -60,10 +62,10 @@
           </div>
           <div class="win-main">
             <div class="task-head">
-              <span class="task-name">重构权限流恢复逻辑</span>
+              <span class="task-name">{t(locale, 'hero.win.task')}</span>
               <span class="task-state">
                 <span class="status-dot status-dot-cyan pulse"></span>
-                运行中
+                {t(locale, 'hero.win.running')}
               </span>
             </div>
             <div class="timeline">
@@ -73,12 +75,12 @@
                     <path d="M2 6.5 4.8 9 10 3.5"></path>
                   </svg>
                 </span>
-                <span class="tl-text">计划已生成 · 3 个步骤</span>
+                <span class="tl-text">{t(locale, 'hero.win.plan')}</span>
               </div>
               <div class="tl-item tl-item-cmd" style="--i: 1">
                 <span class="tl-prompt">$</span>
                 <code>pnpm check:rust:fast</code>
-                <span class="tl-pass">通过</span>
+                <span class="tl-pass">{t(locale, 'hero.win.pass')}</span>
               </div>
               <div class="tl-item" style="--i: 2">
                 <span class="tl-icon tl-icon-file">
@@ -99,15 +101,17 @@
                       <path d="M6 1 2 2.6v3.2c0 2.5 1.7 4.3 4 5.2 2.3-.9 4-2.7 4-5.2V2.6z"></path>
                     </svg>
                   </span>
-                  <span class="tl-text">权限请求 · 写入 <code class="tl-path">crates/permission/</code></span>
+                  <span class="tl-text"
+                    >{t(locale, 'hero.win.perm')} <code class="tl-path">crates/permission/</code></span
+                  >
                 </div>
                 <div class="perm-actions">
-                  <span class="perm-btn perm-allow">允许</span>
-                  <span class="perm-btn perm-deny">拒绝</span>
+                  <span class="perm-btn perm-allow">{t(locale, 'hero.win.allow')}</span>
+                  <span class="perm-btn perm-deny">{t(locale, 'hero.win.deny')}</span>
                 </div>
               </div>
               <div class="tl-item tl-item-typing" style="--i: 4">
-                <span class="tl-text">正在应用修复</span>
+                <span class="tl-text">{t(locale, 'hero.win.typing')}</span>
                 <span class="caret"></span>
               </div>
             </div>
@@ -132,8 +136,8 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 56px 56px;
     mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 78%);
     pointer-events: none;
@@ -158,7 +162,7 @@
     font-size: 0.8rem;
     font-family: var(--font-mono);
     color: var(--fg-muted);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--chip-bg);
   }
 
   .badge-dot {
@@ -166,7 +170,7 @@
     height: 7px;
     border-radius: 50%;
     background: var(--amber);
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+    box-shadow: 0 0 8px var(--amber);
   }
 
   .hero-title {
@@ -200,8 +204,6 @@
     letter-spacing: 0.02em;
   }
 
-  /* ---------- 窗口模拟 ---------- */
-
   .hero-visual {
     position: relative;
   }
@@ -211,11 +213,11 @@
     z-index: 1;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-xl);
-    background: rgba(19, 19, 22, 0.9);
+    background: var(--panel-glass);
     backdrop-filter: blur(8px);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 24px 64px rgba(0, 0, 0, 0.55);
+      inset 0 1px 0 var(--panel-inset),
+      var(--shadow-window);
     overflow: hidden;
   }
 
@@ -225,14 +227,15 @@
     gap: 7px;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--ghost-bg);
   }
 
   .win-dot {
     width: 11px;
     height: 11px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.14);
+    background: var(--fg-faint);
+    opacity: 0.45;
   }
 
   .win-title {
@@ -259,12 +262,10 @@
 
   .status-dot-green {
     background: var(--success);
-    box-shadow: 0 0 6px rgba(52, 211, 153, 0.8);
   }
 
   .status-dot-cyan {
     background: var(--accent-bright);
-    box-shadow: 0 0 6px rgba(34, 211, 238, 0.8);
   }
 
   .pulse {
@@ -300,12 +301,12 @@
     width: 22px;
     height: 22px;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--ghost-bg-hover);
   }
 
   .side-icon.is-active {
     background: var(--accent-soft);
-    outline: 1px solid rgba(6, 182, 212, 0.4);
+    outline: 1px solid var(--accent-ring);
   }
 
   .win-main {
@@ -378,7 +379,7 @@
 
   .tl-icon-ok {
     color: var(--success);
-    background: rgba(52, 211, 153, 0.12);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
   }
 
   .tl-icon-file {
@@ -394,7 +395,7 @@
   .tl-item-cmd {
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--ghost-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 8px 12px;
@@ -437,7 +438,7 @@
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
     background: var(--amber-soft);
     border-radius: 10px;
     padding: 10px 12px;
@@ -489,8 +490,6 @@
     }
   }
 
-  /* ---------- 光晕 ---------- */
-
   .hero-glow {
     position: absolute;
     border-radius: 50%;
@@ -503,7 +502,7 @@
     height: 420px;
     top: -120px;
     right: -80px;
-    background: rgba(6, 182, 212, 0.16);
+    background: var(--accent-glow);
   }
 
   .hero-glow-amber {
@@ -511,7 +510,7 @@
     height: 260px;
     bottom: -80px;
     left: -60px;
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--amber-soft);
   }
 
   @media (max-width: 920px) {

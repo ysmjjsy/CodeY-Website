@@ -2,26 +2,86 @@
 import '@fontsource-variable/space-grotesk'
 import '@fontsource-variable/jetbrains-mono'
 import '../styles/landing.css'
+import type { Locale } from '../i18n/ui'
 
 interface Props {
   title: string
   description: string
+  locale: Locale
 }
 
-const { title, description } = Astro.props
+const { title, description, locale } = Astro.props
+const htmlLang = locale === 'en' ? 'en' : 'zh-CN'
+const alternateLocale = locale === 'en' ? 'zh-CN' : 'en'
+const alternateHref =
+  locale === 'en'
+    ? new URL('/', Astro.site ?? Astro.url).pathname
+    : new URL('/en/', Astro.site ?? Astro.url).pathname
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang={htmlLang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="alternate" hreflang={alternateLocale === 'en' ? 'en' : 'zh-CN'} href={alternateHref} />
+    <link rel="alternate" hreflang={htmlLang} href={Astro.url.pathname} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content={locale === 'en' ? 'en_US' : 'zh_CN'} />
+    {/* Match Starlight ThemeProvider: key `starlight-theme`, values light|dark|'' (auto). */}
+    <script is:inline>
+      ;(function () {
+        const stored =
+          typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme')
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark'
+        document.documentElement.dataset.theme = theme
+      })()
+    </script>
+    {/* Static-host fallback for browser-default locale (middleware covers SSR/preview). */}
+    {
+      locale === 'zh-CN' && (
+        <script is:inline>
+          ;(function () {
+            if (location.pathname !== '/') return
+            var match = document.cookie.match(/(?:^|; )codey-locale=([^;]*)/)
+            var cookie = match ? decodeURIComponent(match[1]) : ''
+            if (cookie === 'en') {
+              location.replace('/en/')
+              return
+            }
+            if (cookie === 'zh-CN' || cookie === 'zh') return
+            var primary = String(
+              (navigator.languages && navigator.languages[0]) || navigator.language || '',
+            ).toLowerCase()
+            if (primary.indexOf('en') === 0) {
+              document.cookie = 'codey-locale=en; path=/; max-age=31536000; samesite=lax'
+              location.replace('/en/')
+            } else {
+              document.cookie = 'codey-locale=zh-CN; path=/; max-age=31536000; samesite=lax'
+            }
+          })()
+        </script>
+      )
+    }
+    {
+      locale === 'en' && (
+        <script is:inline>
+          ;(function () {
+            document.cookie = 'codey-locale=en; path=/; max-age=31536000; samesite=lax'
+          })()
+        </script>
+      )
+    }
   </head>
   <body>
     <slot />

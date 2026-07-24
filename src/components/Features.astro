@@ -1,15 +1,20 @@
 ---
+import type { Locale } from '../i18n/ui'
+import { t } from '../i18n/utils'
 
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
 ---
 
 <section class="section" id="features">
   <div class="container">
     <div class="section-head reveal">
-      <p class="section-tag">核心能力</p>
-      <h2 class="section-title">为长时间运行的 Agent 任务而设计</h2>
-      <p class="section-desc">
-        执行权在守护进程，不在 UI。任务状态先落盘再投影，断开、重启、恢复都不丢失现场。
-      </p>
+      <p class="section-tag">{t(locale, 'features.tag')}</p>
+      <h2 class="section-title">{t(locale, 'features.title')}</h2>
+      <p class="section-desc">{t(locale, 'features.desc')}</p>
     </div>
 
     <div class="bento">
@@ -21,8 +26,8 @@
             <path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"></path>
           </svg>
         </span>
-        <h3>持久化任务</h3>
-        <p>任务状态和事件写入日志，UI 可以重新连接，守护进程重启后可以恢复任务。外部工具调用带幂等标识，未知结局显式标记为待恢复。</p>
+        <h3>{t(locale, 'features.durable.title')}</h3>
+        <p>{t(locale, 'features.durable.desc')}</p>
         <div class="card-visual log-visual" aria-hidden="true">
           <span class="log-line"><i class="log-key">event</i> run_accepted <i class="log-ok">persisted</i></span>
           <span class="log-line"><i class="log-key">event</i> tool_call · idempotency:a91f <i class="log-ok">persisted</i></span>
@@ -37,13 +42,13 @@
             <path d="m8.8 12 2.2 2.2 4.2-4.4"></path>
           </svg>
         </span>
-        <h3>受控执行</h3>
-        <p>权限、沙箱、工作区与网络策略约束每一次运行。敏感或不确定的操作可以暂停，等待明确批准。</p>
+        <h3>{t(locale, 'features.controlled.title')}</h3>
+        <p>{t(locale, 'features.controlled.desc')}</p>
         <div class="card-visual mode-visual" aria-hidden="true">
-          <span class="mode-chip">安全</span>
-          <span class="mode-chip is-active">标准</span>
-          <span class="mode-chip">完全访问</span>
-          <span class="mode-chip">自定义</span>
+          <span class="mode-chip">{t(locale, 'features.mode.safe')}</span>
+          <span class="mode-chip is-active">{t(locale, 'features.mode.standard')}</span>
+          <span class="mode-chip">{t(locale, 'features.mode.full')}</span>
+          <span class="mode-chip">{t(locale, 'features.mode.custom')}</span>
         </div>
       </article>
 
@@ -54,8 +59,8 @@
             <path d="M3 9h18M9 9v11"></path>
           </svg>
         </span>
-        <h3>可检查的工作台</h3>
-        <p>计划、进度、命令、文件变更、产物和权限决策，收敛在同一条任务时间线里。</p>
+        <h3>{t(locale, 'features.inspectable.title')}</h3>
+        <p>{t(locale, 'features.inspectable.desc')}</p>
       </article>
 
       <article class="card reveal" style="--reveal-delay: 0.06s">
@@ -64,8 +69,8 @@
             <path d="M10 4h-.5A2.5 2.5 0 0 0 7 6.5V9a3 3 0 0 1-3 3 3 3 0 0 1 3 3v2.5A2.5 2.5 0 0 0 9.5 20h.5M14 4h.5A2.5 2.5 0 0 1 17 6.5V9a3 3 0 0 0 3 3 3 3 0 0 0-3 3v2.5a2.5 2.5 0 0 1-2.5 2.5H14"></path>
           </svg>
         </span>
-        <h3>可扩展能力</h3>
-        <p>内置工具、MCP Server、Skill、Plugin、浏览器自动化与经过授权的电脑操作。</p>
+        <h3>{t(locale, 'features.extensible.title')}</h3>
+        <p>{t(locale, 'features.extensible.desc')}</p>
       </article>
 
       <article class="card reveal" style="--reveal-delay: 0.12s">
@@ -77,8 +82,8 @@
             <path d="M12 9v3m0 0-5 3.5M12 12l5 3.5"></path>
           </svg>
         </span>
-        <h3>Agent 编排</h3>
-        <p>子 Agent、Agent 团队、后台 Agent 与持久化定时任务，全部由守护进程调度。</p>
+        <h3>{t(locale, 'features.orchestration.title')}</h3>
+        <p>{t(locale, 'features.orchestration.desc')}</p>
       </article>
 
       <article class="card reveal" style="--reveal-delay: 0.18s">
@@ -87,8 +92,8 @@
             <path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"></path>
           </svg>
         </span>
-        <h3>本地运行时 SDK</h3>
-        <p>TypeScript、Python、Rust 共用同一份 Schema 与同一条守护进程执行路径，不依赖 Tauri。</p>
+        <h3>{t(locale, 'features.sdk.title')}</h3>
+        <p>{t(locale, 'features.sdk.desc')}</p>
       </article>
 
       <article class="card reveal" style="--reveal-delay: 0.24s">
@@ -98,8 +103,8 @@
             <path d="M8 21h8m-4-4v4"></path>
           </svg>
         </span>
-        <h3>跨平台桌面端</h3>
-        <p>发布配置覆盖 macOS、Windows 与 Linux，原生电脑操作能力按平台提供。</p>
+        <h3>{t(locale, 'features.desktop.title')}</h3>
+        <p>{t(locale, 'features.desktop.desc')}</p>
       </article>
 
       <article class="card reveal" style="--reveal-delay: 0.3s">
@@ -109,8 +114,8 @@
             <path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"></path>
           </svg>
         </span>
-        <h3>双语界面</h3>
-        <p>内置简体中文与英文，支持浅色、深色和跟随系统主题。</p>
+        <h3>{t(locale, 'features.i18n.title')}</h3>
+        <p>{t(locale, 'features.i18n.desc')}</p>
       </article>
     </div>
   </div>
@@ -127,7 +132,7 @@
     grid-column: span 2;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008));
+    background: linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg));
     padding: 26px;
     display: flex;
     flex-direction: column;
@@ -135,7 +140,7 @@
   }
 
   .card:hover {
-    border-color: rgba(6, 182, 212, 0.35);
+    border-color: var(--accent-ring);
     transform: translateY(-3px);
   }
 
@@ -152,7 +157,7 @@
     border-radius: 10px;
     color: var(--accent-bright);
     background: var(--accent-soft);
-    border: 1px solid rgba(6, 182, 212, 0.25);
+    border: 1px solid var(--accent-ring);
     margin-bottom: 18px;
   }
 
@@ -188,7 +193,7 @@
     align-items: center;
     padding: 6px 10px;
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--ghost-bg);
     border: 1px solid var(--border);
     color: var(--fg-muted);
   }
@@ -225,7 +230,7 @@
   }
 
   .mode-chip.is-active {
-    border-color: rgba(245, 158, 11, 0.5);
+    border-color: color-mix(in srgb, var(--amber) 50%, transparent);
     background: var(--amber-soft);
     color: var(--amber);
   }

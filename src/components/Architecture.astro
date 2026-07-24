@@ -1,54 +1,58 @@
 ---
+import type { Locale } from '../i18n/ui'
+import { t } from '../i18n/utils'
 
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
 ---
 
 <section class="section arch-section" id="architecture">
   <div class="container">
     <div class="section-head reveal">
-      <p class="section-tag">架构</p>
-      <h2 class="section-title">守护进程是执行的唯一权威</h2>
-      <p class="section-desc">
-        React UI 只渲染状态和发送命令。任务执行、恢复、调度、权限、记忆与编排全部由本地守护进程负责，同一运行时也服务非
-        Tauri 应用。
-      </p>
+      <p class="section-tag">{t(locale, 'arch.tag')}</p>
+      <h2 class="section-title">{t(locale, 'arch.title')}</h2>
+      <p class="section-desc">{t(locale, 'arch.desc')}</p>
     </div>
 
-    <div class="diagram reveal" role="img" aria-label="CodeY 架构：客户端通过本地协议连接守护进程，守护进程持有任务存储并驱动 Agent Harness 能力层">
+    <div class="diagram reveal" role="img" aria-label={t(locale, 'arch.aria')}>
       <div class="tier tier-clients">
         <div class="node node-client">
-          <span class="node-title">React 桌面 UI</span>
-          <span class="node-sub">Tauri 命令桥</span>
+          <span class="node-title">{t(locale, 'arch.ui')}</span>
+          <span class="node-sub">{t(locale, 'arch.ui.sub')}</span>
         </div>
         <div class="node node-client">
-          <span class="node-title">TypeScript SDK</span>
+          <span class="node-title">{t(locale, 'arch.ts')}</span>
           <span class="node-sub">@codey/agent-sdk</span>
         </div>
         <div class="node node-client">
-          <span class="node-title">Python SDK</span>
+          <span class="node-title">{t(locale, 'arch.py')}</span>
           <span class="node-sub">codey_agent_sdk</span>
         </div>
         <div class="node node-client">
-          <span class="node-title">Rust 客户端</span>
+          <span class="node-title">{t(locale, 'arch.rs')}</span>
           <span class="node-sub">codey-agent-client</span>
         </div>
       </div>
 
       <div class="connector">
-        <span class="connector-label">本地 IPC · Agent Runtime 协议（Unix Socket / 命名管道）</span>
+        <span class="connector-label">{t(locale, 'arch.ipc')}</span>
       </div>
 
       <div class="tier">
         <div class="node node-daemon">
           <div class="daemon-main">
-            <span class="node-title">CodeY 守护进程</span>
-            <span class="node-sub">任务生命周期 · 持久调度 · 权限 · 恢复 · 记忆 · 编排</span>
+            <span class="node-title">{t(locale, 'arch.daemon')}</span>
+            <span class="node-sub">{t(locale, 'arch.daemon.sub')}</span>
           </div>
           <div class="daemon-store">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
               <ellipse cx="12" cy="6" rx="7" ry="2.6"></ellipse>
               <path d="M5 6v12c0 1.44 3.13 2.6 7 2.6s7-1.16 7-2.6V6"></path>
             </svg>
-            SQLite 任务存储（WAL）
+            {t(locale, 'arch.store')}
           </div>
         </div>
       </div>
@@ -58,18 +62,18 @@
       </div>
 
       <div class="tier tier-caps">
-        <span class="cap">模型</span>
-        <span class="cap">工具与执行</span>
-        <span class="cap">MCP · Skill · Plugin</span>
-        <span class="cap">上下文与记忆</span>
-        <span class="cap">子 Agent · 团队 · 后台</span>
+        <span class="cap">{t(locale, 'arch.cap.models')}</span>
+        <span class="cap">{t(locale, 'arch.cap.tools')}</span>
+        <span class="cap">{t(locale, 'arch.cap.ext')}</span>
+        <span class="cap">{t(locale, 'arch.cap.memory')}</span>
+        <span class="cap">{t(locale, 'arch.cap.agents')}</span>
       </div>
     </div>
 
     <ul class="arch-notes reveal">
-      <li>UI 生命周期不构成执行权威，桌面端断开或重启不影响任务状态。</li>
-      <li>事件先持久化，客户端再投影为会话、进度、文件差异、产物与权限提示。</li>
-      <li>外部副作用不承诺 exactly-once，未知结局显式进入待恢复状态，而不是被静默吞掉。</li>
+      <li>{t(locale, 'arch.note1')}</li>
+      <li>{t(locale, 'arch.note2')}</li>
+      <li>{t(locale, 'arch.note3')}</li>
     </ul>
   </div>
 </section>
@@ -137,7 +141,12 @@
     bottom: 0;
     left: 50%;
     width: 1px;
-    background: linear-gradient(180deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.6), rgba(6, 182, 212, 0.1));
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      color-mix(in srgb, var(--accent) 60%, transparent),
+      color-mix(in srgb, var(--accent) 10%, transparent)
+    );
   }
 
   .connector-label {
@@ -147,7 +156,7 @@
     font-size: 0.72rem;
     color: var(--accent-bright);
     background: var(--bg-soft);
-    border: 1px solid rgba(6, 182, 212, 0.3);
+    border: 1px solid var(--accent-ring);
     border-radius: 999px;
     padding: 4px 14px;
   }
@@ -157,9 +166,9 @@
     align-items: center;
     gap: 24px;
     padding: 20px 28px;
-    border-color: rgba(6, 182, 212, 0.45);
-    background: linear-gradient(180deg, rgba(6, 182, 212, 0.09), rgba(6, 182, 212, 0.02));
-    box-shadow: 0 0 40px rgba(6, 182, 212, 0.08);
+    border-color: var(--accent-ring);
+    background: linear-gradient(180deg, var(--accent-soft), transparent);
+    box-shadow: 0 0 40px var(--accent-glow);
   }
 
   .daemon-main {

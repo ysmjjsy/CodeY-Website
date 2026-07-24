@@ -1,26 +1,41 @@
 ---
+import type { Locale } from '../i18n/ui'
+import { docsPath, t } from '../i18n/utils'
 
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
 ---
 
 <section class="section" id="get-started">
   <div class="container">
     <div class="start-panel reveal">
       <div class="start-copy">
-        <p class="section-tag">开始使用</p>
-        <h2 class="section-title">四条命令，跑起来</h2>
+        <p class="section-tag">{t(locale, 'start.tag')}</p>
+        <h2 class="section-title">{t(locale, 'start.title')}</h2>
         <p class="section-desc">
-          CodeY 处于 0.1.x 活跃开发阶段，暂未发布安装包，请从源码构建。<code>pnpm dev</code>
-          会先构建守护进程 sidecar 和原生运行时，再启动桌面应用。
+          {
+            descParts.map((part) =>
+              part.startsWith('`') && part.endsWith('`') ? (
+                <code>{part.slice(1, -1)}</code>
+              ) : (
+                part
+              ),
+            )
+          }
         </p>
         <div class="req-chips">
           <span>Node.js 24.12</span>
           <span>pnpm 11.7</span>
           <span>Rust 1.96+</span>
-          <span>Tauri 2 系统依赖</span>
+          <span>Tauri 2</span>
         </div>
-        <a class="btn btn-primary" href="/docs/getting-started/">查看完整指南</a>
+        <a class="btn btn-primary" href={docsPath(locale, 'getting-started')}>{t(locale, 'start.cta')}</a>
       </div>
-      <div class="start-terminal" aria-label="构建命令">
+      <div class="start-terminal" aria-label={t(locale, 'start.term')}>
         <div class="term-bar">
           <span class="term-dot"></span>
           <span class="term-dot"></span>
@@ -31,7 +46,7 @@
 <span class="term-prompt">$</span> cd CodeY
 <span class="term-prompt">$</span> pnpm install
 <span class="term-prompt">$</span> pnpm dev
-<span class="term-comment"># 首次启动后：打开项目目录 → 设置 → 模型 → 创建会话</span></code></pre>
+<span class="term-comment">{t(locale, 'start.comment')}</span></code></pre>
       </div>
     </div>
   </div>
@@ -47,7 +62,7 @@
     border-radius: var(--radius-xl);
     padding: 56px;
     background:
-      radial-gradient(ellipse 60% 90% at 100% 0%, rgba(6, 182, 212, 0.08), transparent),
+      radial-gradient(ellipse 60% 90% at 100% 0%, var(--accent-glow), transparent),
       var(--surface);
   }
 
@@ -75,9 +90,9 @@
   .start-terminal {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg);
-    background: #0a0a0d;
+    background: var(--term-bg);
     overflow: hidden;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-window);
   }
 
   .term-bar {
@@ -92,7 +107,8 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--fg-faint);
+    opacity: 0.45;
   }
 
   .term-name {
@@ -108,16 +124,16 @@
     font-size: 0.84rem;
     line-height: 2.1;
     overflow-x: auto;
-    color: var(--fg);
+    color: #e2e8f0;
   }
 
   .term-prompt {
-    color: var(--accent-bright);
+    color: #22d3ee;
     user-select: none;
   }
 
   .term-comment {
-    color: var(--fg-faint);
+    color: #64748b;
   }
 
   @media (max-width: 920px) {

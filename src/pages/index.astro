@@ -7,19 +7,23 @@ import Architecture from '../components/Architecture.astro'
 import SdkSection from '../components/SdkSection.astro'
 import GetStarted from '../components/GetStarted.astro'
 import SiteFooter from '../components/SiteFooter.astro'
+import { t } from '../i18n/utils'
+
+const locale = 'zh-CN' as const
 ---
 
 <LandingLayout
-  title="CodeY — 本地 AI Agent 桌面工作台"
-  description="具备持久化执行、显式权限控制与可复用运行时的本地 AI Agent 桌面工作台。TypeScript、Python、Rust SDK 共用同一套本地运行时。"
+  locale={locale}
+  title={t(locale, 'meta.title')}
+  description={t(locale, 'meta.description')}
 >
-  <SiteNav />
+  <SiteNav locale={locale} />
   <main>
-    <Hero />
-    <Features />
-    <Architecture />
-    <SdkSection />
-    <GetStarted />
+    <Hero locale={locale} />
+    <Features locale={locale} />
+    <Architecture locale={locale} />
+    <SdkSection locale={locale} />
+    <GetStarted locale={locale} />
   </main>
-  <SiteFooter />
+  <SiteFooter locale={locale} />
 </LandingLayout>
