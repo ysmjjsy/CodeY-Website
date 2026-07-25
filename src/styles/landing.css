@@ -84,6 +84,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 88px;
+  overflow-x: clip;
 }
 
 body {
@@ -95,6 +96,15 @@ body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+body.nav-open {
+  overflow: hidden;
+}
+
+html.nav-open {
+  overflow: hidden;
 }
 
 ::selection {
@@ -122,19 +132,20 @@ pre {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding-inline: 24px;
+  padding-inline: clamp(16px, 4vw, 24px);
+  width: 100%;
 }
 
 /* ---------- 通用 section ---------- */
 
 .section {
-  padding-block: 104px;
+  padding-block: clamp(64px, 10vw, 104px);
   position: relative;
 }
 
 .section-head {
   max-width: 640px;
-  margin-bottom: 56px;
+  margin-bottom: clamp(32px, 5vw, 56px);
 }
 
 .section-tag {
@@ -157,15 +168,17 @@ pre {
 }
 
 .section-title {
-  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+  font-size: clamp(1.55rem, 3.4vw, 2.6rem);
   font-weight: 600;
   line-height: 1.25;
+  text-wrap: balance;
 }
 
 .section-desc {
   color: var(--fg-muted);
   margin-top: 16px;
-  font-size: 1.05rem;
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+  text-wrap: pretty;
 }
 
 /* ---------- 按钮 ---------- */
@@ -239,5 +252,15 @@ pre {
   .reveal {
     opacity: 1;
     transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  html {
+    scroll-padding-top: 76px;
+  }
+
+  body {
+    font-size: 15px;
   }
 }

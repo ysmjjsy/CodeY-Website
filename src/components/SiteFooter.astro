@@ -57,14 +57,14 @@ const { locale } = Astro.props
   .site-footer {
     border-top: 1px solid var(--border);
     background: var(--bg-soft);
-    padding-top: 64px;
+    padding-top: clamp(40px, 6vw, 64px);
   }
 
   .footer-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
-    gap: 48px;
-    padding-bottom: 56px;
+    gap: clamp(28px, 4vw, 48px);
+    padding-bottom: clamp(36px, 5vw, 56px);
   }
 
   .footer-logo {
@@ -123,12 +123,20 @@ const { locale } = Astro.props
     .footer-grid {
       grid-template-columns: 1fr 1fr;
     }
+
+    .footer-brand {
+      grid-column: 1 / -1;
+    }
   }
 
   @media (max-width: 520px) {
     .footer-grid {
       grid-template-columns: 1fr;
-      gap: 32px;
+      gap: 28px;
+    }
+
+    .footer-brand {
+      grid-column: auto;
     }
   }
 </style>

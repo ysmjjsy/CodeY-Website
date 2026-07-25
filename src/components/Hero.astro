@@ -174,9 +174,10 @@ const { locale } = Astro.props
   }
 
   .hero-title {
-    font-size: clamp(2.6rem, 5.6vw, 4rem);
+    font-size: clamp(2.1rem, 7vw, 4rem);
     font-weight: 700;
     line-height: 1.14;
+    text-wrap: balance;
   }
 
   .hero-title-accent {
@@ -185,9 +186,10 @@ const { locale } = Astro.props
 
   .hero-sub {
     color: var(--fg-muted);
-    font-size: 1.08rem;
+    font-size: clamp(0.98rem, 2.4vw, 1.08rem);
     max-width: 34em;
     margin: 24px 0 36px;
+    text-wrap: pretty;
   }
 
   .hero-actions {
@@ -521,7 +523,87 @@ const { locale } = Astro.props
 
     .hero-grid {
       grid-template-columns: 1fr;
-      gap: 56px;
+      gap: 48px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      padding-top: 112px;
+      padding-bottom: 64px;
+    }
+
+    .hero-grid {
+      gap: 40px;
+    }
+
+    .hero-badge {
+      max-width: 100%;
+      white-space: normal;
+      line-height: 1.4;
+    }
+
+    .hero-actions .btn {
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+
+    .hero-meta {
+      line-height: 1.6;
+    }
+
+    .win-titlebar {
+      flex-wrap: wrap;
+      gap: 8px;
+      row-gap: 8px;
+    }
+
+    .win-status {
+      margin-left: 0;
+      width: 100%;
+      order: 3;
+    }
+
+    .win-body {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+
+    .win-sidebar {
+      display: none;
+    }
+
+    .win-main {
+      padding: 14px 14px 16px;
+    }
+
+    .task-head {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tl-item-cmd {
+      flex-wrap: wrap;
+    }
+
+    .tl-pass {
+      margin-left: 0;
+    }
+
+    .perm-actions {
+      padding-left: 0;
+    }
+
+    .hero-glow-cyan {
+      width: 280px;
+      height: 280px;
+      top: -80px;
+      right: -100px;
+    }
+
+    .hero-glow-amber {
+      width: 180px;
+      height: 180px;
     }
   }
 </style>

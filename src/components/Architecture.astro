@@ -113,7 +113,7 @@ const { locale } = Astro.props
 
   .node-client {
     flex: 1 1 0;
-    min-width: 150px;
+    min-width: min(150px, 100%);
   }
 
   .node-title {
@@ -197,7 +197,7 @@ const { locale } = Astro.props
     border: 1px dashed var(--border-strong);
     border-radius: 8px;
     padding: 10px 14px;
-    white-space: nowrap;
+    white-space: normal;
   }
 
   .tier-caps {
@@ -243,14 +243,38 @@ const { locale } = Astro.props
   }
 
   @media (max-width: 720px) {
+    .tier-clients {
+      flex-direction: column;
+    }
+
+    .node-client {
+      min-width: 0;
+      width: 100%;
+    }
+
     .node-daemon {
       flex-direction: column;
       gap: 14px;
       text-align: center;
+      width: 100%;
+      padding: 18px 20px;
     }
 
     .daemon-main {
       text-align: center;
+    }
+
+    .tier-caps {
+      gap: 10px;
+    }
+
+    .cap {
+      padding: 8px 14px;
+      font-size: 0.8rem;
+    }
+
+    .arch-notes {
+      margin-top: 36px;
     }
   }
 </style>

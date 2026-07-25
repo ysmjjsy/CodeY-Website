@@ -133,9 +133,10 @@ const { locale } = Astro.props
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg));
-    padding: 26px;
+    padding: clamp(20px, 3vw, 26px);
     display: flex;
     flex-direction: column;
+    min-width: 0;
     transition: border-color 0.25s, background 0.25s, transform 0.25s var(--ease-out);
   }
 
@@ -196,6 +197,8 @@ const { locale } = Astro.props
     background: var(--ghost-bg);
     border: 1px solid var(--border);
     color: var(--fg-muted);
+    min-width: 0;
+    overflow-x: auto;
   }
 
   .log-key {
@@ -236,16 +239,31 @@ const { locale } = Astro.props
   }
 
   @media (max-width: 980px) {
+    .bento {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
     .card,
     .card-lg {
-      grid-column: span 3;
+      grid-column: span 1;
     }
   }
 
   @media (max-width: 640px) {
+    .bento {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
     .card,
     .card-lg {
-      grid-column: span 6;
+      grid-column: auto;
+    }
+
+    @media (hover: none) {
+      .card:hover {
+        transform: none;
+      }
     }
   }
 </style>

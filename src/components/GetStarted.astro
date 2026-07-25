@@ -56,11 +56,11 @@ const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
   .start-panel {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    gap: 56px;
+    gap: clamp(28px, 5vw, 56px);
     align-items: center;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-xl);
-    padding: 56px;
+    padding: clamp(28px, 5vw, 56px);
     background:
       radial-gradient(ellipse 60% 90% at 100% 0%, var(--accent-glow), transparent),
       var(--surface);
@@ -120,10 +120,11 @@ const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
 
   .start-terminal pre {
     margin: 0;
-    padding: 20px 22px;
-    font-size: 0.84rem;
+    padding: clamp(14px, 3vw, 20px) clamp(14px, 3vw, 22px);
+    font-size: clamp(0.72rem, 2.4vw, 0.84rem);
     line-height: 2.1;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     color: #e2e8f0;
   }
 
@@ -139,8 +140,17 @@ const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
   @media (max-width: 920px) {
     .start-panel {
       grid-template-columns: 1fr;
-      padding: 36px 28px;
-      gap: 36px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .start-panel {
+      border-radius: var(--radius-lg);
+    }
+
+    .start-copy .btn {
+      width: 100%;
+      justify-content: center;
     }
   }
 </style>
