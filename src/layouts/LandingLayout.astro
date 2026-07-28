@@ -8,15 +8,17 @@ interface Props {
   title: string
   description: string
   locale: Locale
+  alternateHref?: string
 }
 
-const { title, description, locale } = Astro.props
+const { title, description, locale, alternateHref: explicitAlternateHref } = Astro.props
 const htmlLang = locale === 'en' ? 'en' : 'zh-CN'
 const alternateLocale = locale === 'en' ? 'zh-CN' : 'en'
 const alternateHref =
-  locale === 'en'
+  explicitAlternateHref ??
+  (locale === 'en'
     ? new URL('/', Astro.site ?? Astro.url).pathname
-    : new URL('/en/', Astro.site ?? Astro.url).pathname
+    : new URL('/en/', Astro.site ?? Astro.url).pathname)
 ---
 
 <!doctype html>

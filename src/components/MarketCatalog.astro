@@ -1,0 +1,199 @@
+---
+import type { Locale } from '../i18n/ui'
+import { marketCopy } from '../i18n/market'
+import { marketPath } from '../i18n/utils'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy = marketCopy(locale)
+const apiBase = '/api/market/v1'
+---
+
+<section
+  class="market-catalog"
+  data-market-catalog
+  data-api-base={apiBase}
+  data-detail-base={marketPath(locale, 'item')}
+  data-locale={locale}
+  data-copy={JSON.stringify(copy)}
+>
+  <div class="market-toolbar">
+    <form class="market-search" data-market-search>
+      <label class="sr-only" for="market-query">{copy.searchLabel}</label>
+      <input
+        id="market-query"
+        name="q"
+        type="search"
+        autocomplete="off"
+        placeholder={copy.searchPlaceholder}
+      />
+      <button type="submit">{copy.search}</button>
+    </form>
+    <div class="market-filters" aria-label={copy.searchLabel} data-market-filters>
+      <button class="market-filter" type="button" data-kind="" aria-pressed="true">{copy.all}</button>
+      <button class="market-filter" type="button" data-kind="agent_template" aria-pressed="false">{copy.agentTemplate}</button>
+      <button class="market-filter" type="button" data-kind="team_template" aria-pressed="false">{copy.teamTemplate}</button>
+      <button class="market-filter" type="button" data-kind="skill" aria-pressed="false">{copy.skill}</button>
+      <button class="market-filter" type="button" data-kind="mcp" aria-pressed="false">{copy.mcp}</button>
+    </div>
+  </div>
+
+  <div class="market-grid" data-market-grid aria-live="polite"></div>
+  <div class="market-state" data-market-state>{copy.loading}</div>
+  <div class="market-load-more" hidden data-market-more>
+    <button class="btn btn-ghost" type="button">{copy.loadMore}</button>
+  </div>
+</section>
+
+<style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+
+<script>
+  type Listing = {
+    listingId: string
+    kind: 'agent_template' | 'team_template' | 'skill' | 'mcp'
+    title: string
+    summary: string
+    tags: string[]
+    publisherDisplayName: string
+    downloadCount: number
+    updatedAt: string
+    latestRelease: { version: string }
+  }
+
+  type CatalogResponse = { listings: Listing[]; nextCursor?: string | null }
+
+  const root = document.querySelector<HTMLElement>('[data-market-catalog]')
+  if (root) {
+    const apiBase = root.dataset.apiBase || '/api/market/v1'
+    const detailBase = root.dataset.detailBase || '/market/item/'
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const grid = root.querySelector<HTMLElement>('[data-market-grid]')!
+    const state = root.querySelector<HTMLElement>('[data-market-state]')!
+    const more = root.querySelector<HTMLElement>('[data-market-more]')!
+    const moreButton = more.querySelector<HTMLButtonElement>('button')!
+    const search = root.querySelector<HTMLFormElement>('[data-market-search]')!
+    const queryInput = search.elements.namedItem('q') as HTMLInputElement
+    const filterButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-kind]'))
+    let activeKind = ''
+    let nextCursor: string | null = null
+    let loading = false
+
+    const kindCopy: Record<Listing['kind'], string> = {
+      agent_template: copy.agentTemplate,
+      team_template: copy.teamTemplate,
+      skill: copy.skill,
+      mcp: copy.mcp,
+    }
+    const kindMark: Record<Listing['kind'], string> = {
+      agent_template: 'A',
+      team_template: 'AT',
+      skill: 'S',
+      mcp: 'M',
+    }
+
+    function text(tag: string, value: string, className?: string): HTMLElement {
+      const element = document.createElement(tag)
+      element.textContent = value
+      if (className) element.className = className
+      return element
+    }
+
+    function card(listing: Listing): HTMLAnchorElement {
+      const link = document.createElement('a')
+      link.className = 'market-card'
+      link.href = `${detailBase}?id=${encodeURIComponent(listing.listingId)}`
+
+      const top = document.createElement('div')
+      top.className = 'market-card-top'
+      top.append(text('span', kindMark[listing.kind], 'market-kind-mark'))
+      top.append(text('span', kindCopy[listing.kind], 'market-kind'))
+      link.append(top)
+      link.append(text('h2', listing.title))
+      link.append(text('p', listing.summary, 'market-card-summary'))
+
+      if (listing.tags.length) {
+        const tags = document.createElement('div')
+        tags.className = 'market-tags'
+        listing.tags.slice(0, 4).forEach((tag) => tags.append(text('span', tag, 'market-tag')))
+        link.append(tags)
+      }
+
+      const meta = document.createElement('div')
+      meta.className = 'market-card-meta'
+      const version = `${copy.version} ${listing.latestRelease.version}`
+      const downloads = `${new Intl.NumberFormat(locale).format(listing.downloadCount)} ${copy.downloads}`
+      meta.append(text('span', version), text('span', downloads))
+      link.append(meta)
+      return link
+    }
+
+    async function load(append = false): Promise<void> {
+      if (loading) return
+      loading = true
+      state.hidden = append
+      if (!append) {
+        state.textContent = copy.loading
+        grid.replaceChildren()
+        more.hidden = true
+      }
+      try {
+        const url = new URL(`${apiBase}/listings`, window.location.origin)
+        const query = queryInput.value.trim()
+        if (query) url.searchParams.set('q', query)
+        if (activeKind) url.searchParams.set('kind', activeKind)
+        if (append && nextCursor) url.searchParams.set('cursor', nextCursor)
+        const response = await fetch(url, { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const payload = (await response.json()) as CatalogResponse
+        payload.listings.forEach((listing) => grid.append(card(listing)))
+        nextCursor = payload.nextCursor || null
+        more.hidden = !nextCursor
+        state.hidden = grid.childElementCount > 0
+        if (!grid.childElementCount) state.textContent = copy.empty
+      } catch {
+        if (!append) {
+          state.replaceChildren(text('span', copy.unavailable))
+          const retry = text('button', copy.retry, 'btn btn-ghost') as HTMLButtonElement
+          retry.type = 'button'
+          retry.addEventListener('click', () => void load())
+          state.append(document.createElement('br'), retry)
+          state.hidden = false
+        }
+      } finally {
+        loading = false
+      }
+    }
+
+    search.addEventListener('submit', (event) => {
+      event.preventDefault()
+      nextCursor = null
+      void load()
+    })
+    filterButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        activeKind = button.dataset.kind || ''
+        filterButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)))
+        nextCursor = null
+        void load()
+      })
+    })
+    moreButton.addEventListener('click', () => void load(true))
+    void load()
+  }
+</script>

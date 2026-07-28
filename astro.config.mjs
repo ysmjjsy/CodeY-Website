@@ -3,6 +3,15 @@ import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 
 export default defineConfig({
+  vite: {
+    server: {
+      proxy: {
+        '/api/market/v1': process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
+        '/.well-known/codey-market.json':
+          process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
+      },
+    },
+  },
   integrations: [
     starlight({
       title: 'CodeY',

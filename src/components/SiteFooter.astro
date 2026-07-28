@@ -2,7 +2,7 @@
 import { Image } from 'astro:assets'
 import logo from '../assets/logo.png'
 import type { Locale } from '../i18n/ui'
-import { docsPath, homePath, t } from '../i18n/utils'
+import { docsPath, homePath, marketPath, t } from '../i18n/utils'
 
 interface Props {
   locale: Locale
@@ -38,6 +38,11 @@ const { locale } = Astro.props
         rel="noopener">{t(locale, 'footer.community.coc')}</a
       >
     </nav>
+    <nav class="footer-col" aria-label={t(locale, 'footer.market')}>
+      <h4>{t(locale, 'footer.market')}</h4>
+      <a href={marketPath(locale)}>{t(locale, 'footer.market.browse')}</a>
+      <a href={`${marketPath(locale)}?upload=1`}>{t(locale, 'footer.market.upload')}</a>
+    </nav>
     <nav class="footer-col" aria-label={t(locale, 'footer.more')}>
       <h4>{t(locale, 'footer.more')}</h4>
       <a href={docsPath(locale, 'support')}>{t(locale, 'footer.more.support')}</a>
@@ -62,7 +67,7 @@ const { locale } = Astro.props
 
   .footer-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
     gap: clamp(28px, 4vw, 48px);
     padding-bottom: clamp(36px, 5vw, 56px);
   }

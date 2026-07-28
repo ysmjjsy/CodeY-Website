@@ -1,0 +1,31 @@
+---
+import MarketCatalog from '../../../components/MarketCatalog.astro'
+import MarketUpload from '../../../components/MarketUpload.astro'
+import { marketCopy } from '../../../i18n/market'
+import MarketLayout from '../../../layouts/MarketLayout.astro'
+
+const locale = 'en' as const
+const copy = marketCopy(locale)
+---
+
+<MarketLayout
+  title={copy.metaTitle}
+  description={copy.metaDescription}
+  locale={locale}
+  alternateHref="/market/"
+>
+  <header class="market-hero">
+    <div class="container market-hero-row">
+      <div class="market-hero-copy">
+        <p class="market-eyebrow">{copy.eyebrow}</p>
+        <h1 class="market-title">{copy.title}</h1>
+        <p class="market-lead">{copy.description}</p>
+      </div>
+      <button class="btn btn-primary" type="button" hidden data-authenticated-only data-market-upload-open>{copy.upload}</button>
+    </div>
+  </header>
+  <div class="container market-content">
+    <MarketCatalog locale={locale} />
+  </div>
+  <MarketUpload locale={locale} />
+</MarketLayout>

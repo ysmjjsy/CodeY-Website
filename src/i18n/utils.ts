@@ -23,6 +23,13 @@ export function docsPath(locale: Locale, slug: string): string {
   return `${docsBase(locale)}/${clean}/`
 }
 
+/** Marketplace path for a locale (zh-CN is unprefixed). */
+export function marketPath(locale: Locale, slug = ''): string {
+  const base = locale === 'en' ? '/en/market' : '/market'
+  const clean = slug.replace(/^\/+|\/+$/g, '')
+  return clean ? `${base}/${clean}/` : `${base}/`
+}
+
 /** Counterpart landing path when switching language. */
 export function switchLocalePath(locale: Locale): string {
   return locale === 'en' ? '/' : '/en/'

@@ -4,11 +4,12 @@ import { switchLocalePath, t } from '../i18n/utils'
 
 interface Props {
   locale: Locale
+  href?: string
 }
 
-const { locale } = Astro.props
+const { locale, href: explicitHref } = Astro.props
 const other: Locale = locale === 'en' ? 'zh-CN' : 'en'
-const href = switchLocalePath(locale)
+const href = explicitHref ?? switchLocalePath(locale)
 const label = other === 'en' ? t(locale, 'nav.lang.en') : t(locale, 'nav.lang.zh')
 const hreflang = other === 'en' ? 'en' : 'zh-CN'
 ---

@@ -1,0 +1,414 @@
+---
+import type { Locale } from '../i18n/ui'
+import { dashboardCopy } from '../i18n/dashboard'
+import { marketPath } from '../i18n/utils'
+import MarketUpload from './MarketUpload.astro'
+
+interface Props {
+  locale: Locale
+  initialSection?: 'templates' | 'review'
+}
+
+const { locale, initialSection = 'templates' } = Astro.props
+const copy = dashboardCopy(locale)
+---
+
+<section
+  class="dashboard-shell"
+  data-market-dashboard
+  data-copy={JSON.stringify(copy)}
+  data-locale={locale}
+  data-initial-section={initialSection}
+  data-detail-base={marketPath(locale, 'item')}
+>
+  <aside class="dashboard-sidebar">
+    <div class="dashboard-brand">
+      <span class="dashboard-brand-mark">C</span>
+      <div>
+        <strong>{copy.console}</strong>
+        <span data-dashboard-role>{copy.roleUser}</span>
+      </div>
+    </div>
+    <nav aria-label={copy.console}>
+      <button type="button" data-section-target="templates" aria-pressed="true">
+        <span class="dashboard-nav-mark">M</span>
+        {copy.overview}
+      </button>
+      <button type="button" hidden data-admin-only data-section-target="review" aria-pressed="false">
+        <span class="dashboard-nav-mark">R</span>
+        {copy.review}
+        <span class="dashboard-nav-count" hidden data-review-count></span>
+      </button>
+    </nav>
+    <a class="dashboard-market-link" href={marketPath(locale)}>{copy.marketplace}</a>
+  </aside>
+
+  <div class="dashboard-main">
+    <header class="dashboard-header">
+      <div>
+        <h1 data-dashboard-title>{copy.title}</h1>
+        <p data-dashboard-description>{copy.description}</p>
+      </div>
+      <button class="btn btn-primary" type="button" hidden data-authenticated-only data-market-upload-open>{copy.upload}</button>
+    </header>
+
+    <div class="dashboard-access" data-dashboard-access>{copy.loading}</div>
+
+    <section class="dashboard-section" hidden data-dashboard-section="templates">
+      <div class="dashboard-stats" aria-label={copy.status}>
+        <article><span>{copy.total}</span><strong data-stat="total">0</strong></article>
+        <article><span>{copy.pending}</span><strong data-stat="pending">0</strong></article>
+        <article><span>{copy.approved}</span><strong data-stat="approved">0</strong></article>
+        <article><span>{copy.rejected}</span><strong data-stat="rejected">0</strong></article>
+      </div>
+      <div class="dashboard-panel">
+        <div class="dashboard-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{copy.name}</th>
+                <th>{copy.packageVersion}</th>
+                <th>{copy.status}</th>
+                <th>{copy.submittedAt}</th>
+                <th>{copy.reviewNote}</th>
+                <th>{copy.actions}</th>
+              </tr>
+            </thead>
+            <tbody data-template-rows></tbody>
+          </table>
+        </div>
+        <div class="dashboard-empty" hidden data-template-state></div>
+      </div>
+    </section>
+
+    <section class="dashboard-section" hidden data-dashboard-section="review">
+      <div class="dashboard-review-list" data-review-list></div>
+      <div class="dashboard-empty" data-review-state>{copy.reviewLoading}</div>
+    </section>
+  </div>
+</section>
+
+<MarketUpload locale={locale} />
+
+<script>
+  import { localizedApiError } from '../i18n/api-errors'
+
+  type User = {
+    userId: string
+    username: string
+    displayName: string
+    role: 'user' | 'admin'
+  }
+  type AuthResponse = { user?: User | null }
+  type SubmissionStatus = 'pending' | 'approved' | 'rejected'
+  type Submission = {
+    submissionId: string
+    owner: { displayName: string; username: string }
+    preview: { packageId: string; version: string; requestedPermissions: string[] }
+    request: { title: string; summary: string }
+    status: SubmissionStatus
+    reviewNote?: string | null
+    submittedAt: string
+    reviewedAt?: string | null
+    release?: { listingId: string } | null
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-market-dashboard]')
+  if (root) {
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const detailBase = root.dataset.detailBase || '/market/item/'
+    const access = root.querySelector<HTMLElement>('[data-dashboard-access]')!
+    const title = root.querySelector<HTMLElement>('[data-dashboard-title]')!
+    const description = root.querySelector<HTMLElement>('[data-dashboard-description]')!
+    const role = root.querySelector<HTMLElement>('[data-dashboard-role]')!
+    const templateRows = root.querySelector<HTMLTableSectionElement>('[data-template-rows]')!
+    const templateState = root.querySelector<HTMLElement>('[data-template-state]')!
+    const reviewList = root.querySelector<HTMLElement>('[data-review-list]')!
+    const reviewState = root.querySelector<HTMLElement>('[data-review-state]')!
+    const reviewCount = root.querySelector<HTMLElement>('[data-review-count]')!
+    const sectionButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-section-target]'))
+    const sections = Array.from(root.querySelectorAll<HTMLElement>('[data-dashboard-section]'))
+    let currentUser: User | null = null
+    let currentSection: 'templates' | 'review' = root.dataset.initialSection === 'review' ? 'review' : 'templates'
+    let submissionsLoaded = false
+    let reviewLoaded = false
+
+    function text(tag: string, value: string, className?: string): HTMLElement {
+      const element = document.createElement(tag)
+      element.textContent = value
+      if (className) element.className = className
+      return element
+    }
+
+    function formatDate(value: string): string {
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    }
+
+    function statusLabel(status: SubmissionStatus): string {
+      return copy[status]
+    }
+
+    async function errorMessage(response: Response): Promise<string> {
+      return localizedApiError(response, locale, copy.loadError)
+    }
+
+    function showSection(section: 'templates' | 'review'): void {
+      currentSection = section
+      sectionButtons.forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.sectionTarget === section))
+      })
+      sections.forEach((panel) => {
+        panel.hidden = panel.dataset.dashboardSection !== section
+      })
+      const reviewing = section === 'review'
+      title.textContent = reviewing ? copy.reviewTitle : copy.title
+      description.textContent = reviewing ? copy.reviewDescription : copy.description
+      if (!currentUser) return
+      if (reviewing) {
+        if (currentUser.role === 'admin') void loadReviewQueue()
+      } else {
+        void loadSubmissions()
+      }
+    }
+
+    function renderStats(submissions: Submission[]): void {
+      const counts: Record<'total' | SubmissionStatus, number> = {
+        total: submissions.length,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+      }
+      submissions.forEach((submission) => counts[submission.status] += 1)
+      Object.entries(counts).forEach(([name, count]) => {
+        const value = root.querySelector<HTMLElement>(`[data-stat="${name}"]`)
+        if (value) value.textContent = String(count)
+      })
+    }
+
+    function renderSubmissionRow(submission: Submission): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      const name = document.createElement('td')
+      name.append(text('strong', submission.request.title), text('span', submission.request.summary))
+      const packageVersion = text('td', `${submission.preview.packageId} · ${submission.preview.version}`)
+      packageVersion.className = 'dashboard-mono'
+      const status = document.createElement('td')
+      status.append(text('span', statusLabel(submission.status), `dashboard-status is-${submission.status}`))
+      const submitted = text('td', formatDate(submission.submittedAt))
+      const note = text('td', submission.reviewNote || copy.noReviewNote)
+      const actions = document.createElement('td')
+      if (submission.status === 'approved' && submission.release?.listingId) {
+        const link = text('a', copy.view, 'dashboard-row-action') as HTMLAnchorElement
+        link.href = `${detailBase}?id=${encodeURIComponent(submission.release.listingId)}`
+        actions.append(link)
+      } else {
+        actions.textContent = copy.noReviewNote
+      }
+      row.append(name, packageVersion, status, submitted, note, actions)
+      return row
+    }
+
+    async function loadSubmissions(force = false): Promise<void> {
+      if (!currentUser || (submissionsLoaded && !force)) return
+      templateState.hidden = false
+      templateState.textContent = copy.loading
+      templateRows.replaceChildren()
+      try {
+        const response = await fetch('/api/market/v1/submissions/mine', { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error(await errorMessage(response))
+        const submissions = (await response.json()) as Submission[]
+        renderStats(submissions)
+        submissions.forEach((submission) => templateRows.append(renderSubmissionRow(submission)))
+        templateState.textContent = copy.empty
+        templateState.hidden = submissions.length > 0
+        submissionsLoaded = true
+      } catch {
+        templateState.textContent = copy.loadError
+      }
+    }
+
+    function reviewCard(submission: Submission): HTMLElement {
+      const card = document.createElement('article')
+      card.className = 'dashboard-review-card'
+      const head = document.createElement('header')
+      const heading = document.createElement('div')
+      heading.append(text('h2', submission.request.title), text('p', submission.request.summary))
+      head.append(heading, text('span', copy.pending, 'dashboard-status is-pending'))
+
+      const meta = document.createElement('dl')
+      const fields = [
+        [copy.uploader, `${submission.owner.displayName} (@${submission.owner.username})`],
+        [copy.packageVersion, `${submission.preview.packageId} · ${submission.preview.version}`],
+        [copy.submittedAt, formatDate(submission.submittedAt)],
+        [copy.permissions, submission.preview.requestedPermissions.join(', ') || copy.noPermissions],
+      ]
+      fields.forEach(([label, value]) => {
+        const item = document.createElement('div')
+        item.append(text('dt', label), text('dd', value))
+        meta.append(item)
+      })
+
+      const note = document.createElement('textarea')
+      note.placeholder = copy.decisionNote
+      note.maxLength = 1000
+      note.setAttribute('aria-label', copy.decisionNote)
+      const actions = document.createElement('div')
+      actions.className = 'dashboard-review-actions'
+      const approve = text('button', copy.approve, 'btn btn-primary') as HTMLButtonElement
+      const reject = text('button', copy.reject, 'btn btn-ghost') as HTMLButtonElement
+      approve.type = 'button'
+      reject.type = 'button'
+      actions.append(approve, reject)
+      const message = text('p', '', 'dashboard-review-error')
+      message.hidden = true
+      card.append(head, meta, note, actions, message)
+
+      async function decide(decision: 'approve' | 'reject', button: HTMLButtonElement): Promise<void> {
+        approve.disabled = true
+        reject.disabled = true
+        button.textContent = decision === 'approve' ? copy.approving : copy.rejecting
+        message.hidden = true
+        try {
+          const response = await fetch(`/api/market/v1/admin/submissions/${encodeURIComponent(submission.submissionId)}/${decision}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ note: note.value.trim() || null }),
+          })
+          if (!response.ok) throw new Error(await errorMessage(response))
+          card.remove()
+          submissionsLoaded = false
+          const remaining = reviewList.childElementCount
+          reviewCount.textContent = String(remaining)
+          reviewCount.hidden = remaining === 0
+          reviewState.hidden = remaining > 0
+          reviewState.textContent = copy.reviewEmpty
+        } catch (reason) {
+          message.textContent = reason instanceof Error ? reason.message : copy.reviewLoadError
+          message.hidden = false
+          approve.disabled = false
+          reject.disabled = false
+          approve.textContent = copy.approve
+          reject.textContent = copy.reject
+        }
+      }
+
+      approve.addEventListener('click', () => void decide('approve', approve))
+      reject.addEventListener('click', () => void decide('reject', reject))
+      return card
+    }
+
+    async function loadReviewQueue(force = false): Promise<void> {
+      if (!currentUser || currentUser.role !== 'admin' || (reviewLoaded && !force)) return
+      reviewState.hidden = false
+      reviewState.textContent = copy.reviewLoading
+      reviewList.replaceChildren()
+      try {
+        const response = await fetch('/api/market/v1/admin/submissions', { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error(await errorMessage(response))
+        const submissions = (await response.json()) as Submission[]
+        submissions.forEach((submission) => reviewList.append(reviewCard(submission)))
+        reviewState.textContent = copy.reviewEmpty
+        reviewState.hidden = submissions.length > 0
+        reviewCount.textContent = String(submissions.length)
+        reviewCount.hidden = submissions.length === 0
+        reviewLoaded = true
+      } catch {
+        reviewState.textContent = copy.reviewLoadError
+      }
+    }
+
+    function applyUser(user: User | null | undefined): void {
+      currentUser = user || null
+      access.hidden = Boolean(currentUser)
+      root.querySelectorAll<HTMLElement>('[data-admin-only]').forEach((element) => {
+        element.hidden = currentUser?.role !== 'admin'
+      })
+      if (!currentUser) {
+        access.textContent = copy.signInRequired
+        window.dispatchEvent(new CustomEvent('market-auth-required'))
+        return
+      }
+      role.textContent = currentUser.role === 'admin' ? copy.roleAdmin : copy.roleUser
+      if (currentSection === 'review' && currentUser.role !== 'admin') {
+        reviewState.textContent = copy.adminRequired
+        reviewState.hidden = false
+      }
+      showSection(currentSection)
+    }
+
+    sectionButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const section = button.dataset.sectionTarget
+        if (section === 'templates' || (section === 'review' && currentUser?.role === 'admin')) showSection(section)
+      })
+    })
+    window.addEventListener('market-auth-changed', ((event: CustomEvent<AuthResponse>) => applyUser(event.detail.user)) as EventListener)
+    window.addEventListener('market-submission-created', () => {
+      submissionsLoaded = false
+      if (currentSection === 'templates') void loadSubmissions(true)
+    })
+    fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
+      .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : Promise.reject())
+      .then((payload) => applyUser(payload.user))
+      .catch(() => {
+        access.textContent = copy.loadError
+      })
+  }
+</script>
+
+<style>
+  .dashboard-shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: calc(100vh - 68px); background: var(--bg); }
+  .dashboard-sidebar { position: sticky; top: 68px; display: flex; flex-direction: column; height: calc(100vh - 68px); padding: 24px 18px; border-right: 1px solid var(--border); background: var(--panel-glass); }
+  .dashboard-brand { display: flex; align-items: center; gap: 11px; padding: 0 9px 24px; border-bottom: 1px solid var(--border); }
+  .dashboard-brand-mark { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border-radius: 10px; color: var(--btn-primary-fg); background: var(--accent); font: 700 0.88rem var(--font-mono); }
+  .dashboard-brand div { display: grid; min-width: 0; gap: 3px; }
+  .dashboard-brand strong { overflow: hidden; font-size: 0.86rem; text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-brand span:last-child { color: var(--fg-faint); font-size: 0.72rem; }
+  .dashboard-sidebar nav { display: grid; gap: 6px; padding-top: 22px; }
+  .dashboard-sidebar nav button { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; color: var(--fg-muted); background: transparent; font: 500 0.84rem var(--font-body); text-align: left; cursor: pointer; }
+  .dashboard-sidebar nav button:hover, .dashboard-sidebar nav button[aria-pressed='true'] { color: var(--fg); background: var(--accent-soft); }
+  .dashboard-nav-mark { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid var(--border); border-radius: 7px; font: 600 0.67rem var(--font-mono); }
+  .dashboard-nav-count { min-width: 20px; padding: 2px 6px; border-radius: 999px; color: var(--accent-bright); background: var(--accent-soft); font: 0.68rem var(--font-mono); text-align: center; }
+  .dashboard-market-link { margin-top: auto; padding: 10px; color: var(--fg-faint); font-size: 0.8rem; }
+  .dashboard-market-link:hover { color: var(--fg); }
+  .dashboard-main { min-width: 0; padding: clamp(28px, 4vw, 52px); }
+  .dashboard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+  .dashboard-header h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.035em; }
+  .dashboard-header p { margin: 9px 0 0; color: var(--fg-muted); font-size: 0.9rem; }
+  .dashboard-access, .dashboard-empty { padding: 56px 24px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); color: var(--fg-muted); background: var(--panel-glass); text-align: center; }
+  .dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .dashboard-stats article { display: grid; gap: 12px; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-glass); }
+  .dashboard-stats span { color: var(--fg-faint); font-size: 0.76rem; }
+  .dashboard-stats strong { font: 600 1.7rem var(--font-display); }
+  .dashboard-panel { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
+  .dashboard-table-wrap { overflow-x: auto; }
+  .dashboard-panel table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .dashboard-panel th { padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--fg-faint); background: var(--chip-bg); font-weight: 500; text-align: left; white-space: nowrap; }
+  .dashboard-panel td { max-width: 260px; padding: 16px; border-bottom: 1px solid var(--border); color: var(--fg-muted); vertical-align: middle; }
+  .dashboard-panel tbody tr:last-child td { border-bottom: 0; }
+  .dashboard-panel td strong, .dashboard-panel td span { display: block; }
+  .dashboard-panel td strong { margin-bottom: 4px; color: var(--fg); font-size: 0.84rem; }
+  .dashboard-panel td span:not(.dashboard-status) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-mono { font-family: var(--font-mono); font-size: 0.72rem; overflow-wrap: anywhere; }
+  .dashboard-status { display: inline-block !important; padding: 5px 8px; border: 1px solid var(--border); border-radius: 999px; font: 0.68rem var(--font-mono); white-space: nowrap; }
+  .dashboard-status.is-pending { color: var(--accent-bright); background: var(--accent-soft); }
+  .dashboard-status.is-approved { color: var(--success); background: color-mix(in srgb, var(--success) 9%, transparent); }
+  .dashboard-status.is-rejected { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+  .dashboard-row-action { color: var(--accent-bright); font-weight: 500; }
+  .dashboard-panel .dashboard-empty { border: 0; border-radius: 0; }
+  .dashboard-review-list { display: grid; gap: 16px; }
+  .dashboard-review-card { padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
+  .dashboard-review-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+  .dashboard-review-card h2 { font-size: 1.1rem; }
+  .dashboard-review-card header p { margin: 7px 0 0; color: var(--fg-muted); font-size: 0.84rem; }
+  .dashboard-review-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 22px 0; padding: 18px; border-radius: var(--radius-md); background: var(--chip-bg); }
+  .dashboard-review-card dl div { display: grid; gap: 4px; }
+  .dashboard-review-card dt { color: var(--fg-faint); font-size: 0.7rem; }
+  .dashboard-review-card dd { margin: 0; color: var(--fg-muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+  .dashboard-review-card textarea { width: 100%; min-height: 82px; padding: 11px 12px; resize: vertical; }
+  .dashboard-review-actions { display: flex; gap: 10px; margin-top: 13px; }
+  .dashboard-review-error { margin: 12px 0 0; color: var(--danger); font-size: 0.8rem; }
+  [hidden] { display: none !important; }
+  @media (max-width: 900px) { .dashboard-shell { grid-template-columns: 1fr; } .dashboard-sidebar { position: static; display: block; height: auto; padding: 14px 18px; border-right: 0; border-bottom: 1px solid var(--border); } .dashboard-brand { display: none; } .dashboard-sidebar nav { display: flex; padding: 0; } .dashboard-sidebar nav button { width: auto; } .dashboard-market-link { display: inline-block; margin-top: 8px; } .dashboard-main { padding: 28px 18px 56px; } }
+  @media (max-width: 700px) { .dashboard-header { align-items: stretch; flex-direction: column; } .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboard-review-card dl { grid-template-columns: 1fr; } }
+</style>

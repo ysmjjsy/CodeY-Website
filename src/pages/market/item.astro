@@ -1,0 +1,17 @@
+---
+import MarketDetail from '../../components/MarketDetail.astro'
+import { marketCopy } from '../../i18n/market'
+import MarketLayout from '../../layouts/MarketLayout.astro'
+
+const locale = 'zh-CN' as const
+const copy = marketCopy(locale)
+---
+
+<MarketLayout
+  title={copy.detailMetaTitle}
+  description={copy.detailDescription}
+  locale={locale}
+  alternateHref="/en/market/item/"
+>
+  <MarketDetail locale={locale} />
+</MarketLayout>

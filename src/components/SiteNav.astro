@@ -2,15 +2,18 @@
 import { Image } from 'astro:assets'
 import logo from '../assets/logo.png'
 import type { Locale } from '../i18n/ui'
-import { docsPath, homePath, t } from '../i18n/utils'
+import { docsPath, homePath, marketPath, t } from '../i18n/utils'
 import ThemeToggle from './ThemeToggle.astro'
 import LangToggle from './LangToggle.astro'
+import AccountMenu from './AccountMenu.astro'
 
 interface Props {
   locale: Locale
+  alternateHref?: string
 }
 
-const { locale } = Astro.props
+const { locale, alternateHref } = Astro.props
+const home = homePath(locale)
 ---
 
 <header class="site-nav" id="site-nav">
@@ -21,18 +24,17 @@ const { locale } = Astro.props
     </a>
 
     <nav class="nav-links" id="nav-menu" aria-label={t(locale, 'nav.aria')}>
-      <a href="#features">{t(locale, 'nav.features')}</a>
-      <a href="#architecture">{t(locale, 'nav.architecture')}</a>
-      <a href="#sdk">{t(locale, 'nav.sdk')}</a>
+      <a href={`${home}#features`}>{t(locale, 'nav.features')}</a>
+      <a href={`${home}#architecture`}>{t(locale, 'nav.architecture')}</a>
+      <a href={`${home}#sdk`}>{t(locale, 'nav.sdk')}</a>
+      <a href={marketPath(locale)}>{t(locale, 'nav.market')}</a>
       <a href={docsPath(locale, 'intro')}>{t(locale, 'nav.docs')}</a>
-      <a class="btn btn-primary nav-cta-mobile" href={docsPath(locale, 'getting-started')}>
-        {t(locale, 'nav.cta')}
-      </a>
     </nav>
 
     <div class="nav-actions">
-      <LangToggle locale={locale} />
+      <LangToggle locale={locale} href={alternateHref} />
       <ThemeToggle locale={locale} />
+      <AccountMenu locale={locale} />
       <a
         class="nav-github"
         href="https://github.com/ysmjjsy/CodeY"
@@ -46,7 +48,7 @@ const { locale } = Astro.props
           ></path>
         </svg>
       </a>
-      <a class="btn btn-primary nav-cta" href={docsPath(locale, 'getting-started')}>
+      <a id="nav-cta" class="btn btn-primary nav-cta" href={docsPath(locale, 'getting-started')}>
         {t(locale, 'nav.cta')}
       </a>
       <button
@@ -120,10 +122,6 @@ const { locale } = Astro.props
     color: var(--fg);
   }
 
-  .nav-cta-mobile {
-    display: none;
-  }
-
   .nav-actions {
     display: flex;
     align-items: center;
@@ -142,9 +140,20 @@ const { locale } = Astro.props
     color: var(--fg);
   }
 
-  .nav-cta {
-    padding: 8px 18px;
-    font-size: 0.88rem;
+  .nav-actions .nav-cta {
+    min-height: 34px;
+    margin-left: 2px;
+    padding: 6px 13px;
+    border-radius: 9px;
+    color: var(--btn-primary-fg);
+    font-size: 0.8rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .nav-actions .nav-cta:hover,
+  .nav-links .nav-cta:hover {
+    color: var(--btn-primary-fg);
   }
 
   .nav-toggle {
@@ -229,10 +238,6 @@ const { locale } = Astro.props
       display: inline-flex;
     }
 
-    .nav-cta {
-      display: none;
-    }
-
     .nav-links {
       position: fixed;
       top: 68px;
@@ -272,12 +277,13 @@ const { locale } = Astro.props
       border-top: 1px solid var(--border);
     }
 
-    .nav-cta-mobile {
+    .nav-links .nav-cta {
       display: inline-flex;
       margin: 16px clamp(16px, 4vw, 24px) 4px;
       justify-content: center;
       border-top: none !important;
       padding: 12px 24px !important;
+      font-size: 0.92rem;
     }
 
     .nav-backdrop {
@@ -334,6 +340,8 @@ const { locale } = Astro.props
   const toggle = document.getElementById('nav-toggle')
   const backdrop = document.getElementById('nav-backdrop')
   const menu = document.getElementById('nav-menu')
+  const actions = nav?.querySelector('.nav-actions')
+  const cta = document.getElementById('nav-cta')
   const page = document.querySelector('main')
   const footer = document.querySelector('.site-footer')
 
@@ -388,6 +396,17 @@ const { locale } = Astro.props
   onScroll()
   window.addEventListener('scroll', onScroll, { passive: true })
 
+  const media = window.matchMedia('(max-width: 960px)')
+  const onBreakpoint = () => {
+    if (cta && menu && actions) {
+      if (media.matches) menu.append(cta)
+      else actions.insertBefore(cta, toggle)
+    }
+    if (!media.matches) setOpen(false)
+  }
+  onBreakpoint()
+  media.addEventListener('change', onBreakpoint)
+
   toggle?.addEventListener('click', () => {
     setOpen(!nav?.classList.contains('is-open'))
   })
@@ -402,9 +421,4 @@ const { locale } = Astro.props
     if (event.key === 'Escape') setOpen(false)
   })
 
-  const media = window.matchMedia('(max-width: 960px)')
-  const onBreakpoint = () => {
-    if (!media.matches) setOpen(false)
-  }
-  media.addEventListener('change', onBreakpoint)
 </script>

@@ -4,9 +4,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview"
+    "dev": "node scripts/run-site.mjs dev",
+    "dev:web": "astro dev",
+    "build": "node scripts/build-site.mjs",
+    "build:web": "astro build",
+    "build:market": "node scripts/build-site.mjs market",
+    "start": "node scripts/run-site.mjs start",
+    "preview": "node scripts/run-site.mjs start"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",

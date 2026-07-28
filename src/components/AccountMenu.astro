@@ -1,0 +1,317 @@
+---
+import type { Locale } from '../i18n/ui'
+import { authCopy } from '../i18n/auth'
+import { marketPath } from '../i18n/utils'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy = authCopy(locale)
+---
+
+<div class="account-menu" data-account-menu data-copy={JSON.stringify(copy)} data-locale={locale}>
+  <button class="account-sign-in" type="button" data-auth-open>{copy.signIn}</button>
+  <details class="account-profile" hidden data-account-profile>
+    <summary>
+      <span class="account-avatar" data-account-avatar></span>
+      <span data-account-name></span>
+    </summary>
+    <div class="account-popover">
+      <a href={marketPath(locale, 'dashboard')}>{copy.dashboard}</a>
+      <a href={marketPath(locale, 'admin')} hidden data-admin-link>{copy.admin}</a>
+      <button type="button" data-auth-logout>{copy.logout}</button>
+    </div>
+  </details>
+
+  <dialog class="auth-dialog" data-auth-dialog aria-labelledby="auth-dialog-title">
+    <div class="auth-dialog-card">
+      <button class="auth-close" type="button" data-auth-close aria-label={copy.close}>×</button>
+
+      <section data-auth-login>
+        <header class="auth-head">
+          <span class="auth-brand-mark" aria-hidden="true">C</span>
+          <h2 id="auth-dialog-title">{copy.loginTitle}</h2>
+          <p>{copy.loginDescription}</p>
+        </header>
+        <form class="auth-form" data-login-form>
+          <label>
+            <span>{copy.identifier}</span>
+            <input name="identifier" autocomplete="username" required maxlength="254" placeholder={copy.identifierPlaceholder} />
+          </label>
+          <label>
+            <span>{copy.password}</span>
+            <span class="auth-password-field">
+              <input name="password" type="password" autocomplete="current-password" required maxlength="128" placeholder={copy.passwordPlaceholder} />
+              <button type="button" data-password-toggle aria-label={copy.showPassword} data-label-show={copy.showPassword} data-label-hide={copy.hidePassword}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                  <circle cx="12" cy="12" r="2.7"></circle>
+                </svg>
+              </button>
+            </span>
+          </label>
+          <button class="btn btn-primary" type="submit" data-login-submit>{copy.loginSubmit}</button>
+          <p class="auth-error" hidden data-login-error></p>
+        </form>
+        <div data-auth-providers>
+          <div class="auth-divider"><span>{copy.divider}</span></div>
+          <div class="auth-providers">
+            <a class="auth-provider" href="/api/market/v1/auth/github" data-github-login aria-label={copy.github} title={copy.github}>
+              <span>
+                <svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor" aria-hidden="true">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path>
+                </svg>
+              </span>
+              <small>GitHub</small>
+            </a>
+          </div>
+        </div>
+        <p class="auth-switch">{copy.noAccount} <button type="button" data-show-register>{copy.registerAction}</button></p>
+      </section>
+
+      <section hidden data-auth-register>
+        <header class="auth-head">
+          <span class="auth-brand-mark" aria-hidden="true">C</span>
+          <h2>{copy.registerTitle}</h2>
+          <p>{copy.registerDescription}</p>
+        </header>
+        <form class="auth-form" data-register-form>
+          <label><span>{copy.username}</span><input name="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" /></label>
+          <label><span>{copy.email}</span><input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
+          <label><span>{copy.displayName}</span><input name="displayName" autocomplete="name" required maxlength="80" /></label>
+          <label><span>{copy.password}</span><input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" /><small>{copy.passwordHint}</small></label>
+          <button class="btn btn-primary" type="submit" data-register-submit>{copy.registerSubmit}</button>
+          <p class="auth-error" hidden data-register-error></p>
+        </form>
+        <p class="auth-switch">{copy.hasAccount} <button type="button" data-show-login>{copy.loginAction}</button></p>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog class="logout-dialog" data-logout-dialog aria-labelledby="logout-dialog-title">
+    <div class="logout-dialog-card">
+      <span class="logout-dialog-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M10 5H6.5A2.5 2.5 0 0 0 4 7.5v9A2.5 2.5 0 0 0 6.5 19H10"></path>
+          <path d="m15 8 4 4-4 4M19 12H9"></path>
+        </svg>
+      </span>
+      <h2 id="logout-dialog-title">{copy.logoutTitle}</h2>
+      <p>{copy.logoutDescription}</p>
+      <p class="logout-dialog-error" hidden data-logout-error></p>
+      <div class="logout-dialog-actions">
+        <button class="btn btn-ghost" type="button" data-logout-cancel>{copy.logoutCancel}</button>
+        <button class="btn btn-primary" type="button" data-logout-confirm>{copy.logoutConfirm}</button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<script>
+  import { localizedApiError } from '../i18n/api-errors'
+
+  type User = {
+    userId: string
+    username: string
+    displayName: string
+    avatarUrl?: string | null
+    role: 'user' | 'admin'
+  }
+  type AuthResponse = { user?: User | null; githubEnabled: boolean }
+
+  const root = document.querySelector<HTMLElement>('[data-account-menu]')
+  if (root) {
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const dialog = root.querySelector<HTMLDialogElement>('[data-auth-dialog]')!
+    const signIn = root.querySelector<HTMLButtonElement>('[data-auth-open]')!
+    const profile = root.querySelector<HTMLDetailsElement>('[data-account-profile]')!
+    const accountName = root.querySelector<HTMLElement>('[data-account-name]')!
+    const avatar = root.querySelector<HTMLElement>('[data-account-avatar]')!
+    const adminLink = root.querySelector<HTMLElement>('[data-admin-link]')!
+    const loginSection = root.querySelector<HTMLElement>('[data-auth-login]')!
+    const registerSection = root.querySelector<HTMLElement>('[data-auth-register]')!
+    const loginForm = root.querySelector<HTMLFormElement>('[data-login-form]')!
+    const registerForm = root.querySelector<HTMLFormElement>('[data-register-form]')!
+    const logoutDialog = root.querySelector<HTMLDialogElement>('[data-logout-dialog]')!
+    const logoutConfirm = root.querySelector<HTMLButtonElement>('[data-logout-confirm]')!
+    const logoutError = root.querySelector<HTMLElement>('[data-logout-error]')!
+
+    function setMode(mode: 'login' | 'register'): void {
+      loginSection.hidden = mode !== 'login'
+      registerSection.hidden = mode !== 'register'
+    }
+
+    function openAuth(): void {
+      setMode('login')
+      if (!dialog.open) dialog.showModal()
+    }
+
+    function updateAuth(payload: AuthResponse): void {
+      const user = payload.user || null
+      document.documentElement.dataset.marketAuth = user ? 'authenticated' : 'anonymous'
+      document.querySelectorAll<HTMLElement>('[data-authenticated-only]').forEach((element) => {
+        element.hidden = !user
+      })
+      signIn.hidden = Boolean(user)
+      profile.hidden = !user
+      if (user) {
+        accountName.textContent = user.displayName
+        avatar.textContent = user.displayName.slice(0, 1).toUpperCase()
+        avatar.style.backgroundImage = ''
+        if (user.avatarUrl) {
+          const avatarUrl = new URL(user.avatarUrl, window.location.origin)
+          if (avatarUrl.protocol === 'https:') avatar.style.backgroundImage = `url("${avatarUrl.href}")`
+        }
+        adminLink.hidden = user.role !== 'admin'
+      }
+      root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden = !payload.githubEnabled
+      window.dispatchEvent(new CustomEvent('market-auth-changed', { detail: payload }))
+    }
+
+    async function errorMessage(response: Response): Promise<string> {
+      return localizedApiError(response, locale, copy.unavailable)
+    }
+
+    async function submit(form: HTMLFormElement, endpoint: string, button: HTMLButtonElement, busy: string, error: HTMLElement): Promise<void> {
+      error.hidden = true
+      const original = button.textContent || ''
+      button.disabled = true
+      button.textContent = busy
+      try {
+        const values = Object.fromEntries(new FormData(form).entries())
+        const response = await fetch(`/api/market/v1/auth/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(values),
+        })
+        if (!response.ok) throw new Error(await errorMessage(response))
+        const payload = (await response.json()) as AuthResponse
+        updateAuth(payload)
+        form.reset()
+        dialog.close()
+      } catch (reason) {
+        error.textContent = reason instanceof Error ? reason.message : copy.unavailable
+        error.hidden = false
+      } finally {
+        button.disabled = false
+        button.textContent = original
+      }
+    }
+
+    signIn.addEventListener('click', openAuth)
+    window.addEventListener('market-auth-required', openAuth)
+    root.querySelector('[data-auth-close]')?.addEventListener('click', () => dialog.close())
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close()
+    })
+    root.querySelector('[data-show-register]')?.addEventListener('click', () => setMode('register'))
+    root.querySelector('[data-show-login]')?.addEventListener('click', () => setMode('login'))
+    root.querySelectorAll<HTMLButtonElement>('[data-password-toggle]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const input = button.parentElement?.querySelector<HTMLInputElement>('input')
+        if (!input) return
+        const visible = input.type === 'text'
+        input.type = visible ? 'password' : 'text'
+        button.setAttribute('aria-label', visible ? button.dataset.labelShow || '' : button.dataset.labelHide || '')
+        button.setAttribute('aria-pressed', String(!visible))
+      })
+    })
+    loginForm.addEventListener('submit', (event) => {
+      event.preventDefault()
+      void submit(loginForm, 'login', root.querySelector('[data-login-submit]')!, copy.loggingIn, root.querySelector('[data-login-error]')!)
+    })
+    registerForm.addEventListener('submit', (event) => {
+      event.preventDefault()
+      void submit(registerForm, 'register', root.querySelector('[data-register-submit]')!, copy.registering, root.querySelector('[data-register-error]')!)
+    })
+    root.querySelector('[data-auth-logout]')?.addEventListener('click', () => {
+      profile.open = false
+      logoutError.hidden = true
+      if (!logoutDialog.open) logoutDialog.showModal()
+    })
+    root.querySelector('[data-logout-cancel]')?.addEventListener('click', () => logoutDialog.close())
+    logoutDialog.addEventListener('click', (event) => {
+      if (event.target === logoutDialog) logoutDialog.close()
+    })
+    logoutConfirm.addEventListener('click', async () => {
+      const original = logoutConfirm.textContent || ''
+      logoutConfirm.disabled = true
+      logoutConfirm.textContent = copy.loggingOut
+      logoutError.hidden = true
+      try {
+        const response = await fetch('/api/market/v1/auth/logout', { method: 'POST' })
+        if (!response.ok) throw new Error()
+        logoutDialog.close()
+        updateAuth({ user: null, githubEnabled: !root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden })
+      } catch {
+        logoutError.textContent = copy.logoutError
+        logoutError.hidden = false
+      } finally {
+        logoutConfirm.disabled = false
+        logoutConfirm.textContent = original
+      }
+    })
+
+    fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
+      .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : Promise.reject())
+      .then(updateAuth)
+      .catch(() => updateAuth({ user: null, githubEnabled: false }))
+  }
+</script>
+
+<style>
+  .account-menu { display: contents; }
+  .account-sign-in { min-height: 32px; padding: 5px 11px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--fg-muted); background: var(--ghost-bg); font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+  .account-sign-in:hover { color: var(--fg); border-color: var(--border-hover); }
+  .account-profile { position: relative; }
+  .account-profile summary { display: flex; align-items: center; gap: 7px; max-width: 120px; color: var(--fg-muted); font-size: 0.8rem; cursor: pointer; list-style: none; }
+  .account-profile summary::-webkit-details-marker { display: none; }
+  .account-avatar { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: white; background: var(--accent); background-position: center; background-size: cover; font-size: 0.72rem; font-weight: 700; }
+  .account-profile [data-account-name] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-popover { position: absolute; top: calc(100% + 12px); right: 0; display: grid; min-width: 150px; padding: 7px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); box-shadow: 0 16px 42px rgb(0 0 0 / 0.18); }
+  .account-popover a, .account-popover button { padding: 9px 10px; border: 0; border-radius: 7px; color: var(--fg-muted); background: transparent; font: inherit; font-size: 0.82rem; text-align: left; cursor: pointer; }
+  .account-popover a:hover, .account-popover button:hover { color: var(--fg); background: var(--chip-bg); }
+  .auth-dialog { width: min(480px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; overflow: visible; border: 1px solid var(--border-strong); border-radius: 22px; color: var(--fg); background: var(--bg); box-shadow: 0 30px 100px rgb(0 0 0 / 0.34); }
+  .auth-dialog::backdrop, .logout-dialog::backdrop { background: rgb(9 12 22 / 0.7); backdrop-filter: blur(6px); }
+  .auth-dialog-card { position: relative; padding: 38px 44px 34px; }
+  .auth-close { position: absolute; top: 17px; right: 17px; display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 1px solid transparent; border-radius: 50%; color: var(--fg-faint); background: transparent; font-size: 1.25rem; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+  .auth-close:hover { border-color: var(--border); color: var(--fg); background: var(--ghost-bg); }
+  .auth-head { display: grid; justify-items: center; text-align: center; }
+  .auth-brand-mark { display: grid; width: 42px; height: 42px; margin-bottom: 16px; place-items: center; border-radius: 12px; color: var(--btn-primary-fg); background: var(--accent); box-shadow: 0 9px 24px var(--accent-soft); font: 700 0.92rem var(--font-mono); }
+  .auth-head h2 { font-size: 1.78rem; letter-spacing: -0.035em; }
+  .auth-head p { margin: 9px 0 26px; color: var(--fg-muted); font-size: 0.87rem; }
+  .auth-form { display: grid; gap: 17px; }
+  .auth-form label { display: grid; gap: 8px; color: var(--fg); font-size: 0.8rem; font-weight: 600; }
+  .auth-form input { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; outline: 0; color: var(--fg); background: var(--panel-glass); font: 400 0.88rem var(--font-body); transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
+  .auth-form input::placeholder { color: var(--fg-faint); }
+  .auth-form input:focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .auth-password-field { position: relative; display: block; }
+  .auth-password-field input { padding-right: 46px; }
+  .auth-password-field button { position: absolute; top: 50%; right: 10px; display: grid; width: 32px; height: 32px; padding: 0; transform: translateY(-50%); place-items: center; border: 0; border-radius: 8px; color: var(--fg-faint); background: transparent; cursor: pointer; }
+  .auth-password-field button:hover, .auth-password-field button[aria-pressed='true'] { color: var(--fg); background: var(--ghost-bg); }
+  .auth-form small { color: var(--fg-faint); font-weight: 400; }
+  .auth-form .btn { min-height: 46px; margin-top: 3px; border-radius: 10px; font-size: 0.92rem; }
+  .auth-divider { display: flex; align-items: center; gap: 13px; margin: 24px 0 17px; color: var(--fg-faint); font-size: 0.74rem; }
+  .auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: var(--border); }
+  .auth-providers { display: flex; justify-content: center; gap: 16px; }
+  .auth-provider { display: grid; justify-items: center; gap: 7px; color: var(--fg-muted); font-size: 0.72rem; }
+  .auth-provider > span { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--fg); background: var(--panel-glass); transition: transform 0.15s, border-color 0.15s, background 0.15s; }
+  .auth-provider:hover > span { transform: translateY(-2px); border-color: var(--border-hover); background: var(--ghost-bg-hover); }
+  .auth-provider small { font: inherit; }
+  .auth-error { margin: -5px 0 0; color: var(--danger); font-size: 0.78rem; text-align: center; }
+  .auth-switch { margin: 22px 0 0; color: var(--fg-muted); font-size: 0.8rem; text-align: center; }
+  .auth-switch button { padding: 0; border: 0; color: var(--accent-bright); background: transparent; font: inherit; cursor: pointer; }
+  .logout-dialog { width: min(400px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; border: 1px solid var(--border-strong); border-radius: 18px; color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / 0.3); }
+  .logout-dialog-card { padding: 28px; text-align: center; }
+  .logout-dialog-icon { display: grid; width: 48px; height: 48px; margin: 0 auto 17px; place-items: center; border-radius: 14px; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+  .logout-dialog h2 { font-size: 1.3rem; letter-spacing: -0.025em; }
+  .logout-dialog p { margin: 9px auto 0; color: var(--fg-muted); font-size: 0.82rem; line-height: 1.65; }
+  .logout-dialog .logout-dialog-error { color: var(--danger); }
+  .logout-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
+  .logout-dialog-actions .btn { min-height: 42px; border-radius: 9px; }
+  @media (max-width: 960px) { .account-profile [data-account-name] { display: none; } }
+  @media (max-width: 520px) { .auth-dialog-card { padding: 34px 22px 28px; } .logout-dialog-card { padding: 24px 20px; } }
+</style>

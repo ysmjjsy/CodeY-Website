@@ -1,0 +1,271 @@
+---
+import type { Locale } from '../i18n/ui'
+import { marketCopy } from '../i18n/market'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy = marketCopy(locale)
+const apiBase = '/api/market/v1'
+---
+
+<dialog
+  class="market-upload-dialog"
+  data-market-upload
+  data-api-base={apiBase}
+  data-copy={JSON.stringify(copy)}
+  data-locale={locale}
+  aria-labelledby="market-upload-title"
+>
+  <div class="market-upload-modal">
+    <header class="market-upload-head">
+      <div>
+        <p class="market-eyebrow">{copy.eyebrow}</p>
+        <h2 id="market-upload-title">{copy.uploadTitle}</h2>
+        <p>{copy.uploadDescription}</p>
+      </div>
+      <button
+        class="market-dialog-close"
+        type="button"
+        data-upload-close
+        aria-label={locale === 'en' ? 'Close' : '关闭'}>×</button
+      >
+    </header>
+
+    <div class="market-upload-content">
+      <form class="market-form-card" data-upload-inspect>
+        <h3>{copy.stepArchive}</h3>
+        <div class="market-field market-file">
+          <label for="market-archive">{copy.archiveLabel}</label>
+          <input id="market-archive" name="archive" type="file" accept=".codeypkg,application/json" required />
+          <p class="market-field-hint">{copy.archiveHint}</p>
+        </div>
+        <div class="market-form-actions">
+          <button class="btn btn-primary" type="submit" data-inspect-button>{copy.inspect}</button>
+        </div>
+        <div class="market-alert" hidden data-inspect-error></div>
+      </form>
+
+      <form class="market-form-card" hidden data-upload-publish>
+        <h3>{copy.stepPublish}</h3>
+        <div class="market-package-summary" data-package-summary></div>
+        <fieldset class="market-field market-resource-options" data-resource-options>
+          <legend>{copy.primaryResource}</legend>
+        </fieldset>
+        <div class="market-field">
+          <label for="market-title">{copy.titleLabel}</label>
+          <input id="market-title" name="title" maxlength="160" required />
+        </div>
+        <div class="market-field">
+          <label for="market-summary">{copy.summaryLabel}</label>
+          <textarea id="market-summary" name="summary" maxlength="500" required></textarea>
+        </div>
+        <div class="market-field">
+          <label for="market-tags">{copy.tagsLabel}</label>
+          <input id="market-tags" name="tags" maxlength="783" />
+          <p class="market-field-hint">{copy.tagsHint}</p>
+        </div>
+        <div class="market-field">
+          <label for="market-readme">{copy.readmeLabel}</label>
+          <textarea id="market-readme" name="readme" maxlength="262144"></textarea>
+        </div>
+        <div class="market-field">
+          <label for="market-changelog">{copy.changelogLabel}</label>
+          <textarea id="market-changelog" name="changelog" maxlength="65536"></textarea>
+        </div>
+        <div class="market-form-actions">
+          <button class="btn btn-primary" type="submit" data-publish-button>{copy.publish}</button>
+          <button class="btn btn-ghost" type="button" data-replace-archive>{copy.replaceArchive}</button>
+        </div>
+        <div class="market-alert" hidden data-publish-message></div>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  import { localizedApiError } from '../i18n/api-errors'
+
+  type Resource = { displayName: string; resource: Record<string, unknown> }
+  type Preview = {
+    uploadId: string
+    packageId: string
+    version: string
+    archiveLength: number
+    availablePrimaryResources: Resource[]
+  }
+  type Submission = { submissionId: string; status: 'pending' }
+
+  const root = document.querySelector<HTMLDialogElement>('[data-market-upload]')
+  if (root) {
+    const apiBase = root.dataset.apiBase || '/api/market/v1'
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const inspectForm = root.querySelector<HTMLFormElement>('[data-upload-inspect]')!
+    const publishForm = root.querySelector<HTMLFormElement>('[data-upload-publish]')!
+    const inspectButton = root.querySelector<HTMLButtonElement>('[data-inspect-button]')!
+    const publishButton = root.querySelector<HTMLButtonElement>('[data-publish-button]')!
+    const inspectError = root.querySelector<HTMLElement>('[data-inspect-error]')!
+    const publishMessage = root.querySelector<HTMLElement>('[data-publish-message]')!
+    const resourceOptions = root.querySelector<HTMLElement>('[data-resource-options]')!
+    const packageSummary = root.querySelector<HTMLElement>('[data-package-summary]')!
+    let preview: Preview | null = null
+    let requestedOpen = false
+
+    function openDialog(): void {
+      if (!root.open) root.showModal()
+    }
+
+    function requestOpen(): void {
+      requestedOpen = true
+      if (document.documentElement.dataset.marketAuth === 'authenticated') {
+        requestedOpen = false
+        openDialog()
+      } else {
+        window.dispatchEvent(new CustomEvent('market-auth-required'))
+      }
+    }
+
+    document.querySelectorAll<HTMLElement>('[data-market-upload-open]').forEach((button) => {
+      button.addEventListener('click', requestOpen)
+    })
+    window.addEventListener('market-auth-changed', ((event: CustomEvent<{ user?: unknown }>) => {
+      if (requestedOpen && event.detail.user) {
+        requestedOpen = false
+        openDialog()
+      }
+      if (!event.detail.user && root.open) root.close()
+    }) as EventListener)
+    root.querySelector<HTMLElement>('[data-upload-close]')?.addEventListener('click', () => root.close())
+    root.addEventListener('click', (event) => {
+      if (event.target === root) root.close()
+    })
+    const pageUrl = new URL(window.location.href)
+    if (pageUrl.searchParams.get('upload') === '1') {
+      requestOpen()
+      pageUrl.searchParams.delete('upload')
+      window.history.replaceState(window.history.state, '', pageUrl)
+    }
+
+    async function errorMessage(response: Response): Promise<string> {
+      return localizedApiError(response, locale, copy.unavailable)
+    }
+
+    function resetMessage(element: HTMLElement): void {
+      element.hidden = true
+      element.classList.remove('market-success')
+      element.replaceChildren()
+    }
+
+    function renderPreview(value: Preview): void {
+      packageSummary.replaceChildren()
+      const fields = [
+        `${copy.package}: ${value.packageId}`,
+        `${copy.version}: ${value.version}`,
+        `${new Intl.NumberFormat().format(value.archiveLength)} bytes`,
+      ]
+      fields.forEach((field) => {
+        const span = document.createElement('span')
+        span.textContent = field
+        packageSummary.append(span)
+      })
+      resourceOptions.querySelectorAll('label').forEach((label) => label.remove())
+      value.availablePrimaryResources.forEach((resource, index) => {
+        const label = document.createElement('label')
+        label.className = 'market-resource-option'
+        const radio = document.createElement('input')
+        radio.type = 'radio'
+        radio.name = 'primaryResource'
+        radio.value = String(index)
+        radio.required = true
+        radio.checked = index === 0
+        const name = document.createElement('span')
+        name.textContent = resource.displayName
+        label.append(radio, name)
+        resourceOptions.append(label)
+      })
+      const title = publishForm.elements.namedItem('title') as HTMLInputElement
+      if (!title.value) title.value = value.availablePrimaryResources[0]?.displayName || ''
+      publishForm.hidden = false
+      publishForm.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    inspectForm.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      resetMessage(inspectError)
+      const input = inspectForm.elements.namedItem('archive') as HTMLInputElement
+      const file = input.files?.[0]
+      if (!file) return
+      inspectButton.disabled = true
+      inspectButton.textContent = copy.inspecting
+      try {
+        const body = new FormData()
+        body.set('archive', file, file.name)
+        const response = await fetch(`${apiBase}/uploads`, { method: 'POST', body })
+        if (response.status === 401) window.dispatchEvent(new CustomEvent('market-auth-required'))
+        if (!response.ok) throw new Error(await errorMessage(response))
+        preview = (await response.json()) as Preview
+        renderPreview(preview)
+      } catch (error) {
+        inspectError.textContent = error instanceof Error ? error.message : copy.unavailable
+        inspectError.hidden = false
+      } finally {
+        inspectButton.disabled = false
+        inspectButton.textContent = copy.inspect
+      }
+    })
+
+    publishForm.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      resetMessage(publishMessage)
+      if (!preview || !publishForm.reportValidity()) {
+        publishMessage.textContent = copy.required
+        publishMessage.hidden = false
+        return
+      }
+      const selected = publishForm.querySelector<HTMLInputElement>('input[name="primaryResource"]:checked')
+      const resource = selected ? preview.availablePrimaryResources[Number(selected.value)] : undefined
+      if (!resource) return
+      const value = (name: string) => (publishForm.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement).value
+      const tags = value('tags').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 16)
+      publishButton.disabled = true
+      publishButton.textContent = copy.publishing
+      try {
+        const response = await fetch(`${apiBase}/uploads/${encodeURIComponent(preview.uploadId)}/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            primaryResource: resource.resource,
+            title: value('title').trim(),
+            summary: value('summary').trim(),
+            tags,
+            readmeMarkdown: value('readme'),
+            changelog: value('changelog'),
+          }),
+        })
+        if (!response.ok) throw new Error(await errorMessage(response))
+        await response.json() as Submission
+        publishMessage.classList.add('market-success')
+        publishMessage.textContent = copy.publishedSuccess
+        publishMessage.hidden = false
+        window.dispatchEvent(new CustomEvent('market-submission-created'))
+      } catch (error) {
+        publishMessage.textContent = error instanceof Error ? error.message : copy.unavailable
+        publishMessage.hidden = false
+      } finally {
+        publishButton.disabled = false
+        publishButton.textContent = copy.publish
+      }
+    })
+
+    root.querySelector<HTMLButtonElement>('[data-replace-archive]')?.addEventListener('click', () => {
+      preview = null
+      publishForm.hidden = true
+      publishForm.reset()
+      inspectForm.reset()
+      inspectForm.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+</script>
