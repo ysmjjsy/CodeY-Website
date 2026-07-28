@@ -29,8 +29,8 @@ pnpm start     # 同源提供官网、Market API 和 discovery
 `PUBLIC_MARKET_API_URL`。
 
 模板市场后端位于本仓库的 `server/market-server`，不依赖 CodeY 桌面端仓库。
-`.codeypkg` 格式由同级的独立 `CodeY-Package-Format` crate 提供。运行数据默认保存在
-官网仓库的 `.codey-market/`。
+`.codeypkg` 格式依赖固定版本的公开 `CodeY-Package-Format` 仓库。运行数据默认保存在官网仓库的
+`.codey-market/`。
 
 账号支持用户名或邮箱加密码，以及 GitHub OAuth。GitHub 登录需要在服务端配置：
 

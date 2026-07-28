@@ -292,6 +292,7 @@ dependencies = [
 [[package]]
 name = "codey-package-format"
 version = "0.1.0"
+source = "git+https://github.com/GoyacJ/CodeY-Package-Format.git?rev=538e8373c81cce8c2bc708bfae7d7c2acc5f9a5f#538e8373c81cce8c2bc708bfae7d7c2acc5f9a5f"
 dependencies = [
  "base64",
  "blake3",

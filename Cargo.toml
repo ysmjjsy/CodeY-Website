@@ -15,7 +15,7 @@ axum = { version = "0.8.9", features = ["http1", "json", "macros", "multipart", 
 base64 = "0.22.1"
 blake3 = "1.8.5"
 chrono = { version = "0.4.45", features = ["serde"] }
-codey-package-format = { path = "../CodeY-Package-Format" }
+codey-package-format = { git = "https://github.com/GoyacJ/CodeY-Package-Format.git", rev = "538e8373c81cce8c2bc708bfae7d7c2acc5f9a5f" }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "stream"] }
 ring = "0.17.14"
 rusqlite = { version = "0.40.1", features = ["backup", "bundled"] }
