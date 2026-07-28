@@ -13,8 +13,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const localEnvironmentFile = resolve(projectRoot, '.env.local')
 if (existsSync(localEnvironmentFile)) process.loadEnvFile(localEnvironmentFile)
 
-const codeyRepository = resolve(process.env.CODEY_REPOSITORY || resolve(projectRoot, '../CodeY'))
-const cargoManifest = resolve(codeyRepository, 'Cargo.toml')
+const cargoManifest = resolve(projectRoot, 'Cargo.toml')
 const astroCli = resolve(projectRoot, 'node_modules/astro/bin/astro.mjs')
 const marketTargetDirectory = resolve(
   process.env.CODEY_MARKET_TARGET_DIR || resolve(projectRoot, '.codey-market/target'),
@@ -41,10 +40,6 @@ const marketPort = parsePort(
 
 if (marketUpstream.protocol !== 'http:') {
   throw new Error('CODEY_MARKET_UPSTREAM must use http://')
-}
-
-if (!existsSync(cargoManifest)) {
-  throw new Error(`CodeY repository not found: ${codeyRepository}`)
 }
 
 if (mode === 'dev' && !existsSync(astroCli)) {

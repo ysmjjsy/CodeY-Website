@@ -28,8 +28,9 @@ pnpm start     # 同源提供官网、Market API 和 discovery
 `pnpm start` 会启动 Market Server 和统一的生产 HTTP 入口。前端不需要配置
 `PUBLIC_MARKET_API_URL`。
 
-默认要求 CodeY 主仓库位于官网仓库同级目录 `../CodeY`。如果目录不同，可设置
-`CODEY_REPOSITORY`。运行数据默认保存在官网仓库的 `.codey-market/`。
+模板市场后端位于本仓库的 `server/market-server`，不依赖 CodeY 桌面端仓库。
+`.codeypkg` 格式依赖固定版本的公开 `CodeY-Package-Format` 仓库。运行数据默认保存在官网仓库的
+`.codey-market/`。
 
 账号支持用户名或邮箱加密码，以及 GitHub OAuth。GitHub 登录需要在服务端配置：
 
@@ -61,3 +62,4 @@ OAuth App 的回调地址为
 | `src/styles/starlight.css` | 文档主题定制 |
 | `src/content/docs/docs/` | 中文文档内容 |
 | `astro.config.mjs` | Starlight 侧边栏与站点配置 |
+| `server/market-server` | 官网自有的模板市场、账号与审核后端 |

@@ -8,7 +8,6 @@
 - Caddy
 - 域名 `codey.example.com`
 - 官网目录 `/opt/codey/CodeY-Website`
-- CodeY 主仓库目录 `/opt/codey/CodeY`
 - 模板市场数据目录 `/var/lib/codey-market`
 
 部署时请将示例域名替换为真实域名。
@@ -55,15 +54,8 @@ cargo --version
 caddy version
 ```
 
-两个仓库必须放在同一层级：
-
-```text
-/opt/codey/
-├── CodeY/
-└── CodeY-Website/
-```
-
-也可以通过 `CODEY_REPOSITORY` 指向其他位置。
+官网不依赖 CodeY 桌面端仓库。构建时 Cargo 会按固定 Git 提交获取
+`CodeY-Package-Format`，服务器需要能够访问 GitHub。
 
 ## 3. 配置公开 Origin
 
@@ -100,10 +92,9 @@ sudo mkdir -p /opt/codey /etc/codey /var/lib/codey-market
 sudo chown -R codey:codey /opt/codey /var/lib/codey-market
 ```
 
-将两个仓库放入 `/opt/codey`：
+将官网仓库放入 `/opt/codey`：
 
 ```text
-/opt/codey/CodeY
 /opt/codey/CodeY-Website
 ```
 
@@ -132,8 +123,6 @@ pnpm build
 创建 `/etc/codey/website.env`：
 
 ```bash
-CODEY_REPOSITORY=/opt/codey/CodeY
-
 CODEY_WEBSITE_HOST=127.0.0.1
 CODEY_WEBSITE_PORT=4321
 CODEY_WEBSITE_ORIGIN=https://codey.example.com
@@ -309,12 +298,9 @@ https://codey.example.com
 
 ## 11. 更新版本
 
-进入两个仓库更新代码后重新构建：
+更新官网后重新构建：
 
 ```bash
-cd /opt/codey/CodeY
-git pull --ff-only
-
 cd /opt/codey/CodeY-Website
 git pull --ff-only
 pnpm install --frozen-lockfile
