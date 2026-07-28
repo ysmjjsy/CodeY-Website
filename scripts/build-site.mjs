@@ -4,8 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const codeyRepository = resolve(process.env.CODEY_REPOSITORY || resolve(projectRoot, '../CodeY'))
-const cargoManifest = resolve(codeyRepository, 'Cargo.toml')
+const cargoManifest = resolve(projectRoot, 'Cargo.toml')
 const astroCli = resolve(projectRoot, 'node_modules/astro/bin/astro.mjs')
 const marketTargetDirectory = resolve(
   process.env.CODEY_MARKET_TARGET_DIR || resolve(projectRoot, '.codey-market/target'),
@@ -14,10 +13,6 @@ const target = process.argv[2] || 'all'
 
 if (target !== 'all' && target !== 'market') {
   throw new Error('Usage: node scripts/build-site.mjs [market]')
-}
-
-if (!existsSync(cargoManifest)) {
-  throw new Error(`CodeY repository not found: ${codeyRepository}`)
 }
 
 if (target === 'all' && !existsSync(astroCli)) {

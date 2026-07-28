@@ -3,3 +3,4 @@ dist/
 .astro/
 .codey-market/
 .env.local
+target/

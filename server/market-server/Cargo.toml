@@ -1,0 +1,38 @@
+[package]
+name = "codey-market-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+rust-version.workspace = true
+
+[lib]
+name = "codey_market_server"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+codey-package-format = { workspace = true }
+argon2 = { workspace = true }
+axum = { workspace = true }
+base64 = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+rusqlite = { workspace = true }
+reqwest = { workspace = true }
+ring = { workspace = true }
+semver = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "net", "signal"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+ulid = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+reqwest = { workspace = true }
+tempfile = { workspace = true }
