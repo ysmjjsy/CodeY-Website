@@ -14,18 +14,6 @@ const copy = marketCopy(locale)
   locale={locale}
   alternateHref="/en/market/"
 >
-  <header class="market-hero">
-    <div class="container market-hero-row">
-      <div class="market-hero-copy">
-        <p class="market-eyebrow">{copy.eyebrow}</p>
-        <h1 class="market-title">{copy.title}</h1>
-        <p class="market-lead">{copy.description}</p>
-      </div>
-      <button class="btn btn-primary" type="button" hidden data-authenticated-only data-market-upload-open>{copy.upload}</button>
-    </div>
-  </header>
-  <div class="container market-content">
-    <MarketCatalog locale={locale} />
-  </div>
+  <MarketCatalog locale={locale} />
   <MarketUpload locale={locale} />
 </MarketLayout>

@@ -1,4 +1,6 @@
 ---
+import { Image } from 'astro:assets'
+import logo from '../assets/logo.png'
 import type { Locale } from '../i18n/ui'
 import { marketCopy } from '../i18n/market'
 import { marketPath } from '../i18n/utils'
@@ -13,38 +15,94 @@ const apiBase = '/api/market/v1'
 ---
 
 <section
-  class="market-catalog"
+  class="market-browser"
   data-market-catalog
   data-api-base={apiBase}
   data-detail-base={marketPath(locale, 'item')}
   data-locale={locale}
   data-copy={JSON.stringify(copy)}
 >
-  <div class="market-toolbar">
-    <form class="market-search" data-market-search>
-      <label class="sr-only" for="market-query">{copy.searchLabel}</label>
-      <input
-        id="market-query"
-        name="q"
-        type="search"
-        autocomplete="off"
-        placeholder={copy.searchPlaceholder}
-      />
-      <button type="submit">{copy.search}</button>
-    </form>
-    <div class="market-filters" aria-label={copy.searchLabel} data-market-filters>
-      <button class="market-filter" type="button" data-kind="" aria-pressed="true">{copy.all}</button>
-      <button class="market-filter" type="button" data-kind="agent_template" aria-pressed="false">{copy.agentTemplate}</button>
-      <button class="market-filter" type="button" data-kind="team_template" aria-pressed="false">{copy.teamTemplate}</button>
-      <button class="market-filter" type="button" data-kind="skill" aria-pressed="false">{copy.skill}</button>
-      <button class="market-filter" type="button" data-kind="mcp" aria-pressed="false">{copy.mcp}</button>
+  <aside class="market-sidebar" aria-label={copy.categories}>
+    <div class="market-sidebar-heading">
+      <Image class="market-sidebar-logo" src={logo} alt="" width="34" height="34" />
+      <div>
+        <strong>{copy.title}</strong>
+        <span>{copy.libraryLabel}</span>
+      </div>
     </div>
-  </div>
 
-  <div class="market-grid" data-market-grid aria-live="polite"></div>
-  <div class="market-state" data-market-state>{copy.loading}</div>
-  <div class="market-load-more" hidden data-market-more>
-    <button class="btn btn-ghost" type="button">{copy.loadMore}</button>
+    <div class="market-sidebar-tabs" aria-hidden="true">
+      <span class="is-active">{copy.categories}</span>
+      <span>{copy.popularTags}</span>
+    </div>
+
+    <nav class="market-category-list" aria-label={copy.categories} data-market-filters>
+      <button class="market-category is-active" type="button" data-kind="" aria-pressed="true">
+        <span class="market-category-icon">⌘</span>
+        <span>{copy.all}</span>
+      </button>
+      <button class="market-category" type="button" data-kind="agent_template" aria-pressed="false">
+        <span class="market-category-icon">A</span>
+        <span>{copy.agentTemplate}</span>
+      </button>
+      <button class="market-category" type="button" data-kind="team_template" aria-pressed="false">
+        <span class="market-category-icon">AT</span>
+        <span>{copy.teamTemplate}</span>
+      </button>
+      <button class="market-category" type="button" data-kind="skill" aria-pressed="false">
+        <span class="market-category-icon">S</span>
+        <span>{copy.skill}</span>
+      </button>
+      <button class="market-category" type="button" data-kind="mcp" aria-pressed="false">
+        <span class="market-category-icon">M</span>
+        <span>{copy.mcp}</span>
+      </button>
+    </nav>
+
+    <div class="market-sidebar-section" data-tag-section hidden>
+      <h2>{copy.popularTags}</h2>
+      <div class="market-sidebar-tags" data-hot-tags></div>
+    </div>
+
+    <div class="market-sidebar-note">
+      <span aria-hidden="true">◇</span>
+      <p>{copy.artifactNote}</p>
+    </div>
+  </aside>
+
+  <div class="market-results">
+    <header class="market-results-head">
+      <div>
+        <p class="market-eyebrow">{copy.eyebrow}</p>
+        <h1>{copy.discoverTitle}</h1>
+        <p>{copy.description}</p>
+      </div>
+      <button class="btn btn-primary market-upload-button" type="button" hidden data-authenticated-only data-market-upload-open>
+        <span aria-hidden="true">＋</span>{copy.upload}
+      </button>
+    </header>
+
+    <div class="market-toolbar">
+      <form class="market-search" data-market-search>
+        <label class="sr-only" for="market-query">{copy.searchLabel}</label>
+        <span class="market-search-icon" aria-hidden="true"></span>
+        <input
+          id="market-query"
+          name="q"
+          type="search"
+          autocomplete="off"
+          placeholder={copy.searchPlaceholder}
+        />
+        <button type="submit">{copy.search}</button>
+      </form>
+      <p class="market-result-count" data-result-count aria-live="polite"></p>
+    </div>
+
+    <div class="market-grid" data-market-grid aria-live="polite"></div>
+    <div class="market-state" data-market-state>{copy.loading}</div>
+    <div class="market-load-more" hidden data-market-more>
+      <button class="btn btn-ghost" type="button">{copy.loadMore}</button>
+    </div>
   </div>
 </section>
 
@@ -65,6 +123,7 @@ const apiBase = '/api/market/v1'
 <script>
   type Listing = {
     listingId: string
+    packageId?: string
     kind: 'agent_template' | 'team_template' | 'skill' | 'mcp'
     title: string
     summary: string
@@ -72,7 +131,7 @@ const apiBase = '/api/market/v1'
     publisherDisplayName: string
     downloadCount: number
     updatedAt: string
-    latestRelease: { version: string }
+    latestRelease: { version: string; publishedAt?: string }
   }
 
   type CatalogResponse = { listings: Listing[]; nextCursor?: string | null }
@@ -90,9 +149,13 @@ const apiBase = '/api/market/v1'
     const search = root.querySelector<HTMLFormElement>('[data-market-search]')!
     const queryInput = search.elements.namedItem('q') as HTMLInputElement
     const filterButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-kind]'))
+    const resultCount = root.querySelector<HTMLElement>('[data-result-count]')!
+    const tagSection = root.querySelector<HTMLElement>('[data-tag-section]')!
+    const hotTags = root.querySelector<HTMLElement>('[data-hot-tags]')!
     let activeKind = ''
     let nextCursor: string | null = null
     let loading = false
+    const knownTags = new Map<string, number>()
 
     const kindCopy: Record<Listing['kind'], string> = {
       agent_template: copy.agentTemplate,
@@ -114,33 +177,75 @@ const apiBase = '/api/market/v1'
       return element
     }
 
+    function formatDate(value: string): string {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return value
+      return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+    }
+
+    function isNew(listing: Listing): boolean {
+      const value = listing.latestRelease.publishedAt || listing.updatedAt
+      const timestamp = new Date(value).getTime()
+      return Number.isFinite(timestamp) && Date.now() - timestamp < 1000 * 60 * 60 * 24 * 30
+    }
+
     function card(listing: Listing): HTMLAnchorElement {
       const link = document.createElement('a')
       link.className = 'market-card'
       link.href = `${detailBase}?id=${encodeURIComponent(listing.listingId)}`
+      link.setAttribute('aria-label', `${listing.title} · ${kindCopy[listing.kind]}`)
 
-      const top = document.createElement('div')
-      top.className = 'market-card-top'
-      top.append(text('span', kindMark[listing.kind], 'market-kind-mark'))
-      top.append(text('span', kindCopy[listing.kind], 'market-kind'))
-      link.append(top)
-      link.append(text('h2', listing.title))
-      link.append(text('p', listing.summary, 'market-card-summary'))
+      const icon = text('span', kindMark[listing.kind], `market-card-icon market-card-icon-${listing.kind}`)
+      icon.setAttribute('aria-hidden', 'true')
 
-      if (listing.tags.length) {
-        const tags = document.createElement('div')
-        tags.className = 'market-tags'
-        listing.tags.slice(0, 4).forEach((tag) => tags.append(text('span', tag, 'market-tag')))
-        link.append(tags)
-      }
+      const body = document.createElement('div')
+      body.className = 'market-card-body'
+      const titleRow = document.createElement('div')
+      titleRow.className = 'market-card-title-row'
+      titleRow.append(text('h2', listing.title))
+      if (isNew(listing)) titleRow.append(text('span', copy.newLabel, 'market-new'))
+      body.append(titleRow)
+      body.append(text('p', listing.summary, 'market-card-summary'))
+
+      const attributes = document.createElement('div')
+      attributes.className = 'market-card-attributes'
+      attributes.append(text('span', kindCopy[listing.kind], 'market-card-kind'))
+      attributes.append(text('span', `v${listing.latestRelease.version}`, 'market-card-version'))
+      listing.tags.slice(0, 3).forEach((tag) => attributes.append(text('span', tag, 'market-tag')))
+      body.append(attributes)
 
       const meta = document.createElement('div')
       meta.className = 'market-card-meta'
-      const version = `${copy.version} ${listing.latestRelease.version}`
-      const downloads = `${new Intl.NumberFormat(locale).format(listing.downloadCount)} ${copy.downloads}`
-      meta.append(text('span', version), text('span', downloads))
-      link.append(meta)
+      const publisher = text('span', listing.publisherDisplayName, 'market-card-publisher')
+      publisher.prepend(text('span', '●', 'market-publisher-dot'))
+      meta.append(publisher)
+      meta.append(text('span', `◷ ${formatDate(listing.updatedAt)}`))
+      meta.append(text('span', `↓ ${new Intl.NumberFormat(locale, { notation: 'compact' }).format(listing.downloadCount)}`))
+
+      link.append(icon, body, meta)
       return link
+    }
+
+    function updateTags(listings: Listing[]): void {
+      listings.forEach((listing) => listing.tags.forEach((tag) => knownTags.set(tag, (knownTags.get(tag) || 0) + 1)))
+      const tags = [...knownTags.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14)
+      hotTags.replaceChildren()
+      tags.forEach(([tag]) => {
+        const button = text('button', tag) as HTMLButtonElement
+        button.type = 'button'
+        button.addEventListener('click', () => {
+          queryInput.value = tag
+          nextCursor = null
+          void load()
+        })
+        hotTags.append(button)
+      })
+      tagSection.hidden = tags.length === 0
+    }
+
+    function updateCount(): void {
+      const count = grid.childElementCount
+      resultCount.textContent = count ? `${copy.loadedPrefix} ${new Intl.NumberFormat(locale).format(count)} ${copy.loadedSuffix}` : ''
     }
 
     async function load(append = false): Promise<void> {
@@ -151,6 +256,7 @@ const apiBase = '/api/market/v1'
         state.textContent = copy.loading
         grid.replaceChildren()
         more.hidden = true
+        resultCount.textContent = ''
       }
       try {
         const url = new URL(`${apiBase}/listings`, window.location.origin)
@@ -162,6 +268,8 @@ const apiBase = '/api/market/v1'
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const payload = (await response.json()) as CatalogResponse
         payload.listings.forEach((listing) => grid.append(card(listing)))
+        updateTags(payload.listings)
+        updateCount()
         nextCursor = payload.nextCursor || null
         more.hidden = !nextCursor
         state.hidden = grid.childElementCount > 0
@@ -188,7 +296,11 @@ const apiBase = '/api/market/v1'
     filterButtons.forEach((button) => {
       button.addEventListener('click', () => {
         activeKind = button.dataset.kind || ''
-        filterButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)))
+        filterButtons.forEach((item) => {
+          const active = item === button
+          item.setAttribute('aria-pressed', String(active))
+          item.classList.toggle('is-active', active)
+        })
         nextCursor = null
         void load()
       })

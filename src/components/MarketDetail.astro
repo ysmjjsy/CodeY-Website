@@ -13,60 +13,107 @@ const apiBase = '/api/market/v1'
 ---
 
 <section
-  class="container market-detail"
+  class="market-detail"
   data-market-detail
   data-api-base={apiBase}
   data-locale={locale}
   data-copy={JSON.stringify(copy)}
 >
-  <a class="market-back" href={marketPath(locale)}>← {copy.back}</a>
+  <a class="market-back" href={marketPath(locale)}><span aria-hidden="true">←</span>{copy.back}</a>
   <div class="market-state" data-detail-state>{copy.loading}</div>
 
   <article hidden data-detail-content>
-    <header class="market-detail-head">
-      <div>
-        <div class="market-card-top market-detail-kind-row">
-          <span class="market-kind-mark" data-detail-mark></span>
-          <span class="market-kind" data-detail-kind></span>
+    <header class="market-detail-hero">
+      <div class="market-detail-identity">
+        <span class="market-detail-icon" data-detail-mark aria-hidden="true"></span>
+        <div class="market-detail-heading">
+          <div class="market-detail-title-row">
+            <h1 data-detail-title></h1>
+            <span class="market-detail-version" data-detail-version></span>
+          </div>
+          <p class="market-detail-summary" data-detail-summary></p>
+          <div class="market-detail-meta">
+            <span class="market-detail-kind" data-detail-kind></span>
+            <span><span aria-hidden="true">●</span> <span data-detail-publisher></span></span>
+            <span><span aria-hidden="true">↓</span> <span data-detail-downloads></span></span>
+            <span><span aria-hidden="true">◷</span> <span data-detail-published></span></span>
+          </div>
+          <div class="market-tags" data-detail-tags></div>
         </div>
-        <h1 class="market-detail-title" data-detail-title></h1>
-        <p class="market-detail-summary" data-detail-summary></p>
-        <div class="market-tags" data-detail-tags></div>
       </div>
-      <div class="market-detail-actions">
-        <label for="market-version" class="market-kind">{copy.selectVersion}</label>
-        <select id="market-version" class="market-select" data-detail-versions></select>
-        <a class="btn btn-primary" data-detail-download>{copy.download}</a>
-      </div>
+      <a class="btn btn-primary market-detail-download" data-detail-download>
+        <span aria-hidden="true">↓</span>{copy.download}
+      </a>
     </header>
 
-    <div class="market-detail-grid">
-      <div>
-        <section class="market-detail-section">
-          <h2>{copy.about}</h2>
+    <nav class="market-detail-tabs" role="tablist" aria-label={copy.detailNavigation}>
+      <button type="button" role="tab" aria-selected="true" class="is-active" data-detail-tab="intro">{copy.introTab}</button>
+      <button type="button" role="tab" aria-selected="false" data-detail-tab="contents">{copy.contentsTab}<span data-resource-count></span></button>
+      <button type="button" role="tab" aria-selected="false" data-detail-tab="requirements">{copy.requirementsTab}</button>
+    </nav>
+
+    <div class="market-detail-workspace">
+      <main class="market-detail-document">
+        <section role="tabpanel" data-detail-panel="intro">
+          <div class="market-document-toolbar" aria-hidden="true">
+            <span>{copy.readmeLabel}</span>
+            <span>{copy.previewLabel}</span>
+          </div>
           <div class="market-readme" data-detail-readme></div>
         </section>
-        <section class="market-detail-section">
-          <h2>{copy.resources}</h2>
-          <ul class="market-list" data-detail-resources></ul>
+
+        <section role="tabpanel" data-detail-panel="contents" hidden>
+          <div class="market-document-section-head">
+            <p class="market-eyebrow">CodeY Package</p>
+            <h2>{copy.resources}</h2>
+            <p>{copy.resourcesDescription}</p>
+          </div>
+          <ul class="market-resource-list" data-detail-resources></ul>
         </section>
-        <section class="market-detail-section">
-          <h2>{copy.permissions}</h2>
-          <ul class="market-list" data-detail-permissions></ul>
+
+        <section role="tabpanel" data-detail-panel="requirements" hidden>
+          <div class="market-document-section-head">
+            <p class="market-eyebrow">Safety & Compatibility</p>
+            <h2>{copy.permissions}</h2>
+            <p>{copy.permissionsDescription}</p>
+          </div>
+          <ul class="market-permission-list" data-detail-permissions></ul>
+          <div class="market-compatibility-summary">
+            <h2>{copy.compatibility}</h2>
+            <dl>
+              <div><dt>{copy.codeyRange}</dt><dd data-inline-codey></dd></div>
+              <div><dt>{copy.platforms}</dt><dd data-inline-platforms></dd></div>
+              <div><dt>{copy.architectures}</dt><dd data-inline-architectures></dd></div>
+            </dl>
+          </div>
         </section>
-      </div>
-      <aside class="market-detail-aside">
-        <h2>{copy.compatibility}</h2>
-        <dl class="market-facts">
-          <div><dt>{copy.packageId}</dt><dd data-fact-package></dd></div>
-          <div><dt>{copy.by}</dt><dd data-fact-publisher></dd></div>
-          <div><dt>{copy.license}</dt><dd data-fact-license></dd></div>
-          <div><dt>{copy.codeyRange}</dt><dd data-fact-codey></dd></div>
-          <div><dt>{copy.platforms}</dt><dd data-fact-platforms></dd></div>
-          <div><dt>{copy.architectures}</dt><dd data-fact-architectures></dd></div>
-          <div><dt>{copy.published}</dt><dd data-fact-published></dd></div>
-          <div><dt>{copy.downloads}</dt><dd data-fact-downloads></dd></div>
-        </dl>
+      </main>
+
+      <aside class="market-detail-sidebar">
+        <section class="market-detail-side-card market-install-card">
+          <p class="market-side-kicker">{copy.getTemplate}</p>
+          <h2>{copy.downloadTemplate}</h2>
+          <label for="market-version">{copy.selectVersion}</label>
+          <select id="market-version" class="market-select" data-detail-versions></select>
+          <a class="btn btn-primary" data-detail-download-side>
+            <span aria-hidden="true">↓</span>{copy.download}
+          </a>
+          <p class="market-install-note">{copy.downloadHint}</p>
+        </section>
+
+        <section class="market-detail-side-card">
+          <h2><span aria-hidden="true">◇</span>{copy.templateInfo}</h2>
+          <dl class="market-facts">
+            <div><dt>{copy.packageId}</dt><dd data-fact-package></dd></div>
+            <div><dt>{copy.by}</dt><dd data-fact-publisher></dd></div>
+            <div><dt>{copy.license}</dt><dd data-fact-license></dd></div>
+            <div><dt>{copy.codeyRange}</dt><dd data-fact-codey></dd></div>
+            <div><dt>{copy.platforms}</dt><dd data-fact-platforms></dd></div>
+            <div><dt>{copy.architectures}</dt><dd data-fact-architectures></dd></div>
+            <div><dt>{copy.published}</dt><dd data-fact-published></dd></div>
+            <div><dt>{copy.downloads}</dt><dd data-fact-downloads></dd></div>
+          </dl>
+        </section>
       </aside>
     </div>
   </article>
@@ -117,7 +164,9 @@ const apiBase = '/api/market/v1'
     const state = root.querySelector<HTMLElement>('[data-detail-state]')!
     const content = root.querySelector<HTMLElement>('[data-detail-content]')!
     const versions = root.querySelector<HTMLSelectElement>('[data-detail-versions]')!
-    const download = root.querySelector<HTMLAnchorElement>('[data-detail-download]')!
+    const downloads = Array.from(root.querySelectorAll<HTMLAnchorElement>('[data-detail-download], [data-detail-download-side]'))
+    const tabButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-detail-tab]'))
+    const tabPanels = Array.from(root.querySelectorAll<HTMLElement>('[data-detail-panel]'))
     let listing: Listing | null = null
 
     const kindCopy: Record<Listing['kind'], string> = {
@@ -138,26 +187,57 @@ const apiBase = '/api/market/v1'
       if (element) element.textContent = value
     }
 
-    function fillList(selector: string, values: string[], fallback?: string): void {
+    function formatDate(value: string): string {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return value
+      return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+    }
+
+    function fillList(selector: string, values: string[], fallback: string, className: string): void {
       const element = root.querySelector<HTMLElement>(selector)!
       element.replaceChildren()
-      const items = values.length ? values : fallback ? [fallback] : []
+      const items = values.length ? values : [fallback]
       items.forEach((value) => {
         const item = document.createElement('li')
-        item.textContent = value
+        item.className = className
+        const mark = document.createElement('span')
+        mark.textContent = values.length ? '✓' : '—'
+        mark.setAttribute('aria-hidden', 'true')
+        const label = document.createElement('span')
+        label.textContent = value
+        item.append(mark, label)
         element.append(item)
       })
     }
 
-    function renderMarkdown(markdown: string): void {
+    function appendInlineText(target: HTMLElement, value: string): void {
+      const tokens = value.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).filter(Boolean)
+      tokens.forEach((token) => {
+        if (token.startsWith('`') && token.endsWith('`')) {
+          const code = document.createElement('code')
+          code.textContent = token.slice(1, -1)
+          target.append(code)
+        } else if (token.startsWith('**') && token.endsWith('**')) {
+          const strong = document.createElement('strong')
+          strong.textContent = token.slice(2, -2)
+          target.append(strong)
+        } else {
+          target.append(document.createTextNode(token))
+        }
+      })
+    }
+
+    function renderMarkdown(markdown: string, fallback: string): void {
       const target = root.querySelector<HTMLElement>('[data-detail-readme]')!
       target.replaceChildren()
       const lines = markdown.replace(/\r\n/g, '\n').split('\n')
       let code: string[] | null = null
-      let list: HTMLUListElement | null = null
+      let list: HTMLUListElement | HTMLOListElement | null = null
+      let listType = ''
       for (const line of lines) {
         if (line.trim().startsWith('```')) {
           list = null
+          listType = ''
           if (code) {
             const pre = document.createElement('pre')
             const node = document.createElement('code')
@@ -177,26 +257,42 @@ const apiBase = '/api/market/v1'
         const heading = /^(#{1,3})\s+(.+)$/.exec(line)
         if (heading) {
           list = null
+          listType = ''
           const node = document.createElement(`h${heading[1].length}`)
-          node.textContent = heading[2]
+          appendInlineText(node, heading[2])
           target.append(node)
           continue
         }
         const bullet = /^[-*]\s+(.+)$/.exec(line)
-        if (bullet) {
-          if (!list) {
-            list = document.createElement('ul')
+        const ordered = /^\d+\.\s+(.+)$/.exec(line)
+        if (bullet || ordered) {
+          const nextType = bullet ? 'ul' : 'ol'
+          if (!list || listType !== nextType) {
+            list = document.createElement(nextType)
+            listType = nextType
             target.append(list)
           }
           const item = document.createElement('li')
-          item.textContent = bullet[1]
+          appendInlineText(item, (bullet || ordered)![1])
           list.append(item)
           continue
         }
         list = null
+        listType = ''
+        const quote = /^>\s?(.+)$/.exec(line)
+        if (quote) {
+          const blockquote = document.createElement('blockquote')
+          appendInlineText(blockquote, quote[1])
+          target.append(blockquote)
+          continue
+        }
+        if (/^---+$/.test(line.trim())) {
+          target.append(document.createElement('hr'))
+          continue
+        }
         if (line.trim()) {
           const paragraph = document.createElement('p')
-          paragraph.textContent = line
+          appendInlineText(paragraph, line)
           target.append(paragraph)
         }
       }
@@ -209,17 +305,25 @@ const apiBase = '/api/market/v1'
       }
       if (!target.childElementCount) {
         const paragraph = document.createElement('p')
-        paragraph.textContent = listing?.summary || ''
+        paragraph.textContent = fallback
         target.append(paragraph)
       }
     }
 
     function applyDetail(detail: Listing | Release, release: ReleaseSummary): void {
       const summary = 'summaryText' in detail ? detail.summaryText : detail.summary
+      const platforms = release.compatibility.platforms.join(', ') || '—'
+      const architectures = release.compatibility.architectures.join(', ') || '—'
+      const published = formatDate(release.publishedAt)
+      const downloadCount = new Intl.NumberFormat(locale).format(listing?.downloadCount || 0)
       setText('[data-detail-mark]', kindMark[detail.kind])
       setText('[data-detail-kind]', kindCopy[detail.kind])
       setText('[data-detail-title]', detail.title)
+      setText('[data-detail-version]', `v${release.version}`)
       setText('[data-detail-summary]', summary)
+      setText('[data-detail-publisher]', detail.publisherDisplayName)
+      setText('[data-detail-downloads]', `${downloadCount} ${copy.downloads}`)
+      setText('[data-detail-published]', published)
       const tags = root.querySelector<HTMLElement>('[data-detail-tags]')!
       tags.replaceChildren()
       detail.tags.forEach((tag) => {
@@ -228,25 +332,32 @@ const apiBase = '/api/market/v1'
         item.textContent = tag
         tags.append(item)
       })
-      renderMarkdown(detail.readmeMarkdown)
-      fillList('[data-detail-resources]', detail.resources.map((resource) => resource.displayName))
-      fillList('[data-detail-permissions]', detail.requestedPermissions, copy.noPermissions)
+      renderMarkdown(detail.readmeMarkdown, summary)
+      fillList('[data-detail-resources]', detail.resources.map((resource) => resource.displayName), copy.noResources, 'market-resource-item')
+      fillList('[data-detail-permissions]', detail.requestedPermissions, copy.noPermissions, 'market-permission-item')
+      setText('[data-resource-count]', ` ${detail.resources.length}`)
       setText('[data-fact-package]', detail.packageId)
       setText('[data-fact-publisher]', detail.publisherDisplayName)
       setText('[data-fact-license]', detail.license)
       setText('[data-fact-codey]', release.compatibility.codeyVersionRange)
-      setText('[data-fact-platforms]', release.compatibility.platforms.join(', ') || '—')
-      setText('[data-fact-architectures]', release.compatibility.architectures.join(', ') || '—')
-      setText('[data-fact-published]', new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(release.publishedAt)))
-      setText('[data-fact-downloads]', new Intl.NumberFormat(locale).format(listing?.downloadCount || 0))
-      download.href = `${apiBase}/releases/${encodeURIComponent(release.releaseId)}/artifact`
+      setText('[data-fact-platforms]', platforms)
+      setText('[data-fact-architectures]', architectures)
+      setText('[data-fact-published]', published)
+      setText('[data-fact-downloads]', downloadCount)
+      setText('[data-inline-codey]', release.compatibility.codeyVersionRange)
+      setText('[data-inline-platforms]', platforms)
+      setText('[data-inline-architectures]', architectures)
+      const href = `${apiBase}/releases/${encodeURIComponent(release.releaseId)}/artifact`
+      downloads.forEach((link) => {
+        link.href = href
+        link.setAttribute('download', '')
+      })
       document.title = `${detail.title} · CodeY`
     }
 
     async function selectRelease(releaseId: string): Promise<void> {
       const release = listing?.releases.find((item) => item.releaseId === releaseId)
       if (!release || !listing) return
-      download.href = `${apiBase}/releases/${encodeURIComponent(releaseId)}/artifact`
       try {
         const response = await fetch(`${apiBase}/releases/${encodeURIComponent(releaseId)}`)
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -254,6 +365,17 @@ const apiBase = '/api/market/v1'
       } catch {
         applyDetail(listing, release)
       }
+    }
+
+    function selectTab(name: string): void {
+      tabButtons.forEach((button) => {
+        const active = button.dataset.detailTab === name
+        button.classList.toggle('is-active', active)
+        button.setAttribute('aria-selected', String(active))
+      })
+      tabPanels.forEach((panel) => {
+        panel.hidden = panel.dataset.detailPanel !== name
+      })
     }
 
     async function load(): Promise<void> {
@@ -270,7 +392,7 @@ const apiBase = '/api/market/v1'
         listing.releases.forEach((release) => {
           const option = document.createElement('option')
           option.value = release.releaseId
-          option.textContent = release.version
+          option.textContent = `v${release.version}`
           option.selected = release.releaseId === listing?.latestRelease.releaseId
           versions.append(option)
         })
@@ -283,6 +405,7 @@ const apiBase = '/api/market/v1'
     }
 
     versions.addEventListener('change', () => void selectRelease(versions.value))
+    tabButtons.forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.detailTab || 'intro')))
     void load()
   }
 </script>
