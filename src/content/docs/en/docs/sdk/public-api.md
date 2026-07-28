@@ -13,7 +13,7 @@ TypeScript, Python, and Rust use the same `AgentClientRequest` schema and daemon
 | Definitions and validation | `client.definitions` | `client.definitions` | `AgentClient` |
 | Credentials and provider profiles | `client.credentials`, `client.providers` | `client.credentials`, `client.providers` | `AgentClient` |
 | Prompt, MCP, Skill, and Plugin components | `client.components` | `client.components` | `AgentClient` |
-| Runtime tools and configured agent profiles | `client.tools`, `client.agentProfiles` | `client.tools`, `client.agent_profiles` | `AgentClient` |
+| Runtime tool catalog | `client.tools` | `client.tools` | `AgentClient` |
 | Provider connections, configured models, model-service routes and jobs | `client.modelServices` | `client.model_services` | `AgentClient` |
 | Query, session, run, events, and recovery | `Agent`, `Session`, `RunHandle` | `Agent`, `Session`, `RunHandle` | `Agent`, `Session`, `RunHandle` |
 | Permission and question handling | client handlers | client handlers | `AgentClient`, `RunHandle` |

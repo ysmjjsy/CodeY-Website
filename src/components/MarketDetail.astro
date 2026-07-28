@@ -130,7 +130,7 @@ const apiBase = '/api/market/v1'
   type Listing = {
     listingId: string
     packageId: string
-    kind: 'agent_template' | 'team_template' | 'skill' | 'mcp'
+    kind: 'agent_template' | 'team_template' | 'workflow_template' | 'skill' | 'mcp'
     title: string
     summary: string
     tags: string[]
@@ -172,12 +172,14 @@ const apiBase = '/api/market/v1'
     const kindCopy: Record<Listing['kind'], string> = {
       agent_template: copy.agentTemplate,
       team_template: copy.teamTemplate,
+      workflow_template: copy.workflowTemplate,
       skill: copy.skill,
       mcp: copy.mcp,
     }
     const kindMark: Record<Listing['kind'], string> = {
       agent_template: 'A',
       team_template: 'AT',
+      workflow_template: 'W',
       skill: 'S',
       mcp: 'M',
     }

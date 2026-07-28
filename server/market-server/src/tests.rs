@@ -2,15 +2,16 @@ use std::collections::BTreeSet;
 
 use crate::contracts::{
     MarketplaceCatalogResponse, MarketplaceDiscovery, MarketplaceListingDetail,
-    MarketplaceUploadPreview, PublishMarketplaceUploadRequest,
+    MarketplacePrimaryResource, MarketplaceUploadPreview, PublishMarketplaceUploadRequest,
 };
 use base64::Engine as _;
 use codey_package_format::{
     package_content_hash, package_dependency_lock_hash, AgentComponentKind, AgentPackage,
-    AgentPackageArchive, DecimalU64, PackageArchiveFile, PackageCompatibility,
-    PackageComponentEntry, PackageComponentSource, PackageDependencyLock, PackageFileChecksum,
-    PackageId, PackageManifest, PackagePublisher, AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION,
-    AGENT_PACKAGE_CANONICALIZATION_VERSION, AGENT_PACKAGE_MANIFEST_SCHEMA_VERSION,
+    AgentPackageArchive, DecimalU64, ExecutionTargetKind, PackageArchiveFile, PackageCompatibility,
+    PackageComponentEntry, PackageComponentSource, PackageDefinitionEntry, PackageDefinitionKind,
+    PackageDependencyLock, PackageFileChecksum, PackageId, PackageManifest, PackagePublisher,
+    AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION, AGENT_PACKAGE_CANONICALIZATION_VERSION,
+    AGENT_PACKAGE_MANIFEST_SCHEMA_VERSION,
 };
 use reqwest::{Client, StatusCode};
 
@@ -162,6 +163,16 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         blake3::hash(&archive).to_hex().to_string()
     );
     assert!(!preview.available_primary_resources.is_empty());
+    assert!(preview
+        .available_primary_resources
+        .iter()
+        .any(|resource| matches!(
+            resource.resource,
+            MarketplacePrimaryResource::Definition {
+                produces: ExecutionTargetKind::Workflow,
+                ..
+            }
+        )));
 
     let publish = client
         .post(format!(
@@ -324,11 +335,21 @@ fn build_archive() -> Vec<u8> {
     let skill_content = b"# Repository analyst\n\nInspect the repository before answering.";
     let skill_path = "SKILL.md";
     let skill_hash = blake3::hash(skill_content).to_hex().to_string();
-    let checksum = PackageFileChecksum {
-        relative_path: skill_path.into(),
-        length: DecimalU64::new(skill_content.len() as u64),
-        blake3: skill_hash.clone(),
-    };
+    let workflow_content = br#"{"spec":{"displayName":"Repository workflow"}}"#;
+    let workflow_path = "definitions/workflow.json";
+    let workflow_hash = blake3::hash(workflow_content).to_hex().to_string();
+    let checksums = vec![
+        PackageFileChecksum {
+            relative_path: skill_path.into(),
+            length: DecimalU64::new(skill_content.len() as u64),
+            blake3: skill_hash.clone(),
+        },
+        PackageFileChecksum {
+            relative_path: workflow_path.into(),
+            length: DecimalU64::new(workflow_content.len() as u64),
+            blake3: workflow_hash.clone(),
+        },
+    ];
     let mut dependency_lock = PackageDependencyLock {
         schema_version: 1,
         dependencies: Vec::new(),
@@ -355,7 +376,13 @@ fn build_archive() -> Vec<u8> {
             platforms: BTreeSet::new(),
             architectures: BTreeSet::new(),
         },
-        definitions: Vec::new(),
+        definitions: vec![PackageDefinitionEntry {
+            kind: PackageDefinitionKind::Workflow,
+            definition_id: ulid::Ulid::new().to_string(),
+            revision: ulid::Ulid::new().to_string(),
+            relative_path: workflow_path.into(),
+            content_hash: workflow_hash.clone(),
+        }],
         templates: Vec::new(),
         components: vec![PackageComponentEntry {
             component_id: ulid::Ulid::new().to_string(),
@@ -374,23 +401,33 @@ fn build_archive() -> Vec<u8> {
         package_content_hash: String::new(),
     };
     manifest.package_content_hash =
-        package_content_hash(&manifest, &dependency_lock, std::slice::from_ref(&checksum)).unwrap();
+        package_content_hash(&manifest, &dependency_lock, &checksums).unwrap();
     AgentPackageArchive {
         archive_format_version: AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION,
         package: AgentPackage {
             manifest,
             dependency_lock,
-            checksums: vec![checksum],
+            checksums,
             signature: None,
         },
-        files: vec![PackageArchiveFile {
-            relative_path: skill_path.into(),
-            length: DecimalU64::new(skill_content.len() as u64),
-            blake3: skill_hash,
-            unix_mode: 0o644,
-            modified_unix_seconds: DecimalU64::new(0),
-            content_base64: base64::engine::general_purpose::STANDARD.encode(skill_content),
-        }],
+        files: vec![
+            PackageArchiveFile {
+                relative_path: skill_path.into(),
+                length: DecimalU64::new(skill_content.len() as u64),
+                blake3: skill_hash,
+                unix_mode: 0o644,
+                modified_unix_seconds: DecimalU64::new(0),
+                content_base64: base64::engine::general_purpose::STANDARD.encode(skill_content),
+            },
+            PackageArchiveFile {
+                relative_path: workflow_path.into(),
+                length: DecimalU64::new(workflow_content.len() as u64),
+                blake3: workflow_hash,
+                unix_mode: 0o644,
+                modified_unix_seconds: DecimalU64::new(0),
+                content_base64: base64::engine::general_purpose::STANDARD.encode(workflow_content),
+            },
+        ],
     }
     .canonical_bytes()
     .unwrap()

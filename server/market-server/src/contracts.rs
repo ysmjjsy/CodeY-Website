@@ -10,6 +10,7 @@ pub const MAX_PACKAGE_BYTES: usize = MAX_PACKAGE_ARCHIVE_BYTES;
 pub enum MarketplaceListingKind {
     AgentTemplate,
     TeamTemplate,
+    WorkflowTemplate,
     Skill,
     Mcp,
 }
@@ -53,6 +54,14 @@ impl MarketplacePrimaryResource {
                 produces: ExecutionTargetKind::Team,
                 ..
             } => Some(MarketplaceListingKind::TeamTemplate),
+            Self::Definition {
+                produces: ExecutionTargetKind::Workflow,
+                ..
+            }
+            | Self::Template {
+                produces: ExecutionTargetKind::Workflow,
+                ..
+            } => Some(MarketplaceListingKind::WorkflowTemplate),
             Self::Component {
                 kind: AgentComponentKind::Skill,
                 ..
@@ -184,6 +193,33 @@ pub struct MarketplaceUploadPreview {
     #[serde(default)]
     pub requested_permissions: Vec<String>,
     pub manifest: serde_json::Value,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MarketplaceListingKind, MarketplacePrimaryResource};
+    use codey_package_format::ExecutionTargetKind;
+
+    #[test]
+    fn workflow_resources_are_publishable_workflow_templates() {
+        for resource in [
+            MarketplacePrimaryResource::Definition {
+                produces: ExecutionTargetKind::Workflow,
+                definition_id: "workflow-id".into(),
+                revision: "workflow-revision".into(),
+            },
+            MarketplacePrimaryResource::Template {
+                produces: ExecutionTargetKind::Workflow,
+                template_id: "template-id".into(),
+                revision: "template-revision".into(),
+            },
+        ] {
+            assert_eq!(
+                resource.listing_kind(),
+                Some(MarketplaceListingKind::WorkflowTemplate)
+            );
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

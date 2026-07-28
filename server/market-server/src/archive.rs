@@ -95,7 +95,7 @@ fn marketplace_resources(
         let produces = match entry.kind {
             PackageDefinitionKind::Agent => ExecutionTargetKind::Agent,
             PackageDefinitionKind::Team => ExecutionTargetKind::Team,
-            PackageDefinitionKind::Workflow => continue,
+            PackageDefinitionKind::Workflow => ExecutionTargetKind::Workflow,
         };
         let envelope = definition_envelope(files, &entry.relative_path)?;
         let resource = MarketplaceResourceSummary {
@@ -121,12 +121,6 @@ fn marketplace_resources(
                 serde_json::from_value::<ExecutionTargetKind>(value)
                     .map_err(|_| ArchiveInspectionError::TemplateMetadata)
             })?;
-        if !matches!(
-            produces,
-            ExecutionTargetKind::Agent | ExecutionTargetKind::Team
-        ) {
-            continue;
-        }
         let resource = MarketplaceResourceSummary {
             resource: MarketplacePrimaryResource::Template {
                 produces,
@@ -198,7 +192,9 @@ pub enum ArchiveInspectionError {
     TooLarge,
     #[error("package archive encoding is invalid")]
     Encoding,
-    #[error("package does not contain an Agent, Team, Skill, or MCP marketplace resource")]
+    #[error(
+        "package does not contain an Agent, Team, Workflow, Skill, or MCP marketplace resource"
+    )]
     NoMarketplaceResource,
     #[error("template metadata is invalid")]
     TemplateMetadata,

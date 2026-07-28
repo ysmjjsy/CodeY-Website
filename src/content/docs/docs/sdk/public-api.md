@@ -13,7 +13,7 @@ TypeScript、Python 和 Rust 使用同一份 `AgentClientRequest` Schema 和同�
 | 定义与校验 | `client.definitions` | `client.definitions` | `AgentClient` |
 | 凭据与提供商配置 | `client.credentials`、`client.providers` | `client.credentials`、`client.providers` | `AgentClient` |
 | Prompt、MCP、Skill、Plugin 组件 | `client.components` | `client.components` | `AgentClient` |
-| 运行时工具与已配置 Agent Profile | `client.tools`、`client.agentProfiles` | `client.tools`、`client.agent_profiles` | `AgentClient` |
+| 运行时工具目录 | `client.tools` | `client.tools` | `AgentClient` |
 | 提供商连接、已配置模型、模型服务路由与任务 | `client.modelServices` | `client.model_services` | `AgentClient` |
 | 查询、会话、运行、事件与恢复 | `Agent`、`Session`、`RunHandle` | `Agent`、`Session`、`RunHandle` | `Agent`、`Session`、`RunHandle` |
 | 权限与问题处理 | 客户端处理器 | 客户端处理器 | `AgentClient`、`RunHandle` |
