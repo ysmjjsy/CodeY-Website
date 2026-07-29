@@ -1,0 +1,370 @@
+---
+import type { Locale } from '../i18n/ui'
+import { cloudCopy } from '../i18n/cloud'
+
+interface Props { locale: Locale }
+const { locale } = Astro.props
+const copy = cloudCopy(locale)
+---
+
+<section class="admin-shell" data-cloud-admin data-locale={locale} data-copy={JSON.stringify(copy)}>
+  <header class="admin-head">
+    <p>CodeY Cloud Admin</p>
+    <h1>{copy.adminTitle}</h1>
+    <span>{copy.adminDescription}</span>
+  </header>
+  <p class="admin-state" data-state>{copy.loading}</p>
+
+  <div class="admin-content" hidden data-content>
+    <section class="admin-section">
+      <div class="section-head"><h2>{copy.providers}</h2></div>
+      <div class="record-list" data-provider-list></div>
+      <form class="editor" data-provider-form>
+        <input name="providerId" type="hidden" />
+        <label><span>Slug</span><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
+        <label><span>Display name</span><input name="displayName" required /></label>
+        <label><span>Protocol family</span><select name="providerKind"><option value="openai_compatible">OpenAI compatible</option><option value="anthropic">Anthropic</option><option value="gemini">Gemini</option></select></label>
+        <label class="wide"><span>Base URL</span><input name="baseUrl" type="url" required placeholder="https://api.example.com" /></label>
+        <label class="wide"><span>API key</span><input name="apiKey" type="password" autocomplete="new-password" placeholder="Leave blank to keep the stored credential" /></label>
+        <label class="check"><input name="active" type="checkbox" checked /><span>{copy.active}</span></label>
+        <button class="btn btn-primary" type="submit">{copy.saveProvider}</button>
+      </form>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-head"><h2>{copy.models}</h2></div>
+      <div class="record-list" data-model-list></div>
+      <form class="editor" data-model-form>
+        <input name="modelId" type="hidden" />
+        <label><span>Public model ID</span><input name="publicModelId" required /></label>
+        <label><span>Display name</span><input name="displayName" required /></label>
+        <label><span>Upstream provider</span><select name="upstreamProviderId" required data-provider-select></select></label>
+        <label><span>Upstream model ID</span><input name="upstreamModelId" required /></label>
+        <label><span>Protocol</span><select name="protocol"><option value="chat_completions">Chat Completions</option><option value="responses">Responses</option><option value="messages">Messages</option><option value="generate_content">Generate Content</option></select></label>
+        <label><span>Context window</span><input name="contextWindow" type="number" min="1" value="128000" required /></label>
+        <label><span>Max output tokens</span><input name="maxOutputTokens" type="number" min="1" value="8192" required /></label>
+        <label><span>Input / 1M tokens (credits)</span><input name="inputPrice" type="number" min="0" step="0.000001" value="0" required /></label>
+        <label><span>Output / 1M tokens (credits)</span><input name="outputPrice" type="number" min="0" step="0.000001" value="0" required /></label>
+        <label><span>Cache read / 1M (credits)</span><input name="cacheReadPrice" type="number" min="0" step="0.000001" value="0" required /></label>
+        <label><span>Cache write / 1M (credits)</span><input name="cacheWritePrice" type="number" min="0" step="0.000001" value="0" required /></label>
+        <label><span>Fixed / request (credits)</span><input name="fixedPrice" type="number" min="0" step="0.000001" value="0" required /></label>
+        <div class="checks wide">
+          <label class="check"><input name="vision" type="checkbox" /><span>Vision</span></label>
+          <label class="check"><input name="tools" type="checkbox" checked /><span>Tool calling</span></label>
+          <label class="check"><input name="reasoning" type="checkbox" /><span>Reasoning</span></label>
+          <label class="check"><input name="promptCache" type="checkbox" /><span>Prompt cache</span></label>
+          <label class="check"><input name="structuredOutput" type="checkbox" /><span>Structured output</span></label>
+          <label class="check"><input name="active" type="checkbox" checked /><span>{copy.active}</span></label>
+        </div>
+        <button class="btn btn-primary" type="submit">{copy.publishModel}</button>
+      </form>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-head"><h2>{copy.plans}</h2></div>
+      <div class="record-list" data-plan-list></div>
+      <form class="editor" data-plan-form>
+        <input name="planId" type="hidden" />
+        <label><span>Slug</span><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
+        <label><span>Display name</span><input name="displayName" required /></label>
+        <label class="wide"><span>Description</span><textarea name="description" rows="3" required></textarea></label>
+        <label><span>Tier rank</span><input name="tierRank" type="number" min="0" value="0" required /></label>
+        <label><span>Monthly credits</span><input name="monthlyCredits" type="number" min="0" step="0.000001" value="0" required /></label>
+        <label class="check"><input name="isDefault" type="checkbox" /><span>Default free plan</span></label>
+        <fieldset class="wide offer-editor"><legend>Payment offers</legend><div data-plan-offer-rows></div><button class="btn btn-ghost" type="button" data-add-plan-offer>Add payment offer</button></fieldset>
+        <fieldset class="wide model-access"><legend>Allowed official models</legend><div data-plan-models></div></fieldset>
+        <button class="btn btn-primary" type="submit">Save plan version</button>
+      </form>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-head"><h2>{copy.topUps}</h2></div>
+      <div class="record-list" data-topup-list></div>
+      <form class="editor" data-topup-form>
+        <input name="productId" type="hidden" />
+        <label><span>Slug</span><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
+        <label><span>Display name</span><input name="displayName" required /></label>
+        <label class="wide"><span>Description</span><textarea name="description" rows="3" required></textarea></label>
+        <label><span>Permanent credits</span><input name="credits" type="number" min="0.000001" step="0.000001" required /></label>
+        <fieldset class="wide offer-editor"><legend>Payment offers</legend><div data-topup-offer-rows></div><button class="btn btn-ghost" type="button" data-add-topup-offer>Add payment offer</button></fieldset>
+        <button class="btn btn-primary" type="submit">Save credit pack version</button>
+      </form>
+    </section>
+  </div>
+</section>
+
+<script>
+  type Provider = { providerId: string; slug: string; displayName: string; providerKind: string; baseUrl: string; credentialConfigured: boolean; active: boolean }
+  type Pricing = { inputCreditMicrosPerMillion: number; outputCreditMicrosPerMillion: number; cacheReadCreditMicrosPerMillion: number; cacheWriteCreditMicrosPerMillion: number; fixedCreditMicrosPerRequest: number }
+  type Model = { modelId: string; publicModelId: string; displayName: string; upstreamProviderId: string; upstreamModelId: string; protocol: string; capability: Record<string, unknown>; pricing: Pricing; active: boolean }
+  type ModelCatalog = { revision: number; providers: Provider[]; models: Model[] }
+  type Offer = { offerId?: string; region: string; currency: string; paymentProvider: string; amountMinor: number }
+  type Benefit = { resourceType: string; resourceId?: string | null; action: string }
+  type Plan = { planId: string; slug: string; displayName: string; description: string; tierRank: number; isDefault: boolean; monthlyCreditMicros: number; offers: Offer[]; benefits: Benefit[] }
+  type PlanCatalog = { revision: number; plans: Plan[] }
+  type TopUp = { productId: string; slug: string; displayName: string; description: string; creditMicros: number; offers: Offer[] }
+  type TopUpCatalog = { revision: number; products: TopUp[] }
+
+  const root = document.querySelector<HTMLElement>('[data-cloud-admin]')
+  if (root) {
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const state = root.querySelector<HTMLElement>('[data-state]')!
+    const content = root.querySelector<HTMLElement>('[data-content]')!
+    const providerForm = root.querySelector<HTMLFormElement>('[data-provider-form]')!
+    const modelForm = root.querySelector<HTMLFormElement>('[data-model-form]')!
+    const planForm = root.querySelector<HTMLFormElement>('[data-plan-form]')!
+    const topupForm = root.querySelector<HTMLFormElement>('[data-topup-form]')!
+    const planOfferRows = root.querySelector<HTMLElement>('[data-plan-offer-rows]')!
+    const topupOfferRows = root.querySelector<HTMLElement>('[data-topup-offer-rows]')!
+    let modelCatalog: ModelCatalog = { revision: 0, providers: [], models: [] }
+    let planCatalog: PlanCatalog = { revision: 0, plans: [] }
+    let topupCatalog: TopUpCatalog = { revision: 0, products: [] }
+
+    async function api<T>(path: string, init?: RequestInit): Promise<T> {
+      const response = await fetch(`/api/cloud/v1${path}`, {
+        ...init,
+        headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
+      })
+      if (response.status === 401) { window.dispatchEvent(new CustomEvent('market-auth-required')); throw new Error(copy.signIn) }
+      if (response.status === 403) throw new Error(copy.adminRequired)
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { message?: string } | null
+        throw new Error(payload?.message || copy.unavailable)
+      }
+      return response.json() as Promise<T>
+    }
+
+    function field(form: HTMLFormElement, name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
+      return form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    }
+    function checked(form: HTMLFormElement, name: string): boolean { return (field(form, name) as HTMLInputElement).checked }
+    function setChecked(form: HTMLFormElement, name: string, value: boolean): void { (field(form, name) as HTMLInputElement).checked = value }
+    function toMicros(value: string): number { return Math.round(Number(value) * 1_000_000) }
+    function fromMicros(value: number): string { return String(value / 1_000_000) }
+    function capability(model: Model, key: string, fallback: unknown): any { return model.capability[key] ?? fallback }
+
+    function offerRow(offer: Offer, minimumAmount: number): HTMLElement {
+      const row = document.createElement('div')
+      row.className = 'offer-row'
+      const providerLabel = document.createElement('label')
+      const providerTitle = document.createElement('span'); providerTitle.textContent = 'Payment provider'
+      const provider = document.createElement('select'); provider.dataset.offerProvider = ''; provider.required = true
+      provider.replaceChildren(new Option('Stripe', 'stripe'), new Option('微信支付', 'wechat_pay'), new Option('支付宝', 'alipay'), new Option('Test', 'test'))
+      provider.value = offer.paymentProvider
+      providerLabel.append(providerTitle, provider)
+      const regionLabel = document.createElement('label')
+      const regionTitle = document.createElement('span'); regionTitle.textContent = 'Region'
+      const region = document.createElement('input'); region.dataset.offerRegion = ''; region.required = true; region.maxLength = 16; region.value = offer.region
+      regionLabel.append(regionTitle, region)
+      const currencyLabel = document.createElement('label')
+      const currencyTitle = document.createElement('span'); currencyTitle.textContent = 'Currency'
+      const currency = document.createElement('input'); currency.dataset.offerCurrency = ''; currency.required = true; currency.minLength = 3; currency.maxLength = 3; currency.value = offer.currency
+      currencyLabel.append(currencyTitle, currency)
+      const amountLabel = document.createElement('label')
+      const amountTitle = document.createElement('span'); amountTitle.textContent = 'Price (major unit)'
+      const amount = document.createElement('input'); amount.dataset.offerAmount = ''; amount.type = 'number'; amount.required = true; amount.min = String(minimumAmount); amount.step = '0.01'; amount.value = String(offer.amountMinor / 100)
+      amountLabel.append(amountTitle, amount)
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-ghost'; remove.textContent = 'Remove'; remove.onclick = () => { if (row.parentElement?.childElementCount !== 1) row.remove() }
+      row.append(providerLabel, regionLabel, currencyLabel, amountLabel, remove)
+      return row
+    }
+
+    function defaultOffer(): Offer {
+      return { paymentProvider: 'stripe', region: 'global', currency: 'USD', amountMinor: 0 }
+    }
+
+    function setOfferRows(container: HTMLElement, offers: Offer[], minimumAmount: number): void {
+      container.replaceChildren(...(offers.length ? offers : [defaultOffer()]).map((offer) => offerRow(offer, minimumAmount)))
+    }
+
+    function collectOffers(container: HTMLElement): Offer[] {
+      return [...container.querySelectorAll<HTMLElement>('.offer-row')].map((row) => ({
+        paymentProvider: row.querySelector<HTMLSelectElement>('[data-offer-provider]')!.value,
+        region: row.querySelector<HTMLInputElement>('[data-offer-region]')!.value.trim(),
+        currency: row.querySelector<HTMLInputElement>('[data-offer-currency]')!.value.trim().toUpperCase(),
+        amountMinor: Math.round(Number(row.querySelector<HTMLInputElement>('[data-offer-amount]')!.value) * 100),
+      }))
+    }
+
+    function record(title: string, meta: string, active: boolean, onEdit: () => void): HTMLElement {
+      const element = document.createElement('article')
+      element.className = 'record'
+      const text = document.createElement('div')
+      const heading = document.createElement('strong'); heading.textContent = title
+      const detail = document.createElement('span'); detail.textContent = meta
+      text.append(heading, detail)
+      const status = document.createElement('span'); status.className = `record-status ${active ? 'active' : ''}`; status.textContent = active ? copy.active : copy.inactive
+      const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-ghost'; edit.textContent = copy.edit; edit.onclick = onEdit
+      element.append(text, status, edit)
+      return element
+    }
+
+    function render(): void {
+      const providerList = root.querySelector<HTMLElement>('[data-provider-list]')!
+      providerList.replaceChildren(...modelCatalog.providers.map((provider) => record(
+        provider.displayName,
+        `${provider.providerKind} · ${provider.credentialConfigured ? copy.credentialSet : copy.noCredential}`,
+        provider.active,
+        () => editProvider(provider),
+      )))
+      const providerSelect = field(modelForm, 'upstreamProviderId') as HTMLSelectElement
+      providerSelect.replaceChildren(...modelCatalog.providers.map((provider) => new Option(provider.displayName, provider.providerId)))
+
+      const modelList = root.querySelector<HTMLElement>('[data-model-list]')!
+      modelList.replaceChildren(...modelCatalog.models.map((model) => record(
+        model.displayName,
+        `${model.publicModelId} · ${model.protocol}`,
+        model.active,
+        () => editModel(model),
+      )))
+      const modelAccess = root.querySelector<HTMLElement>('[data-plan-models]')!
+      modelAccess.replaceChildren(...modelCatalog.models.map((model) => {
+        const label = document.createElement('label'); label.className = 'check'
+        const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'allowedModel'; input.value = model.publicModelId
+        const span = document.createElement('span'); span.textContent = model.displayName
+        label.append(input, span); return label
+      }))
+
+      const planList = root.querySelector<HTMLElement>('[data-plan-list]')!
+      planList.replaceChildren(...planCatalog.plans.map((plan) => record(
+        plan.displayName,
+        `${fromMicros(plan.monthlyCreditMicros)} credits · tier ${plan.tierRank}`,
+        true,
+        () => editPlan(plan),
+      )))
+      const topupList = root.querySelector<HTMLElement>('[data-topup-list]')!
+      topupList.replaceChildren(...topupCatalog.products.map((product) => record(
+        product.displayName,
+        `${fromMicros(product.creditMicros)} permanent credits`,
+        true,
+        () => editTopUp(product),
+      )))
+    }
+
+    function editProvider(provider: Provider): void {
+      field(providerForm, 'providerId').value = provider.providerId
+      field(providerForm, 'slug').value = provider.slug
+      field(providerForm, 'displayName').value = provider.displayName
+      field(providerForm, 'providerKind').value = provider.providerKind
+      field(providerForm, 'baseUrl').value = provider.baseUrl
+      field(providerForm, 'apiKey').value = ''
+      setChecked(providerForm, 'active', provider.active)
+      providerForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    function editModel(model: Model): void {
+      for (const [name, value] of Object.entries({ modelId: model.modelId, publicModelId: model.publicModelId, displayName: model.displayName, upstreamProviderId: model.upstreamProviderId, upstreamModelId: model.upstreamModelId, protocol: model.protocol, contextWindow: capability(model, 'context_window', 128000), maxOutputTokens: capability(model, 'max_output_tokens', 8192), inputPrice: fromMicros(model.pricing.inputCreditMicrosPerMillion), outputPrice: fromMicros(model.pricing.outputCreditMicrosPerMillion), cacheReadPrice: fromMicros(model.pricing.cacheReadCreditMicrosPerMillion), cacheWritePrice: fromMicros(model.pricing.cacheWriteCreditMicrosPerMillion), fixedPrice: fromMicros(model.pricing.fixedCreditMicrosPerRequest) })) field(modelForm, name).value = String(value)
+      setChecked(modelForm, 'vision', (capability(model, 'input_modalities', []) as string[]).includes('image'))
+      setChecked(modelForm, 'tools', Boolean(capability(model, 'tool_calling', true)))
+      setChecked(modelForm, 'reasoning', Boolean(capability(model, 'reasoning', false)))
+      setChecked(modelForm, 'promptCache', Boolean(capability(model, 'prompt_cache', false)))
+      setChecked(modelForm, 'structuredOutput', Boolean(capability(model, 'structured_output', false)))
+      setChecked(modelForm, 'active', model.active)
+      modelForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    function editPlan(plan: Plan): void {
+      for (const [name, value] of Object.entries({ planId: plan.planId, slug: plan.slug, displayName: plan.displayName, description: plan.description, tierRank: plan.tierRank, monthlyCredits: fromMicros(plan.monthlyCreditMicros) })) field(planForm, name).value = String(value)
+      setChecked(planForm, 'isDefault', plan.isDefault)
+      setOfferRows(planOfferRows, plan.offers, 0)
+      const allowed = new Set(plan.benefits.filter((benefit) => benefit.resourceType === 'model' && benefit.action === 'invoke').map((benefit) => benefit.resourceId))
+      root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]').forEach((input) => { input.checked = allowed.has(input.value) || allowed.has(null) })
+      planForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    function editTopUp(product: TopUp): void {
+      for (const [name, value] of Object.entries({ productId: product.productId, slug: product.slug, displayName: product.displayName, description: product.description, credits: fromMicros(product.creditMicros) })) field(topupForm, name).value = String(value)
+      setOfferRows(topupOfferRows, product.offers, 0.01)
+      topupForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    async function load(): Promise<void> {
+      state.hidden = false; state.textContent = copy.loading
+      try {
+        ;[modelCatalog, planCatalog, topupCatalog] = await Promise.all([api<ModelCatalog>('/admin/model-catalog'), api<PlanCatalog>('/plans'), api<TopUpCatalog>('/top-ups')])
+        render(); content.hidden = false; state.hidden = true
+      } catch (reason) { content.hidden = true; state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+    }
+
+    providerForm.addEventListener('submit', async (event) => {
+      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
+      try {
+        modelCatalog = await api('/admin/model-providers', { method: 'POST', body: JSON.stringify({ providerId: field(providerForm, 'providerId').value || null, slug: field(providerForm, 'slug').value, displayName: field(providerForm, 'displayName').value, providerKind: field(providerForm, 'providerKind').value, baseUrl: field(providerForm, 'baseUrl').value, apiKey: field(providerForm, 'apiKey').value || null, active: checked(providerForm, 'active'), expectedRevision: modelCatalog.revision }) })
+        providerForm.reset(); field(providerForm, 'providerId').value = ''; setChecked(providerForm, 'active', true); render(); state.textContent = copy.saved
+      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+    })
+
+    modelForm.addEventListener('submit', async (event) => {
+      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
+      const inputModalities = checked(modelForm, 'vision') ? ['text', 'image'] : ['text']
+      try {
+        modelCatalog = await api('/admin/models', { method: 'POST', body: JSON.stringify({ modelId: field(modelForm, 'modelId').value || null, publicModelId: field(modelForm, 'publicModelId').value, displayName: field(modelForm, 'displayName').value, upstreamProviderId: field(modelForm, 'upstreamProviderId').value, upstreamModelId: field(modelForm, 'upstreamModelId').value, protocol: field(modelForm, 'protocol').value, capability: { input_modalities: inputModalities, output_modalities: ['text'], context_window: Number(field(modelForm, 'contextWindow').value), max_output_tokens: Number(field(modelForm, 'maxOutputTokens').value), streaming: true, tool_calling: checked(modelForm, 'tools'), reasoning: checked(modelForm, 'reasoning'), prompt_cache: checked(modelForm, 'promptCache'), structured_output: checked(modelForm, 'structuredOutput'), hosted_tool_search: false, tool_observation_protocol: null }, pricing: { inputCreditMicrosPerMillion: toMicros(field(modelForm, 'inputPrice').value), outputCreditMicrosPerMillion: toMicros(field(modelForm, 'outputPrice').value), cacheReadCreditMicrosPerMillion: toMicros(field(modelForm, 'cacheReadPrice').value), cacheWriteCreditMicrosPerMillion: toMicros(field(modelForm, 'cacheWritePrice').value), fixedCreditMicrosPerRequest: toMicros(field(modelForm, 'fixedPrice').value) }, active: checked(modelForm, 'active'), expectedRevision: modelCatalog.revision }) })
+        modelForm.reset(); field(modelForm, 'modelId').value = ''; field(modelForm, 'contextWindow').value = '128000'; field(modelForm, 'maxOutputTokens').value = '8192'; setChecked(modelForm, 'tools', true); setChecked(modelForm, 'active', true); render(); state.textContent = copy.saved
+      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+    })
+
+    planForm.addEventListener('submit', async (event) => {
+      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
+      const isDefault = checked(planForm, 'isDefault')
+      const benefits = [...root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]:checked')].map((input) => ({ code: `model:${input.value}:invoke`, resourceType: 'model', resourceId: input.value, action: 'invoke', limit: {} }))
+      const offers = isDefault ? [] : collectOffers(planOfferRows)
+      try {
+        planCatalog = await api('/admin/plans', { method: 'POST', body: JSON.stringify({ planId: field(planForm, 'planId').value || null, slug: field(planForm, 'slug').value, displayName: field(planForm, 'displayName').value, description: field(planForm, 'description').value, tierRank: Number(field(planForm, 'tierRank').value), isDefault, monthlyCreditMicros: toMicros(field(planForm, 'monthlyCredits').value), offers, benefits, expectedRevision: planCatalog.revision }) })
+        planForm.reset(); field(planForm, 'planId').value = ''; setOfferRows(planOfferRows, [], 0); render(); state.textContent = copy.saved
+      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+    })
+
+    topupForm.addEventListener('submit', async (event) => {
+      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
+      const offers = collectOffers(topupOfferRows)
+      try {
+        topupCatalog = await api('/admin/top-ups', { method: 'POST', body: JSON.stringify({ productId: field(topupForm, 'productId').value || null, slug: field(topupForm, 'slug').value, displayName: field(topupForm, 'displayName').value, description: field(topupForm, 'description').value, creditMicros: toMicros(field(topupForm, 'credits').value), offers, expectedRevision: topupCatalog.revision }) })
+        topupForm.reset(); field(topupForm, 'productId').value = ''; setOfferRows(topupOfferRows, [], 0.01); render(); state.textContent = copy.saved
+      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+    })
+
+    root.querySelector('[data-add-plan-offer]')?.addEventListener('click', () => planOfferRows.append(offerRow(defaultOffer(), 0)))
+    root.querySelector('[data-add-topup-offer]')?.addEventListener('click', () => topupOfferRows.append(offerRow(defaultOffer(), 0.01)))
+    setOfferRows(planOfferRows, [], 0)
+    setOfferRows(topupOfferRows, [], 0.01)
+    window.addEventListener('market-auth-changed', () => void load())
+    void load()
+  }
+</script>
+
+<style>
+  .admin-shell { width: min(1120px, calc(100% - 36px)); margin: 0 auto; padding: 128px 0 100px; }
+  .admin-head { max-width: 760px; }
+  .admin-head > p { margin: 0 0 12px; color: var(--accent-bright); font: 600 .76rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+  .admin-head h1 { font-size: clamp(2.15rem, 5vw, 3.8rem); letter-spacing: -.05em; }
+  .admin-head span { display: block; margin-top: 14px; color: var(--fg-muted); line-height: 1.7; }
+  .admin-state { min-height: 24px; margin: 32px 0 0; color: var(--fg-muted); }
+  .admin-section { margin-top: 48px; }
+  .section-head { margin-bottom: 15px; }
+  .section-head h2 { font-size: 1.4rem; }
+  .record-list { display: grid; gap: 8px; }
+  .record { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel-glass); }
+  .record > div { display: grid; gap: 4px; }
+  .record span { color: var(--fg-muted); font-size: .74rem; }
+  .record-status { padding: 4px 8px; border-radius: 999px; background: var(--ghost-bg); }
+  .record-status.active { color: var(--accent-bright); background: var(--accent-soft); }
+  .editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; padding: 22px; border: 1px solid var(--border); border-radius: 15px; background: var(--panel-glass); }
+  .editor label:not(.check) { display: grid; gap: 7px; }
+  .editor label > span, .model-access legend, .offer-editor legend { color: var(--fg-muted); font-size: .76rem; font-weight: 600; }
+  .editor input:not([type="checkbox"]), .editor select, .editor textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 8px; outline: 0; color: var(--fg); background: var(--bg); font: inherit; }
+  .editor textarea { resize: vertical; }
+  .editor input:focus, .editor select:focus, .editor textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .editor .wide { grid-column: 1 / -1; }
+  .checks, .model-access > div { display: flex; flex-wrap: wrap; gap: 15px; }
+  .check { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; }
+  .model-access { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+  .model-access legend, .offer-editor legend { padding: 0 6px; }
+  .offer-editor { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+  .offer-editor > div { display: grid; gap: 10px; }
+  .offer-row { display: grid; grid-template-columns: 1.1fr .8fr .65fr .9fr auto; align-items: end; gap: 10px; }
+  .offer-row > label { display: grid; gap: 7px; }
+  .offer-editor > .btn { margin-top: 12px; }
+  .editor > .btn { justify-self: start; min-width: 190px; }
+  @media (max-width: 900px) { .offer-row { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 680px) { .admin-shell { width: calc(100% - 24px); padding-top: 106px; } .editor { grid-template-columns: 1fr; padding: 16px; } .editor .wide { grid-column: auto; } .record { grid-template-columns: 1fr auto; } .record-status { display: none; } .offer-row { grid-template-columns: 1fr; } }
+</style>

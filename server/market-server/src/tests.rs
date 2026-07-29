@@ -2,20 +2,276 @@ use std::collections::BTreeSet;
 
 use crate::contracts::{
     MarketplaceCatalogResponse, MarketplaceDiscovery, MarketplaceListingDetail,
-    MarketplacePrimaryResource, MarketplaceUploadPreview, PublishMarketplaceUploadRequest,
+    MarketplacePrimaryResource, MarketplaceUploadPreview, PackageMarketplaceMetadataDocument,
+    PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
 };
 use base64::Engine as _;
 use codey_package_format::{
-    package_content_hash, package_dependency_lock_hash, AgentComponentKind, AgentPackage,
-    AgentPackageArchive, DecimalU64, ExecutionTargetKind, PackageArchiveFile, PackageCompatibility,
-    PackageComponentEntry, PackageComponentSource, PackageDefinitionEntry, PackageDefinitionKind,
-    PackageDependencyLock, PackageFileChecksum, PackageId, PackageManifest, PackagePublisher,
-    AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION, AGENT_PACKAGE_CANONICALIZATION_VERSION,
+    package_content_hash, package_dependency_lock_hash, parse_archive, AgentComponentKind,
+    AgentPackage, AgentPackageArchive, DecimalU64, ExecutionTargetKind, PackageArchiveFile,
+    PackageCompatibility, PackageComponentEntry, PackageComponentSource, PackageDefinitionEntry,
+    PackageDefinitionKind, PackageDependencyLock, PackageFileChecksum, PackageId, PackageManifest,
+    PackagePublisher, AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION, AGENT_PACKAGE_CANONICALIZATION_VERSION,
     AGENT_PACKAGE_MANIFEST_SCHEMA_VERSION,
 };
 use reqwest::{Client, StatusCode};
 
-use super::{build_router, MarketplaceServerConfig, MarketplaceSubmission};
+use super::{
+    build_router, inspect_archive, ArchiveInspectionError, MarketplaceServerConfig,
+    MarketplaceSubmission,
+};
+
+#[test]
+fn archive_inspection_requires_package_marketplace_metadata() {
+    let bytes = build_archive_without_marketplace();
+    let error = inspect_archive(
+        ulid::Ulid::new().to_string(),
+        chrono::Utc::now() + chrono::Duration::minutes(30),
+        &bytes,
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        ArchiveInspectionError::MarketplaceMetadataMissing
+    ));
+}
+
+#[tokio::test]
+async fn administrator_publishes_versioned_plan_catalog() {
+    let data_root = secure_tempdir();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let origin = format!("http://{address}");
+    let market_api = format!("{origin}/api/market/v1");
+    let cloud_api = format!("{origin}/api/cloud/v1");
+    let router = build_router(MarketplaceServerConfig {
+        data_root: data_root.path().to_path_buf(),
+        web_base_url: format!("{origin}/market"),
+        api_base_url: market_api.clone(),
+        cloud_api_base_url: cloud_api.clone(),
+        cloud_default_timezone: "Asia/Shanghai".into(),
+        cors_origin: origin.clone(),
+        max_package_bytes: 4 * 1024 * 1024,
+        github_client_id: None,
+        github_client_secret: None,
+        admin_github_logins: BTreeSet::new(),
+        payments: crate::cloud::CloudPaymentConfig::default(),
+        cloud_secret_cipher: None,
+    })
+    .unwrap();
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let client = Client::new();
+
+    let catalog = client
+        .get(format!("{cloud_api}/plans"))
+        .send()
+        .await
+        .unwrap()
+        .json::<crate::cloud::PlanCatalog>()
+        .await
+        .unwrap();
+    assert_eq!(catalog.revision, 0);
+    assert_eq!(catalog.plans.len(), 1);
+
+    let register = client
+        .post(format!("{market_api}/auth/register"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({
+            "username": "plan-admin",
+            "email": "plan-admin@example.com",
+            "displayName": "Plan Admin",
+            "password": "correct-horse-battery-staple"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&register, StatusCode::OK);
+    let admin_cookie = session_cookie_header(&register);
+    rusqlite::Connection::open(data_root.path().join("marketplace.sqlite3"))
+        .unwrap()
+        .execute(
+            "UPDATE marketplace_user SET role='admin' WHERE username='plan-admin'",
+            [],
+        )
+        .unwrap();
+
+    let publish = client
+        .post(format!("{cloud_api}/admin/plans"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&crate::cloud::PublishPlanRequest {
+            plan_id: None,
+            slug: "pro".into(),
+            display_name: "Pro".into(),
+            description: "Professional monthly plan".into(),
+            tier_rank: 10,
+            is_default: false,
+            monthly_credit_micros: 100_000_000,
+            offers: vec![crate::cloud::PlanOfferInput {
+                region: "CN".into(),
+                currency: "CNY".into(),
+                payment_provider: crate::cloud::PaymentProvider::WechatPay,
+                amount_minor: 2_900,
+            }],
+            benefits: vec![crate::cloud::PlanBenefitInput {
+                code: "official-models".into(),
+                resource_type: "model".into(),
+                resource_id: None,
+                action: "invoke".into(),
+                limit: serde_json::json!({}),
+            }],
+            expected_revision: catalog.revision,
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&publish, StatusCode::OK);
+    let catalog = publish.json::<crate::cloud::PlanCatalog>().await.unwrap();
+    assert_eq!(catalog.revision, 1);
+    assert_eq!(catalog.plans.len(), 2);
+    assert_eq!(catalog.plans[1].offers[0].amount_minor, 2_900);
+
+    server.abort();
+}
+
+#[tokio::test]
+async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
+    let data_root = secure_tempdir();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let origin = format!("http://{address}");
+    let market_api = format!("{origin}/api/market/v1");
+    let cloud_api = format!("{origin}/api/cloud/v1");
+    let router = build_router(MarketplaceServerConfig {
+        data_root: data_root.path().to_path_buf(),
+        web_base_url: format!("{origin}/market"),
+        api_base_url: market_api.clone(),
+        cloud_api_base_url: cloud_api.clone(),
+        cloud_default_timezone: "Asia/Shanghai".into(),
+        cors_origin: origin.clone(),
+        max_package_bytes: 4 * 1024 * 1024,
+        github_client_id: None,
+        github_client_secret: None,
+        admin_github_logins: BTreeSet::new(),
+        payments: crate::cloud::CloudPaymentConfig::default(),
+        cloud_secret_cipher: None,
+    })
+    .unwrap();
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let client = Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+    let discovery = client
+        .get(format!("{origin}/.well-known/codey-cloud.json"))
+        .send()
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    assert_eq!(discovery["webBaseUrl"], origin);
+    let register = client
+        .post(format!("{market_api}/auth/register"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({
+            "username": "desktop-user",
+            "email": "desktop@example.com",
+            "displayName": "Desktop User",
+            "password": "correct-horse-battery-staple"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&register, StatusCode::OK);
+    let cookie = session_cookie_header(&register);
+
+    let verifier = crate::auth::random_token(32).unwrap();
+    let challenge = crate::auth::pkce_challenge(&verifier);
+    let redirect_uri = "http://127.0.0.1:45678/oauth/callback";
+    let state = "desktop-oauth-state-1234567890";
+    let authorize = client
+        .get(format!("{cloud_api}/oauth/authorize"))
+        .header(reqwest::header::COOKIE, &cookie)
+        .query(&[
+            ("response_type", "code"),
+            ("client_id", "codey-desktop"),
+            ("redirect_uri", redirect_uri),
+            ("code_challenge", challenge.as_str()),
+            ("code_challenge_method", "S256"),
+            ("state", state),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(authorize.status(), StatusCode::TEMPORARY_REDIRECT);
+    let callback = url::Url::parse(
+        authorize
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .unwrap()
+            .to_str()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        callback
+            .query_pairs()
+            .find(|(key, _)| key == "state")
+            .unwrap()
+            .1,
+        state
+    );
+    let code = callback
+        .query_pairs()
+        .find(|(key, _)| key == "code")
+        .unwrap()
+        .1
+        .into_owned();
+    let token = client
+        .post(format!("{cloud_api}/oauth/token"))
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("client_id", "codey-desktop"),
+            ("code", code.as_str()),
+            ("code_verifier", verifier.as_str()),
+            ("redirect_uri", redirect_uri),
+            ("device_name", "Integration Mac"),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&token, StatusCode::OK);
+    let token = token.json::<crate::cloud::OAuthTokenPair>().await.unwrap();
+    let cloud_me = client
+        .get(format!("{cloud_api}/me"))
+        .bearer_auth(&token.access_token)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&cloud_me, StatusCode::OK);
+    let profile = cloud_me.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(profile["user"]["username"], "desktop-user");
+    assert_eq!(profile["subscription"]["planId"], "plan-free");
+    assert_eq!(profile["subscription"]["billingTimezone"], "Asia/Shanghai");
+
+    let devices = client
+        .get(format!("{cloud_api}/devices"))
+        .bearer_auth(&token.access_token)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&devices, StatusCode::OK);
+    assert_eq!(
+        devices
+            .json::<Vec<crate::cloud::OAuthDeviceSession>>()
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    server.abort();
+}
 
 #[tokio::test]
 async fn api_account_upload_review_publish_and_download_round_trip() {
@@ -29,11 +285,15 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         data_root: data_root.path().to_path_buf(),
         web_base_url: format!("{origin}/market"),
         api_base_url: api_base_url.clone(),
+        cloud_api_base_url: format!("{origin}/api/cloud/v1"),
+        cloud_default_timezone: "UTC".into(),
         cors_origin: origin.clone(),
         max_package_bytes: 4 * 1024 * 1024,
         github_client_id: Some("github-client".into()),
         github_client_secret: Some("github-secret".into()),
         admin_github_logins: BTreeSet::new(),
+        payments: crate::cloud::CloudPaymentConfig::default(),
+        cloud_secret_cipher: None,
     })
     .unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -173,6 +433,23 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
                 ..
             }
         )));
+    assert_eq!(preview.publication.title, "Repository analyst");
+    assert_eq!(preview.publication.tags, vec!["analysis", "repository"]);
+
+    let mut changed_publication = preview.publication.clone();
+    changed_publication.title = "Changed in browser".into();
+    let changed_publish = client
+        .post(format!(
+            "{api_base_url}/uploads/{}/publish",
+            preview.upload_id
+        ))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &publisher_cookie)
+        .json(&changed_publication)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&changed_publish, StatusCode::BAD_REQUEST);
 
     let publish = client
         .post(format!(
@@ -181,14 +458,7 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         ))
         .header(reqwest::header::ORIGIN, &origin)
         .header(reqwest::header::COOKIE, &publisher_cookie)
-        .json(&PublishMarketplaceUploadRequest {
-            primary_resource: preview.available_primary_resources[0].resource.clone(),
-            title: "Repository analyst".into(),
-            summary: "Analyze a repository with a reusable Agent template.".into(),
-            tags: vec!["repository".into(), "analysis".into()],
-            readme_markdown: "# Repository analyst".into(),
-            changelog: "Initial release".into(),
-        })
+        .json(&preview.publication)
         .send()
         .await
         .unwrap();
@@ -338,6 +608,30 @@ fn build_archive() -> Vec<u8> {
     let workflow_content = br#"{"spec":{"displayName":"Repository workflow"}}"#;
     let workflow_path = "definitions/workflow.json";
     let workflow_hash = blake3::hash(workflow_content).to_hex().to_string();
+    let component_id = ulid::Ulid::new().to_string();
+    let component_revision = ulid::Ulid::new().to_string();
+    let readme_content = b"# Repository analyst\n\nAnalyze a repository with package evidence.";
+    let readme_path = "marketplace/README.md";
+    let readme_hash = blake3::hash(readme_content).to_hex().to_string();
+    let changelog_content = b"Initial release";
+    let changelog_path = "marketplace/CHANGELOG.md";
+    let changelog_hash = blake3::hash(changelog_content).to_hex().to_string();
+    let marketplace_content = serde_json::to_vec(&PackageMarketplaceMetadataDocument {
+        schema_version: PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
+        primary_resource: MarketplacePrimaryResource::Component {
+            kind: AgentComponentKind::Skill,
+            component_id: component_id.clone(),
+            revision: component_revision.clone(),
+        },
+        title: "Repository analyst".into(),
+        summary: "Analyze a repository with a reusable Agent template.".into(),
+        tags: vec!["repository".into(), "analysis".into()],
+        readme_path: Some(readme_path.into()),
+        changelog_path: Some(changelog_path.into()),
+    })
+    .unwrap();
+    let marketplace_path = "marketplace/manifest.json";
+    let marketplace_hash = blake3::hash(&marketplace_content).to_hex().to_string();
     let checksums = vec![
         PackageFileChecksum {
             relative_path: skill_path.into(),
@@ -348,6 +642,21 @@ fn build_archive() -> Vec<u8> {
             relative_path: workflow_path.into(),
             length: DecimalU64::new(workflow_content.len() as u64),
             blake3: workflow_hash.clone(),
+        },
+        PackageFileChecksum {
+            relative_path: changelog_path.into(),
+            length: DecimalU64::new(changelog_content.len() as u64),
+            blake3: changelog_hash.clone(),
+        },
+        PackageFileChecksum {
+            relative_path: readme_path.into(),
+            length: DecimalU64::new(readme_content.len() as u64),
+            blake3: readme_hash.clone(),
+        },
+        PackageFileChecksum {
+            relative_path: marketplace_path.into(),
+            length: DecimalU64::new(marketplace_content.len() as u64),
+            blake3: marketplace_hash.clone(),
         },
     ];
     let mut dependency_lock = PackageDependencyLock {
@@ -385,8 +694,8 @@ fn build_archive() -> Vec<u8> {
         }],
         templates: Vec::new(),
         components: vec![PackageComponentEntry {
-            component_id: ulid::Ulid::new().to_string(),
-            revision: ulid::Ulid::new().to_string(),
+            component_id,
+            revision: component_revision,
             kind: AgentComponentKind::Skill,
             logical_name: "repository-analyst".into(),
             source: PackageComponentSource::Embedded {
@@ -427,10 +736,53 @@ fn build_archive() -> Vec<u8> {
                 modified_unix_seconds: DecimalU64::new(0),
                 content_base64: base64::engine::general_purpose::STANDARD.encode(workflow_content),
             },
+            PackageArchiveFile {
+                relative_path: changelog_path.into(),
+                length: DecimalU64::new(changelog_content.len() as u64),
+                blake3: changelog_hash,
+                unix_mode: 0o644,
+                modified_unix_seconds: DecimalU64::new(0),
+                content_base64: base64::engine::general_purpose::STANDARD.encode(changelog_content),
+            },
+            PackageArchiveFile {
+                relative_path: readme_path.into(),
+                length: DecimalU64::new(readme_content.len() as u64),
+                blake3: readme_hash,
+                unix_mode: 0o644,
+                modified_unix_seconds: DecimalU64::new(0),
+                content_base64: base64::engine::general_purpose::STANDARD.encode(readme_content),
+            },
+            PackageArchiveFile {
+                relative_path: marketplace_path.into(),
+                length: DecimalU64::new(marketplace_content.len() as u64),
+                blake3: marketplace_hash,
+                unix_mode: 0o644,
+                modified_unix_seconds: DecimalU64::new(0),
+                content_base64: base64::engine::general_purpose::STANDARD
+                    .encode(marketplace_content),
+            },
         ],
     }
     .canonical_bytes()
     .unwrap()
+}
+
+fn build_archive_without_marketplace() -> Vec<u8> {
+    let mut archive = parse_archive(&build_archive()).unwrap();
+    archive
+        .files
+        .retain(|file| !file.relative_path.starts_with("marketplace/"));
+    archive
+        .package
+        .checksums
+        .retain(|file| !file.relative_path.starts_with("marketplace/"));
+    archive.package.manifest.package_content_hash = package_content_hash(
+        &archive.package.manifest,
+        &archive.package.dependency_lock,
+        &archive.package.checksums,
+    )
+    .unwrap();
+    archive.canonical_bytes().unwrap()
 }
 
 fn secure_tempdir() -> tempfile::TempDir {

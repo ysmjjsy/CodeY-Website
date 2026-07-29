@@ -51,30 +51,8 @@ const apiBase = '/api/market/v1'
       <form class="market-form-card" hidden data-upload-publish>
         <h3>{copy.stepPublish}</h3>
         <div class="market-package-summary" data-package-summary></div>
-        <fieldset class="market-field market-resource-options" data-resource-options>
-          <legend>{copy.primaryResource}</legend>
-        </fieldset>
-        <div class="market-field">
-          <label for="market-title">{copy.titleLabel}</label>
-          <input id="market-title" name="title" maxlength="160" required />
-        </div>
-        <div class="market-field">
-          <label for="market-summary">{copy.summaryLabel}</label>
-          <textarea id="market-summary" name="summary" maxlength="500" required></textarea>
-        </div>
-        <div class="market-field">
-          <label for="market-tags">{copy.tagsLabel}</label>
-          <input id="market-tags" name="tags" maxlength="783" />
-          <p class="market-field-hint">{copy.tagsHint}</p>
-        </div>
-        <div class="market-field">
-          <label for="market-readme">{copy.readmeLabel}</label>
-          <textarea id="market-readme" name="readme" maxlength="262144"></textarea>
-        </div>
-        <div class="market-field">
-          <label for="market-changelog">{copy.changelogLabel}</label>
-          <textarea id="market-changelog" name="changelog" maxlength="65536"></textarea>
-        </div>
+        <p class="market-field-hint market-package-metadata-note">{copy.metadataFromPackage}</p>
+        <div class="market-publication-preview" data-publication-preview></div>
         <div class="market-form-actions">
           <button class="btn btn-primary" type="submit" data-publish-button>{copy.publish}</button>
           <button class="btn btn-ghost" type="button" data-replace-archive>{copy.replaceArchive}</button>
@@ -89,12 +67,21 @@ const apiBase = '/api/market/v1'
   import { localizedApiError } from '../i18n/api-errors'
 
   type Resource = { displayName: string; resource: Record<string, unknown> }
+  type Publication = {
+    primaryResource: Record<string, unknown>
+    title: string
+    summary: string
+    tags: string[]
+    readmeMarkdown: string
+    changelog: string
+  }
   type Preview = {
     uploadId: string
     packageId: string
     version: string
     archiveLength: number
     availablePrimaryResources: Resource[]
+    publication: Publication
   }
   type Submission = { submissionId: string; status: 'pending' }
 
@@ -109,8 +96,8 @@ const apiBase = '/api/market/v1'
     const publishButton = root.querySelector<HTMLButtonElement>('[data-publish-button]')!
     const inspectError = root.querySelector<HTMLElement>('[data-inspect-error]')!
     const publishMessage = root.querySelector<HTMLElement>('[data-publish-message]')!
-    const resourceOptions = root.querySelector<HTMLElement>('[data-resource-options]')!
     const packageSummary = root.querySelector<HTMLElement>('[data-package-summary]')!
+    const publicationPreview = root.querySelector<HTMLElement>('[data-publication-preview]')!
     let preview: Preview | null = null
     let requestedOpen = false
 
@@ -171,25 +158,53 @@ const apiBase = '/api/market/v1'
         span.textContent = field
         packageSummary.append(span)
       })
-      resourceOptions.querySelectorAll('label').forEach((label) => label.remove())
-      value.availablePrimaryResources.forEach((resource, index) => {
-        const label = document.createElement('label')
-        label.className = 'market-resource-option'
-        const radio = document.createElement('input')
-        radio.type = 'radio'
-        radio.name = 'primaryResource'
-        radio.value = String(index)
-        radio.required = true
-        radio.checked = index === 0
-        const name = document.createElement('span')
-        name.textContent = resource.displayName
-        label.append(radio, name)
-        resourceOptions.append(label)
-      })
-      const title = publishForm.elements.namedItem('title') as HTMLInputElement
-      if (!title.value) title.value = value.availablePrimaryResources[0]?.displayName || ''
+      renderPublication(value)
       publishForm.hidden = false
       publishForm.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    function renderPublication(value: Preview): void {
+      const publication = value.publication
+      const resource = value.availablePrimaryResources.find(
+        (candidate) =>
+          JSON.stringify(candidate.resource) === JSON.stringify(publication.primaryResource),
+      )
+      publicationPreview.replaceChildren()
+      const heading = document.createElement('div')
+      heading.className = 'market-publication-heading'
+      const title = document.createElement('h4')
+      title.textContent = publication.title
+      const summary = document.createElement('p')
+      summary.textContent = publication.summary
+      heading.append(title, summary)
+
+      const facts = document.createElement('dl')
+      facts.className = 'market-publication-facts'
+      ;[
+        [copy.primaryResource, resource?.displayName || copy.unavailable],
+        [copy.tagsLabel, publication.tags.join(', ') || '—'],
+      ].forEach(([term, description]) => {
+        const dt = document.createElement('dt')
+        dt.textContent = term
+        const dd = document.createElement('dd')
+        dd.textContent = description
+        facts.append(dt, dd)
+      })
+      publicationPreview.append(heading, facts)
+      appendMarkdownPreview(copy.readmeLabel, publication.readmeMarkdown)
+      appendMarkdownPreview(copy.changelogLabel, publication.changelog)
+    }
+
+    function appendMarkdownPreview(label: string, content: string): void {
+      if (!content) return
+      const details = document.createElement('details')
+      details.className = 'market-markdown-preview'
+      const summary = document.createElement('summary')
+      summary.textContent = label
+      const pre = document.createElement('pre')
+      pre.textContent = content
+      details.append(summary, pre)
+      publicationPreview.append(details)
     }
 
     inspectForm.addEventListener('submit', async (event) => {
@@ -220,30 +235,18 @@ const apiBase = '/api/market/v1'
     publishForm.addEventListener('submit', async (event) => {
       event.preventDefault()
       resetMessage(publishMessage)
-      if (!preview || !publishForm.reportValidity()) {
+      if (!preview) {
         publishMessage.textContent = copy.required
         publishMessage.hidden = false
         return
       }
-      const selected = publishForm.querySelector<HTMLInputElement>('input[name="primaryResource"]:checked')
-      const resource = selected ? preview.availablePrimaryResources[Number(selected.value)] : undefined
-      if (!resource) return
-      const value = (name: string) => (publishForm.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement).value
-      const tags = value('tags').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 16)
       publishButton.disabled = true
       publishButton.textContent = copy.publishing
       try {
         const response = await fetch(`${apiBase}/uploads/${encodeURIComponent(preview.uploadId)}/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            primaryResource: resource.resource,
-            title: value('title').trim(),
-            summary: value('summary').trim(),
-            tags,
-            readmeMarkdown: value('readme'),
-            changelog: value('changelog'),
-          }),
+          body: JSON.stringify(preview.publication),
         })
         if (!response.ok) throw new Error(await errorMessage(response))
         await response.json() as Submission

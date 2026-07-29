@@ -20,14 +20,20 @@ axum = { workspace = true }
 base64 = { workspace = true }
 blake3 = { workspace = true }
 chrono = { workspace = true }
+chrono-tz = { workspace = true }
+futures-util = { workspace = true }
 rusqlite = { workspace = true }
 reqwest = { workspace = true }
+qrcode = { workspace = true }
 ring = { workspace = true }
+rsa = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "net", "signal"] }
+tokio-stream = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 ulid = { workspace = true }

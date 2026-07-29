@@ -120,6 +120,7 @@ async function startMarketServer() {
         process.env.CODEY_MARKET_DATA_ROOT || resolve(projectRoot, '.codey-market'),
       CODEY_MARKET_WEB_BASE_URL: `${websiteOrigin}/market`,
       CODEY_MARKET_API_BASE_URL: `${websiteOrigin}/api/market/v1`,
+      CODEY_CLOUD_API_BASE_URL: `${websiteOrigin}/api/cloud/v1`,
       CODEY_MARKET_CORS_ORIGIN: websiteOrigin,
     },
     stdio: 'inherit',
@@ -178,7 +179,10 @@ function createProductionServer() {
     if (
       requestUrl.pathname.startsWith('/api/market/v1/') ||
       requestUrl.pathname === '/api/market/v1' ||
-      requestUrl.pathname === '/.well-known/codey-market.json'
+      requestUrl.pathname.startsWith('/api/cloud/v1/') ||
+      requestUrl.pathname === '/api/cloud/v1' ||
+      requestUrl.pathname === '/.well-known/codey-market.json' ||
+      requestUrl.pathname === '/.well-known/codey-cloud.json'
     ) {
       proxyMarketRequest(request, response)
       return

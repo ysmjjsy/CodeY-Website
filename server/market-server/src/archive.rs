@@ -9,7 +9,8 @@ use thiserror::Error;
 
 use crate::contracts::{
     MarketplaceCompatibility, MarketplacePrimaryResource, MarketplaceResourceSummary,
-    MarketplaceUploadPreview,
+    MarketplaceUploadPreview, PackageMarketplaceMetadataDocument, PublishMarketplaceUploadRequest,
+    PACKAGE_MARKETPLACE_MANIFEST_PATH, PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
 };
 
 #[derive(Debug, Clone)]
@@ -33,6 +34,7 @@ pub fn inspect_archive(
         return Err(ArchiveInspectionError::NoMarketplaceResource);
     }
     let manifest = &archive.package.manifest;
+    let publication = marketplace_publication(&files, &available_primary_resources)?;
     let preview = MarketplaceUploadPreview {
         upload_id,
         expires_at,
@@ -58,9 +60,92 @@ pub fn inspect_archive(
         available_primary_resources,
         resources,
         requested_permissions: manifest.requested_permissions.iter().cloned().collect(),
+        publication,
         manifest: serde_json::to_value(manifest)?,
     };
     Ok(InspectedArchive { archive, preview })
+}
+
+fn marketplace_publication(
+    files: &BTreeMap<String, Vec<u8>>,
+    available_primary_resources: &[MarketplaceResourceSummary],
+) -> Result<PublishMarketplaceUploadRequest, ArchiveInspectionError> {
+    let metadata_bytes = files
+        .get(PACKAGE_MARKETPLACE_MANIFEST_PATH)
+        .ok_or(ArchiveInspectionError::MarketplaceMetadataMissing)?;
+    let metadata: PackageMarketplaceMetadataDocument = serde_json::from_slice(metadata_bytes)
+        .map_err(|error| ArchiveInspectionError::MarketplaceMetadata(error.to_string()))?;
+    if metadata.schema_version != PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION {
+        return Err(ArchiveInspectionError::MarketplaceMetadata(
+            "unsupported schema version".into(),
+        ));
+    }
+    if !available_primary_resources
+        .iter()
+        .any(|resource| resource.resource == metadata.primary_resource)
+    {
+        return Err(ArchiveInspectionError::MarketplaceMetadata(
+            "primary resource is not an embedded marketplace resource".into(),
+        ));
+    }
+    let readme_markdown = referenced_utf8(files, metadata.readme_path.as_deref(), 256 * 1024)?;
+    let changelog = referenced_utf8(files, metadata.changelog_path.as_deref(), 64 * 1024)?;
+    let publication = PublishMarketplaceUploadRequest {
+        primary_resource: metadata.primary_resource,
+        title: metadata.title.trim().to_owned(),
+        summary: metadata.summary.trim().to_owned(),
+        tags: normalized_tags(&metadata.tags),
+        readme_markdown,
+        changelog,
+    };
+    if publication.title.is_empty()
+        || publication.title.len() > 160
+        || publication.summary.is_empty()
+        || publication.summary.len() > 500
+        || publication.tags.len() > 16
+        || publication.tags.iter().any(|tag| tag.len() > 48)
+    {
+        return Err(ArchiveInspectionError::MarketplaceMetadata(
+            "listing title, summary, or tags are invalid".into(),
+        ));
+    }
+    Ok(publication)
+}
+
+fn referenced_utf8(
+    files: &BTreeMap<String, Vec<u8>>,
+    path: Option<&str>,
+    max_bytes: usize,
+) -> Result<String, ArchiveInspectionError> {
+    let Some(path) = path else {
+        return Ok(String::new());
+    };
+    let bytes = files.get(path).ok_or_else(|| {
+        ArchiveInspectionError::MarketplaceMetadata(format!(
+            "referenced marketplace file is missing: {path}"
+        ))
+    })?;
+    if bytes.len() > max_bytes {
+        return Err(ArchiveInspectionError::MarketplaceMetadata(format!(
+            "referenced marketplace file exceeds {max_bytes} bytes: {path}"
+        )));
+    }
+    String::from_utf8(bytes.clone()).map_err(|_| {
+        ArchiveInspectionError::MarketplaceMetadata(format!(
+            "referenced marketplace file is not UTF-8: {path}"
+        ))
+    })
+}
+
+fn normalized_tags(tags: &[String]) -> Vec<String> {
+    let mut tags = tags
+        .iter()
+        .map(|tag| tag.trim().to_lowercase())
+        .filter(|tag| !tag.is_empty())
+        .collect::<Vec<_>>();
+    tags.sort();
+    tags.dedup();
+    tags
 }
 
 fn decoded_files(
@@ -196,6 +281,10 @@ pub enum ArchiveInspectionError {
         "package does not contain an Agent, Team, Workflow, Skill, or MCP marketplace resource"
     )]
     NoMarketplaceResource,
+    #[error("package does not contain marketplace/manifest.json")]
+    MarketplaceMetadataMissing,
+    #[error("package marketplace metadata is invalid: {0}")]
+    MarketplaceMetadata(String),
     #[error("template metadata is invalid")]
     TemplateMetadata,
     #[error("package file is missing: {0}")]

@@ -50,16 +50,61 @@ OAuth App 的回调地址为
 登录后可从账号菜单进入 `/market/dashboard/` 管理自己的模板。配置在
 `CODEY_MARKET_ADMIN_GITHUB_LOGINS` 中的 GitHub 账号会显示模板审核菜单。
 
+## 云账号、套餐与官方模型
+
+官网账号同时用于模板市场、套餐购买和 Desktop 登录。用户页位于 `/account/`，
+云管理端位于 `/admin/cloud/`。Desktop 通过系统浏览器执行 OAuth 2.0 Authorization
+Code + PKCE 登录，并从 `/.well-known/codey-cloud.json` 发现 Cloud API。
+
+管理员可以在云管理端：
+
+- 配置 OpenAI-compatible、Anthropic 或 Gemini 上游。API Key 使用
+  `CODEY_CLOUD_SECRET_KEY` 加密后只保存在服务端。
+- 发布 CodeY 官方模型、模型积分价格和套餐可用模型。
+- 发布版本化套餐及积分包，并为同一商品配置微信、支付宝、Stripe 等多条报价。
+
+用户同一时间只有一个有效套餐。付费周期从生效时刻起计算一个自然月，并保留账单
+锚点日。套餐积分随周期到期，积分包永久有效；扣减按最早到期优先。提前续费从当前
+周期结束后生效。升级按剩余周期补差并立即生效。降级只保存下期选择，仍需用户主动
+购买下一周期。
+
+CodeY 官方模型请求经过 `/api/cloud/v1/gateway/`。上游密钥不会返回浏览器或
+Desktop。Desktop 中用户自己的 API Key 和本地模型仍走本地 daemon，不进入云积分
+账本。
+
+### 服务端配置
+
+复制 `.env.example` 到 `.env.local`。至少设置：
+
+```sh
+# 生成方式示例：openssl rand -base64 32
+CODEY_CLOUD_SECRET_KEY=...
+CODEY_CLOUD_DEFAULT_TIMEZONE=Asia/Shanghai
+```
+
+支付渠道按组启用。某组只填写一部分变量时服务会拒绝启动。微信和支付宝私钥、公钥
+文件必须只对服务账号可读。Stripe webhook、微信通知和支付宝异步通知地址都应指向
+公开 HTTPS 官网。`CODEY_CLOUD_ENABLE_TEST_PAYMENTS` 只用于本地集成测试，生产环境
+必须保持 `false`。
+
+当前服务复用既有 `marketplace.sqlite3`，Cloud 表由启动迁移幂等创建。部署前应备份
+`.codey-market/`，并确保单实例写入；横向扩容前需把 CloudStore 迁移到共享数据库。
+
+支付代码包含下单、签名校验、金额/币种/商户身份核对、重复回调幂等处理。真实支付
+仍需使用各商户 sandbox 和生产凭据分别验收，尤其是回调可达性、证书轮换和账单对账。
+
 ## 结构
 
 | 路径 | 用途 |
 | --- | --- |
 | `src/pages/index.astro` | 官网首页 |
 | `src/pages/market/dashboard.astro` | 用户模板管理与管理员审核后台 |
+| `src/pages/account.astro` | 套餐、积分、续费与购买页 |
+| `src/pages/admin/cloud.astro` | 套餐、积分包和官方模型管理端 |
 | `src/components/` | 首页各区块组件 |
 | `src/layouts/LandingLayout.astro` | 首页布局与滚动显现脚本 |
 | `src/styles/landing.css` | 首页设计 Token 与通用样式 |
 | `src/styles/starlight.css` | 文档主题定制 |
 | `src/content/docs/docs/` | 中文文档内容 |
 | `astro.config.mjs` | Starlight 侧边栏与站点配置 |
-| `server/market-server` | 官网自有的模板市场、账号与审核后端 |
+| `server/market-server` | 官网账号、模板市场、Cloud 商业域、支付和模型网关后端 |

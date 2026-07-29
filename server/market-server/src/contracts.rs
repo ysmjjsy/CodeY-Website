@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 pub const MARKETPLACE_SCHEMA_VERSION: u16 = 1;
 pub const MAX_PACKAGE_BYTES: usize = MAX_PACKAGE_ARCHIVE_BYTES;
+pub const PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION: u16 = 1;
+pub const PACKAGE_MARKETPLACE_MANIFEST_PATH: &str = "marketplace/manifest.json";
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -80,6 +82,19 @@ impl MarketplacePrimaryResource {
 pub struct MarketplaceResourceSummary {
     pub resource: MarketplacePrimaryResource,
     pub display_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PackageMarketplaceMetadataDocument {
+    pub schema_version: u16,
+    pub primary_resource: MarketplacePrimaryResource,
+    pub title: String,
+    pub summary: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub readme_path: Option<String>,
+    pub changelog_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -192,6 +207,7 @@ pub struct MarketplaceUploadPreview {
     pub resources: Vec<MarketplaceResourceSummary>,
     #[serde(default)]
     pub requested_permissions: Vec<String>,
+    pub publication: PublishMarketplaceUploadRequest,
     pub manifest: serde_json::Value,
 }
 

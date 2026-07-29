@@ -76,6 +76,7 @@ pub struct GitHubIdentity {
 #[derive(Debug, Clone)]
 pub struct OAuthState {
     pub code_verifier: String,
+    pub return_url: Option<String>,
 }
 
 pub fn validate_username(value: &str) -> Result<String, MarketplaceAuthError> {

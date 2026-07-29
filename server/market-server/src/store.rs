@@ -94,6 +94,7 @@ impl MarketplaceStore {
         std::fs::create_dir_all(root.join("artifacts"))?;
         std::fs::create_dir_all(root.join("uploads"))?;
         let connection = Connection::open(root.join("marketplace.sqlite3"))?;
+        connection.busy_timeout(std::time::Duration::from_secs(5))?;
         connection.pragma_update(None, "journal_mode", "WAL")?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
         connection.execute_batch(
@@ -150,6 +151,7 @@ impl MarketplaceStore {
             CREATE TABLE IF NOT EXISTS marketplace_oauth_state (
                 state_hash TEXT PRIMARY KEY,
                 code_verifier TEXT NOT NULL,
+                return_url TEXT,
                 expires_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS marketplace_submission (
@@ -176,6 +178,12 @@ impl MarketplaceStore {
         if !column_exists(&connection, "marketplace_upload", "owner_user_id")? {
             connection.execute(
                 "ALTER TABLE marketplace_upload ADD COLUMN owner_user_id TEXT",
+                [],
+            )?;
+        }
+        if !column_exists(&connection, "marketplace_oauth_state", "return_url")? {
+            connection.execute(
+                "ALTER TABLE marketplace_oauth_state ADD COLUMN return_url TEXT",
                 [],
             )?;
         }
@@ -753,6 +761,7 @@ impl MarketplaceStore {
         &self,
         state_hash: &str,
         code_verifier: &str,
+        return_url: Option<&str>,
         expires_at: DateTime<Utc>,
     ) -> Result<(), MarketplaceStoreError> {
         let connection = self.connection()?;
@@ -761,9 +770,14 @@ impl MarketplaceStore {
             [Utc::now().to_rfc3339()],
         )?;
         connection.execute(
-            "INSERT INTO marketplace_oauth_state(state_hash, code_verifier, expires_at)
-             VALUES (?1, ?2, ?3)",
-            params![state_hash, code_verifier, expires_at.to_rfc3339()],
+            "INSERT INTO marketplace_oauth_state(state_hash, code_verifier, return_url, expires_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                state_hash,
+                code_verifier,
+                return_url,
+                expires_at.to_rfc3339()
+            ],
         )?;
         Ok(())
     }
@@ -774,12 +788,12 @@ impl MarketplaceStore {
     ) -> Result<Option<OAuthState>, MarketplaceStoreError> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let verifier = transaction
+        let state = transaction
             .query_row(
-                "SELECT code_verifier FROM marketplace_oauth_state
+                "SELECT code_verifier, return_url FROM marketplace_oauth_state
                  WHERE state_hash=?1 AND expires_at>?2",
                 params![state_hash, Utc::now().to_rfc3339()],
-                |row| row.get::<_, String>(0),
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
             )
             .optional()?;
         transaction.execute(
@@ -787,7 +801,10 @@ impl MarketplaceStore {
             [state_hash],
         )?;
         transaction.commit()?;
-        Ok(verifier.map(|code_verifier| OAuthState { code_verifier }))
+        Ok(state.map(|(code_verifier, return_url)| OAuthState {
+            code_verifier,
+            return_url,
+        }))
     }
 
     fn update_github_user(
@@ -1186,8 +1203,16 @@ mod tests {
                 architectures: vec!["aarch64".into()],
             },
             available_primary_resources: vec![resource.clone()],
-            resources: vec![resource],
+            resources: vec![resource.clone()],
             requested_permissions: vec!["workspace.read".into()],
+            publication: PublishMarketplaceUploadRequest {
+                primary_resource: resource.resource,
+                title: "Repository analyst".into(),
+                summary: "Repository analyst summary".into(),
+                tags: vec!["analysis".into(), "repository".into()],
+                readme_markdown: "# Repository analyst".into(),
+                changelog: "Initial release".into(),
+            },
             manifest: serde_json::json!({"schemaVersion": 1}),
         }
     }

@@ -1,7 +1,7 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { authCopy } from '../i18n/auth'
-import { marketPath } from '../i18n/utils'
+import { accountPath, cloudAdminPath, marketPath } from '../i18n/utils'
 
 interface Props {
   locale: Locale
@@ -19,8 +19,10 @@ const copy = authCopy(locale)
       <span data-account-name></span>
     </summary>
     <div class="account-popover">
+      <a href={accountPath(locale)}>{copy.cloudAccount}</a>
       <a href={marketPath(locale, 'dashboard')}>{copy.dashboard}</a>
       <a href={marketPath(locale, 'admin')} hidden data-admin-link>{copy.admin}</a>
+      <a href={cloudAdminPath(locale)} hidden data-admin-link>{copy.cloudAdmin}</a>
       <button type="button" data-auth-logout>{copy.logout}</button>
     </div>
   </details>
@@ -130,7 +132,7 @@ const copy = authCopy(locale)
     const profile = root.querySelector<HTMLDetailsElement>('[data-account-profile]')!
     const accountName = root.querySelector<HTMLElement>('[data-account-name]')!
     const avatar = root.querySelector<HTMLElement>('[data-account-avatar]')!
-    const adminLink = root.querySelector<HTMLElement>('[data-admin-link]')!
+    const adminLinks = root.querySelectorAll<HTMLElement>('[data-admin-link]')
     const loginSection = root.querySelector<HTMLElement>('[data-auth-login]')!
     const registerSection = root.querySelector<HTMLElement>('[data-auth-register]')!
     const loginForm = root.querySelector<HTMLFormElement>('[data-login-form]')!
@@ -138,6 +140,27 @@ const copy = authCopy(locale)
     const logoutDialog = root.querySelector<HTMLDialogElement>('[data-logout-dialog]')!
     const logoutConfirm = root.querySelector<HTMLButtonElement>('[data-logout-confirm]')!
     const logoutError = root.querySelector<HTMLElement>('[data-logout-error]')!
+
+    function desktopContinuation(): string | null {
+      const value = new URLSearchParams(window.location.search).get('continue')
+      if (!value) return null
+      try {
+        const url = new URL(value, window.location.origin)
+        return url.origin === window.location.origin && url.pathname === '/api/cloud/v1/oauth/authorize'
+          ? url.href
+          : null
+      } catch {
+        return null
+      }
+    }
+
+    const continuation = desktopContinuation()
+    const githubLogin = root.querySelector<HTMLAnchorElement>('[data-github-login]')
+    if (continuation && githubLogin) {
+      const githubUrl = new URL(githubLogin.href)
+      githubUrl.searchParams.set('continue', continuation)
+      githubLogin.href = githubUrl.href
+    }
 
     function setMode(mode: 'login' | 'register'): void {
       loginSection.hidden = mode !== 'login'
@@ -165,7 +188,7 @@ const copy = authCopy(locale)
           const avatarUrl = new URL(user.avatarUrl, window.location.origin)
           if (avatarUrl.protocol === 'https:') avatar.style.backgroundImage = `url("${avatarUrl.href}")`
         }
-        adminLink.hidden = user.role !== 'admin'
+        adminLinks.forEach((link) => { link.hidden = user.role !== 'admin' })
       }
       root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden = !payload.githubEnabled
       window.dispatchEvent(new CustomEvent('market-auth-changed', { detail: payload }))
@@ -192,6 +215,8 @@ const copy = authCopy(locale)
         updateAuth(payload)
         form.reset()
         dialog.close()
+        const continuation = desktopContinuation()
+        if (continuation) window.location.assign(continuation)
       } catch (reason) {
         error.textContent = reason instanceof Error ? reason.message : copy.unavailable
         error.hidden = false
@@ -257,7 +282,12 @@ const copy = authCopy(locale)
 
     fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
       .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : Promise.reject())
-      .then(updateAuth)
+      .then((payload) => {
+        updateAuth(payload)
+        if (!payload.user && new URLSearchParams(window.location.search).get('auth') === 'desktop') {
+          openAuth()
+        }
+      })
       .catch(() => updateAuth({ user: null, githubEnabled: false }))
   }
 </script>

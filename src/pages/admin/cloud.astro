@@ -1,0 +1,12 @@
+---
+import CloudAdmin from '../../components/CloudAdmin.astro'
+import { cloudCopy } from '../../i18n/cloud'
+import MarketLayout from '../../layouts/MarketLayout.astro'
+
+const locale = 'zh-CN' as const
+const copy = cloudCopy(locale)
+---
+
+<MarketLayout title={`${copy.adminTitle} · CodeY`} description={copy.adminDescription} locale={locale} alternateHref="/en/admin/cloud/">
+  <CloudAdmin locale={locale} />
+</MarketLayout>

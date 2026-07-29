@@ -30,6 +30,14 @@ export function marketPath(locale: Locale, slug = ''): string {
   return clean ? `${base}/${clean}/` : `${base}/`
 }
 
+export function accountPath(locale: Locale): string {
+  return locale === 'en' ? '/en/account/' : '/account/'
+}
+
+export function cloudAdminPath(locale: Locale): string {
+  return locale === 'en' ? '/en/admin/cloud/' : '/admin/cloud/'
+}
+
 /** Counterpart landing path when switching language. */
 export function switchLocalePath(locale: Locale): string {
   return locale === 'en' ? '/' : '/en/'

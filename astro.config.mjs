@@ -7,7 +7,10 @@ export default defineConfig({
     server: {
       proxy: {
         '/api/market/v1': process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
+        '/api/cloud/v1': process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
         '/.well-known/codey-market.json':
+          process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
+        '/.well-known/codey-cloud.json':
           process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
       },
     },

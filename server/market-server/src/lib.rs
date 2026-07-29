@@ -2,6 +2,7 @@
 
 mod archive;
 mod auth;
+pub mod cloud;
 mod contracts;
 mod store;
 #[cfg(test)]
@@ -17,17 +18,18 @@ use crate::contracts::{
     MarketplaceUploadPreview, PublishMarketplaceUploadRequest, MARKETPLACE_SCHEMA_VERSION,
     MAX_PACKAGE_BYTES,
 };
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::{DefaultBodyLimit, Multipart, Path, Query, Request, State};
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
-    ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE, ETAG, ORIGIN,
+    ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE,
+    ETAG, ORIGIN,
 };
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, options, post};
-use axum::{Json, Router};
+use axum::{Form, Json, Router};
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -45,6 +47,14 @@ use auth::{
     set_session_cookie, token_hash, validate_display_name, validate_email, validate_password,
     validate_username, verify_password, GitHubIdentity, MarketplaceAuthError,
 };
+use cloud::{
+    AdminModelCatalog, CloudPaymentConfig, CloudSecretCipher, CloudStore, CloudStoreError,
+    CreatePlanOrderRequest, CreateTopUpOrderRequest, GatewayError, GatewayManager,
+    OfficialModelCatalog, OfficialModelProtocol, PaymentAvailability, PaymentCheckout,
+    PaymentError, PaymentManager, PaymentOrder, PlanCatalog, PublishOfficialModelRequest,
+    PublishPlanRequest, PublishTopUpProductRequest, SchedulePlanChangeRequest,
+    SubscriptionSnapshot, TopUpCatalog, UpsertUpstreamProviderRequest, WalletSummary,
+};
 
 const PACKAGE_FIELD: &str = "archive";
 const UPLOAD_TTL_MINUTES: i64 = 30;
@@ -56,11 +66,15 @@ pub struct MarketplaceServerConfig {
     pub data_root: PathBuf,
     pub web_base_url: String,
     pub api_base_url: String,
+    pub cloud_api_base_url: String,
+    pub cloud_default_timezone: String,
     pub cors_origin: String,
     pub max_package_bytes: usize,
     pub github_client_id: Option<String>,
     pub github_client_secret: Option<String>,
     pub admin_github_logins: BTreeSet<String>,
+    pub payments: CloudPaymentConfig,
+    pub cloud_secret_cipher: Option<CloudSecretCipher>,
 }
 
 impl MarketplaceServerConfig {
@@ -71,6 +85,17 @@ impl MarketplaceServerConfig {
             .unwrap_or_else(|_| "http://127.0.0.1:4321/market".into());
         let api_base_url = std::env::var("CODEY_MARKET_API_BASE_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:8787/api/market/v1".into());
+        let cloud_api_base_url = std::env::var("CODEY_CLOUD_API_BASE_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:8787/api/cloud/v1".into());
+        let cloud_default_timezone =
+            std::env::var("CODEY_CLOUD_DEFAULT_TIMEZONE").unwrap_or_else(|_| "UTC".into());
+        cloud_default_timezone
+            .parse::<chrono_tz::Tz>()
+            .map_err(|_| {
+                MarketplaceServerError::InvalidConfiguration(
+                    "CODEY_CLOUD_DEFAULT_TIMEZONE must be an IANA timezone".into(),
+                )
+            })?;
         let cors_origin = std::env::var("CODEY_MARKET_CORS_ORIGIN")
             .unwrap_or_else(|_| "http://127.0.0.1:4321".into());
         let github_client_id = environment_value("CODEY_MARKET_GITHUB_CLIENT_ID");
@@ -87,15 +112,27 @@ impl MarketplaceServerConfig {
             .filter(|value| !value.is_empty())
             .map(str::to_ascii_lowercase)
             .collect();
+        let web_base_url = trim_url(&web_base_url)?;
+        let api_base_url = trim_url(&api_base_url)?;
+        let cloud_api_base_url = trim_url(&cloud_api_base_url)?;
+        let cors_origin = trim_url(&cors_origin)?;
+        let payments = CloudPaymentConfig::from_environment(&cloud_api_base_url, &cors_origin)
+            .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
+        let cloud_secret_cipher = CloudSecretCipher::from_environment()
+            .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
         let config = Self {
             data_root,
-            web_base_url: trim_url(&web_base_url)?,
-            api_base_url: trim_url(&api_base_url)?,
-            cors_origin: cors_origin.trim().to_owned(),
+            web_base_url,
+            api_base_url,
+            cloud_api_base_url,
+            cloud_default_timezone,
+            cors_origin,
             max_package_bytes: MAX_PACKAGE_BYTES,
             github_client_id,
             github_client_secret,
             admin_github_logins,
+            payments,
+            cloud_secret_cipher,
         };
         if config.cors_origin.is_empty() {
             return Err(MarketplaceServerError::InvalidConfiguration(
@@ -109,8 +146,11 @@ impl MarketplaceServerConfig {
 #[derive(Debug, Clone)]
 struct AppState {
     store: MarketplaceStore,
+    cloud: CloudStore,
     config: MarketplaceServerConfig,
     http: reqwest::Client,
+    payments: PaymentManager,
+    gateway: GatewayManager,
 }
 
 pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, MarketplaceServerError> {
@@ -120,20 +160,97 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         )));
     }
     let store = MarketplaceStore::open(&config.data_root)?;
+    let cloud = CloudStore::open(&config.data_root)?;
     for path in store.expired_upload_paths()? {
         let _ = std::fs::remove_file(path);
     }
+    let http = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
+    let payments = PaymentManager::new(config.payments.clone(), http.clone());
+    let gateway = GatewayManager::new(config.cloud_secret_cipher.clone(), http.clone());
     let state = Arc::new(AppState {
         store,
+        cloud,
         config,
-        http: reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?,
+        http,
+        payments,
+        gateway,
     });
     let max_body = state.config.max_package_bytes.saturating_add(512 * 1024);
     Ok(Router::new()
         .route("/.well-known/codey-market.json", get(discovery))
+        .route("/.well-known/codey-cloud.json", get(cloud_discovery))
+        .route("/api/cloud/v1/me", get(cloud_me))
+        .route("/api/cloud/v1/plans", get(cloud_plans))
+        .route("/api/cloud/v1/top-ups", get(cloud_top_ups))
+        .route("/api/cloud/v1/models", get(cloud_official_models))
+        .route(
+            "/api/cloud/v1/gateway/v1/chat/completions",
+            post(official_chat_completions),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/responses",
+            post(official_responses),
+        )
+        .route("/api/cloud/v1/gateway/v1/messages", post(official_messages))
+        .route(
+            "/api/cloud/v1/gateway/v1beta/models/{*model_action}",
+            post(official_generate_content),
+        )
+        .route(
+            "/api/cloud/v1/payments/availability",
+            get(cloud_payment_availability),
+        )
+        .route("/api/cloud/v1/orders/plans", post(cloud_create_plan_order))
+        .route(
+            "/api/cloud/v1/orders/top-ups",
+            post(cloud_create_top_up_order),
+        )
+        .route("/api/cloud/v1/orders/{order_id}", get(cloud_payment_order))
+        .route(
+            "/api/cloud/v1/payments/webhooks/stripe",
+            post(stripe_payment_webhook),
+        )
+        .route(
+            "/api/cloud/v1/payments/webhooks/wechat-pay",
+            post(wechat_payment_webhook),
+        )
+        .route(
+            "/api/cloud/v1/payments/webhooks/alipay",
+            post(alipay_payment_webhook),
+        )
+        .route(
+            "/api/cloud/v1/payments/test/{order_id}/complete",
+            post(complete_test_payment),
+        )
+        .route(
+            "/api/cloud/v1/subscription/scheduled-plan",
+            post(cloud_schedule_plan_change),
+        )
+        .route("/api/cloud/v1/admin/plans", post(cloud_publish_plan))
+        .route(
+            "/api/cloud/v1/admin/model-catalog",
+            get(cloud_admin_model_catalog),
+        )
+        .route(
+            "/api/cloud/v1/admin/model-providers",
+            post(cloud_upsert_model_provider),
+        )
+        .route(
+            "/api/cloud/v1/admin/models",
+            post(cloud_publish_official_model),
+        )
+        .route("/api/cloud/v1/admin/top-ups", post(cloud_publish_top_up))
+        .route("/api/cloud/v1/oauth/authorize", get(oauth_authorize))
+        .route("/api/cloud/v1/oauth/token", post(oauth_token))
+        .route("/api/cloud/v1/oauth/revoke", post(oauth_revoke))
+        .route("/api/cloud/v1/devices", get(cloud_devices))
+        .route(
+            "/api/cloud/v1/devices/{device_id}/revoke",
+            post(cloud_revoke_device),
+        )
         .route("/api/market/v1/listings", get(listings))
         .route("/api/market/v1/listings/{listing_id}", get(listing))
         .route(
@@ -164,12 +281,732 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
             post(reject_submission),
         )
         .route("/api/market/v1/{*path}", options(preflight))
+        .route("/api/cloud/v1/{*path}", options(preflight))
         .layer(DefaultBodyLimit::max(max_body))
         .layer(middleware::from_fn_with_state(
             Arc::clone(&state),
             cors_headers,
         ))
         .with_state(state))
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CloudDiscovery {
+    schema_version: u16,
+    api_base_url: String,
+    web_base_url: String,
+}
+
+async fn cloud_discovery(State(state): State<Arc<AppState>>) -> Json<CloudDiscovery> {
+    Json(CloudDiscovery {
+        schema_version: 1,
+        api_base_url: state.config.cloud_api_base_url.clone(),
+        web_base_url: state.config.cors_origin.clone(),
+    })
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CloudMeResponse {
+    user: MarketplaceUser,
+    subscription: SubscriptionSnapshot,
+    wallet: WalletSummary,
+}
+
+async fn cloud_me(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<CloudMeResponse>> {
+    let user = require_cloud_user(&state, &headers, "profile:read")?;
+    let now = Utc::now();
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        now,
+    )?;
+    let subscription = state
+        .cloud
+        .reconcile_subscription(&user.user_id, now)?
+        .ok_or(CloudStoreError::SubscriptionIntegrity)?;
+    let wallet = state.cloud.wallet_summary(&user.user_id, now)?;
+    Ok(Json(CloudMeResponse {
+        user,
+        subscription,
+        wallet,
+    }))
+}
+
+async fn cloud_plans(State(state): State<Arc<AppState>>) -> ApiResult<Json<PlanCatalog>> {
+    Ok(Json(state.cloud.plan_catalog(Utc::now())?))
+}
+
+async fn cloud_top_ups(State(state): State<Arc<AppState>>) -> ApiResult<Json<TopUpCatalog>> {
+    Ok(Json(state.cloud.top_up_catalog(Utc::now())?))
+}
+
+async fn cloud_official_models(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<OfficialModelCatalog>> {
+    let user = require_cloud_user(&state, &headers, "model:list")?;
+    let now = Utc::now();
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        now,
+    )?;
+    state.cloud.reconcile_subscription(&user.user_id, now)?;
+    Ok(Json(state.cloud.official_model_catalog(
+        &user.user_id,
+        &format!("{}/gateway", state.config.cloud_api_base_url),
+        now,
+    )?))
+}
+
+async fn official_chat_completions(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::ChatCompletions,
+        None,
+        None,
+    )
+    .await
+}
+
+async fn official_responses(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::Responses,
+        None,
+        None,
+    )
+    .await
+}
+
+async fn official_messages(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::Messages,
+        None,
+        None,
+    )
+    .await
+}
+
+async fn official_generate_content(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(model_action): Path<String>,
+    body: Bytes,
+) -> ApiResult<Response> {
+    let (model, stream) = if let Some(model) = model_action.strip_suffix(":streamGenerateContent") {
+        (model, true)
+    } else if let Some(model) = model_action.strip_suffix(":generateContent") {
+        (model, false)
+    } else {
+        return Err(ApiError::not_found(
+            "gateway_operation_not_found",
+            "Gateway operation was not found",
+        ));
+    };
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::GenerateContent,
+        Some(model),
+        Some(stream),
+    )
+    .await
+}
+
+async fn official_gateway_request(
+    state: &AppState,
+    headers: &HeaderMap,
+    body: Bytes,
+    protocol: OfficialModelProtocol,
+    model_from_path: Option<&str>,
+    stream_override: Option<bool>,
+) -> ApiResult<Response> {
+    let user = require_gateway_user(state, headers)?;
+    let request_id = headers
+        .get("x-codey-request-id")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| {
+            ApiError::bad_request("gateway_request_id", "X-CodeY-Request-Id is required")
+        })?;
+    state
+        .cloud
+        .reconcile_subscription(&user.user_id, Utc::now())?;
+    Ok(state
+        .gateway
+        .invoke(
+            &state.cloud,
+            &user.user_id,
+            request_id,
+            protocol,
+            model_from_path,
+            stream_override,
+            headers,
+            body,
+            Utc::now(),
+        )
+        .await?)
+}
+
+async fn cloud_payment_availability(
+    State(state): State<Arc<AppState>>,
+) -> Json<PaymentAvailability> {
+    Json(state.payments.availability())
+}
+
+async fn cloud_publish_plan(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<PublishPlanRequest>,
+) -> ApiResult<Json<PlanCatalog>> {
+    require_same_origin(&state, &headers)?;
+    require_admin(&state, &headers)?;
+    Ok(Json(state.cloud.publish_plan(&request, Utc::now())?))
+}
+
+async fn cloud_publish_top_up(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<PublishTopUpProductRequest>,
+) -> ApiResult<Json<TopUpCatalog>> {
+    require_same_origin(&state, &headers)?;
+    require_admin(&state, &headers)?;
+    Ok(Json(
+        state.cloud.publish_top_up_product(&request, Utc::now())?,
+    ))
+}
+
+async fn cloud_admin_model_catalog(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<AdminModelCatalog>> {
+    require_admin(&state, &headers)?;
+    Ok(Json(state.cloud.admin_model_catalog(Utc::now())?))
+}
+
+async fn cloud_upsert_model_provider(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<UpsertUpstreamProviderRequest>,
+) -> ApiResult<Json<AdminModelCatalog>> {
+    require_same_origin(&state, &headers)?;
+    require_admin(&state, &headers)?;
+    let cipher = state.config.cloud_secret_cipher.as_ref().ok_or_else(|| {
+        ApiError::service_unavailable(
+            "cloud_secret_key_required",
+            "CODEY_CLOUD_SECRET_KEY is required before model credentials can be stored",
+        )
+    })?;
+    Ok(Json(state.cloud.upsert_upstream_provider(
+        &request,
+        cipher,
+        Utc::now(),
+    )?))
+}
+
+async fn cloud_publish_official_model(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<PublishOfficialModelRequest>,
+) -> ApiResult<Json<AdminModelCatalog>> {
+    require_same_origin(&state, &headers)?;
+    require_admin(&state, &headers)?;
+    Ok(Json(
+        state.cloud.publish_official_model(&request, Utc::now())?,
+    ))
+}
+
+async fn cloud_create_plan_order(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<CreatePlanOrderRequest>,
+) -> ApiResult<(StatusCode, Json<PaymentCheckout>)> {
+    require_same_origin(&state, &headers)?;
+    let user = require_user(&state, &headers)?;
+    let now = Utc::now();
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        now,
+    )?;
+    let order = state
+        .cloud
+        .create_plan_order(&user.user_id, &request, now)?;
+    Ok((
+        StatusCode::CREATED,
+        Json(state.payments.create_checkout(&state.cloud, order).await?),
+    ))
+}
+
+async fn cloud_create_top_up_order(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<CreateTopUpOrderRequest>,
+) -> ApiResult<(StatusCode, Json<PaymentCheckout>)> {
+    require_same_origin(&state, &headers)?;
+    let user = require_user(&state, &headers)?;
+    let now = Utc::now();
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        now,
+    )?;
+    let order = state
+        .cloud
+        .create_top_up_order(&user.user_id, &request, now)?;
+    Ok((
+        StatusCode::CREATED,
+        Json(state.payments.create_checkout(&state.cloud, order).await?),
+    ))
+}
+
+async fn cloud_payment_order(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(order_id): Path<String>,
+) -> ApiResult<Json<PaymentOrder>> {
+    let user = require_user(&state, &headers)?;
+    state
+        .cloud
+        .payment_order(&user.user_id, &order_id)?
+        .map(Json)
+        .ok_or_else(|| {
+            ApiError::not_found("payment_order_not_found", "Payment order was not found")
+        })
+}
+
+async fn cloud_schedule_plan_change(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<SchedulePlanChangeRequest>,
+) -> ApiResult<Json<SubscriptionSnapshot>> {
+    require_same_origin(&state, &headers)?;
+    let user = require_user(&state, &headers)?;
+    Ok(Json(state.cloud.schedule_plan_change(
+        &user.user_id,
+        &request,
+        Utc::now(),
+    )?))
+}
+
+async fn stripe_payment_webhook(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<StatusCode> {
+    let signature = headers
+        .get("Stripe-Signature")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| {
+            ApiError::unauthorized("payment_signature", "Payment signature is missing")
+        })?;
+    match state
+        .payments
+        .process_stripe_webhook(&state.cloud, signature, &body, Utc::now())
+    {
+        Ok(_) | Err(PaymentError::IgnoredEvent) => Ok(StatusCode::NO_CONTENT),
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn wechat_payment_webhook(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Json<serde_json::Value>> {
+    match state
+        .payments
+        .process_wechat_webhook(&state.cloud, &headers, &body, Utc::now())
+    {
+        Ok(_) | Err(PaymentError::IgnoredEvent) => Ok(Json(
+            serde_json::json!({"code": "SUCCESS", "message": "成功"}),
+        )),
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn alipay_payment_webhook(
+    State(state): State<Arc<AppState>>,
+    Form(fields): Form<std::collections::BTreeMap<String, String>>,
+) -> ApiResult<&'static str> {
+    match state
+        .payments
+        .process_alipay_webhook(&state.cloud, &fields, Utc::now())
+    {
+        Ok(_) | Err(PaymentError::IgnoredEvent) => Ok("success"),
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn complete_test_payment(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(order_id): Path<String>,
+) -> ApiResult<Json<PaymentOrder>> {
+    require_same_origin(&state, &headers)?;
+    let user = require_user(&state, &headers)?;
+    Ok(Json(state.payments.complete_test_payment(
+        &state.cloud,
+        &user.user_id,
+        &order_id,
+        Utc::now(),
+    )?))
+}
+
+const DESKTOP_OAUTH_CLIENT_ID: &str = "codey-desktop";
+const DESKTOP_OAUTH_DEFAULT_SCOPE: &str =
+    "entitlement:read model:invoke model:list profile:read wallet:read";
+const DESKTOP_OAUTH_ALLOWED_SCOPES: &[&str] = &[
+    "entitlement:read",
+    "model:invoke",
+    "model:list",
+    "profile:read",
+    "wallet:read",
+];
+
+#[derive(Debug, Deserialize)]
+struct OAuthAuthorizeQuery {
+    response_type: String,
+    client_id: String,
+    redirect_uri: String,
+    code_challenge: String,
+    code_challenge_method: String,
+    state: String,
+    scope: Option<String>,
+}
+
+async fn oauth_authorize(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Query(query): Query<OAuthAuthorizeQuery>,
+) -> ApiResult<Response> {
+    validate_oauth_authorization_request(&query)?;
+    let scope = normalize_oauth_scope(query.scope.as_deref())?;
+    let Some(user) = current_user(&state, &headers)? else {
+        let authorize_url = oauth_authorize_url(&state, &query, &scope)?;
+        let mut login_url = url::Url::parse(&state.config.web_base_url)
+            .map_err(|error| ApiError::internal("oauth_login_url", error.to_string()))?;
+        login_url
+            .query_pairs_mut()
+            .append_pair("auth", "desktop")
+            .append_pair("continue", &authorize_url);
+        return Ok(Redirect::temporary(login_url.as_str()).into_response());
+    };
+    let code = state.cloud.create_oauth_authorization_code(
+        &user.user_id,
+        &query.client_id,
+        &query.redirect_uri,
+        &query.code_challenge,
+        &scope,
+        Utc::now(),
+    )?;
+    let mut redirect = url::Url::parse(&query.redirect_uri)
+        .map_err(|error| ApiError::bad_request("invalid_redirect_uri", error.to_string()))?;
+    redirect
+        .query_pairs_mut()
+        .append_pair("code", &code)
+        .append_pair("state", &query.state);
+    Ok(Redirect::temporary(redirect.as_str()).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct OAuthTokenRequest {
+    grant_type: String,
+    client_id: String,
+    code: Option<String>,
+    code_verifier: Option<String>,
+    redirect_uri: Option<String>,
+    refresh_token: Option<String>,
+    device_name: Option<String>,
+}
+
+async fn oauth_token(
+    State(state): State<Arc<AppState>>,
+    Form(request): Form<OAuthTokenRequest>,
+) -> ApiResult<Json<cloud::OAuthTokenPair>> {
+    if request.client_id != DESKTOP_OAUTH_CLIENT_ID {
+        return Err(ApiError::unauthorized(
+            "invalid_client",
+            "OAuth client is not registered",
+        ));
+    }
+    let tokens = match request.grant_type.as_str() {
+        "authorization_code" => {
+            let code = required_oauth_field(request.code, "code")?;
+            let verifier = required_oauth_field(request.code_verifier, "code_verifier")?;
+            let redirect_uri = required_oauth_field(request.redirect_uri, "redirect_uri")?;
+            validate_desktop_redirect_uri(&redirect_uri)?;
+            let device_name = request
+                .device_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or("CodeY Desktop");
+            if device_name.chars().count() > 100 {
+                return Err(ApiError::bad_request(
+                    "invalid_device_name",
+                    "Device name must not exceed 100 characters",
+                ));
+            }
+            state.cloud.exchange_oauth_authorization_code(
+                &code,
+                &verifier,
+                &request.client_id,
+                &redirect_uri,
+                device_name,
+                Utc::now(),
+            )?
+        }
+        "refresh_token" => state.cloud.refresh_oauth_tokens(
+            &required_oauth_field(request.refresh_token, "refresh_token")?,
+            &request.client_id,
+            Utc::now(),
+        )?,
+        _ => {
+            return Err(ApiError::bad_request(
+                "unsupported_grant_type",
+                "OAuth grant type is not supported",
+            ));
+        }
+    };
+    Ok(Json(tokens))
+}
+
+#[derive(Debug, Deserialize)]
+struct OAuthRevokeRequest {
+    client_id: String,
+    token: String,
+}
+
+async fn oauth_revoke(
+    State(state): State<Arc<AppState>>,
+    Form(request): Form<OAuthRevokeRequest>,
+) -> ApiResult<StatusCode> {
+    if request.client_id == DESKTOP_OAUTH_CLIENT_ID {
+        state
+            .cloud
+            .revoke_oauth_refresh_token(&request.token, &request.client_id, Utc::now())?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn cloud_devices(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<cloud::OAuthDeviceSession>>> {
+    let user = require_cloud_user(&state, &headers, "profile:read")?;
+    Ok(Json(state.cloud.oauth_device_sessions(&user.user_id)?))
+}
+
+async fn cloud_revoke_device(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(device_id): Path<String>,
+) -> ApiResult<StatusCode> {
+    require_same_origin(&state, &headers)?;
+    let user = require_user(&state, &headers)?;
+    if !state
+        .cloud
+        .revoke_oauth_device(&user.user_id, &device_id, Utc::now())?
+    {
+        return Err(ApiError::not_found(
+            "device_not_found",
+            "Device session was not found",
+        ));
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+fn validate_oauth_authorization_request(query: &OAuthAuthorizeQuery) -> ApiResult<()> {
+    if query.response_type != "code" || query.client_id != DESKTOP_OAUTH_CLIENT_ID {
+        return Err(ApiError::bad_request(
+            "invalid_oauth_request",
+            "OAuth response type or client is invalid",
+        ));
+    }
+    validate_desktop_redirect_uri(&query.redirect_uri)?;
+    if query.code_challenge_method != "S256"
+        || query.code_challenge.len() != 43
+        || !query
+            .code_challenge
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        || query.state.len() < 16
+        || query.state.len() > 512
+    {
+        return Err(ApiError::bad_request(
+            "invalid_oauth_request",
+            "OAuth PKCE challenge or state is invalid",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_desktop_redirect_uri(value: &str) -> ApiResult<()> {
+    let redirect = url::Url::parse(value)
+        .map_err(|error| ApiError::bad_request("invalid_redirect_uri", error.to_string()))?;
+    let custom_scheme = redirect.scheme() == "codey"
+        && redirect.host_str() == Some("oauth")
+        && redirect.path() == "/callback";
+    let loopback = redirect.scheme() == "http"
+        && matches!(redirect.host_str(), Some("127.0.0.1" | "localhost"))
+        && redirect.port().is_some()
+        && redirect.path() == "/oauth/callback";
+    if !custom_scheme && !loopback || redirect.query().is_some() || redirect.fragment().is_some() {
+        return Err(ApiError::bad_request(
+            "invalid_redirect_uri",
+            "Desktop redirect URI is not allowed",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_cloud_continue_url(state: &AppState, value: &str) -> ApiResult<String> {
+    let continuation = url::Url::parse(value)
+        .map_err(|error| ApiError::bad_request("invalid_continue_url", error.to_string()))?;
+    let cloud = url::Url::parse(&state.config.cloud_api_base_url)
+        .map_err(|error| ApiError::internal("cloud_api_url", error.to_string()))?;
+    if continuation.origin() != cloud.origin()
+        || continuation.path() != "/api/cloud/v1/oauth/authorize"
+    {
+        return Err(ApiError::bad_request(
+            "invalid_continue_url",
+            "OAuth continuation URL is not allowed",
+        ));
+    }
+    Ok(continuation.to_string())
+}
+
+fn normalize_oauth_scope(value: Option<&str>) -> ApiResult<String> {
+    let requested = value.unwrap_or(DESKTOP_OAUTH_DEFAULT_SCOPE);
+    let mut scopes = requested
+        .split_ascii_whitespace()
+        .filter(|scope| !scope.is_empty())
+        .collect::<Vec<_>>();
+    scopes.sort_unstable();
+    scopes.dedup();
+    if scopes.is_empty()
+        || scopes
+            .iter()
+            .any(|scope| !DESKTOP_OAUTH_ALLOWED_SCOPES.contains(scope))
+    {
+        return Err(ApiError::bad_request(
+            "invalid_scope",
+            "OAuth scope is not allowed",
+        ));
+    }
+    Ok(scopes.join(" "))
+}
+
+fn oauth_authorize_url(
+    state: &AppState,
+    query: &OAuthAuthorizeQuery,
+    scope: &str,
+) -> ApiResult<String> {
+    let mut url = url::Url::parse(&format!(
+        "{}/oauth/authorize",
+        state.config.cloud_api_base_url
+    ))
+    .map_err(|error| ApiError::internal("oauth_authorize_url", error.to_string()))?;
+    url.query_pairs_mut()
+        .append_pair("response_type", &query.response_type)
+        .append_pair("client_id", &query.client_id)
+        .append_pair("redirect_uri", &query.redirect_uri)
+        .append_pair("code_challenge", &query.code_challenge)
+        .append_pair("code_challenge_method", &query.code_challenge_method)
+        .append_pair("state", &query.state)
+        .append_pair("scope", scope);
+    Ok(url.to_string())
+}
+
+fn required_oauth_field(value: Option<String>, name: &str) -> ApiResult<String> {
+    value.filter(|value| !value.is_empty()).ok_or_else(|| {
+        ApiError::bad_request("invalid_oauth_request", format!("{name} is required"))
+    })
+}
+
+fn require_cloud_user(
+    state: &AppState,
+    headers: &HeaderMap,
+    required_scope: &str,
+) -> ApiResult<MarketplaceUser> {
+    if let Some(user) = current_user(state, headers)? {
+        return Ok(user);
+    }
+    let bearer = headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| ApiError::unauthorized("authentication_required", "Sign in to continue"))?;
+    let user_id = state
+        .cloud
+        .oauth_access_token_user(bearer, required_scope, Utc::now())?
+        .ok_or_else(|| ApiError::unauthorized("invalid_access_token", "Access token is invalid"))?;
+    state
+        .store
+        .user_by_id(&user_id)?
+        .map(|record| record.user)
+        .ok_or_else(|| ApiError::unauthorized("invalid_access_token", "Access token is invalid"))
+}
+
+fn require_gateway_user(state: &AppState, headers: &HeaderMap) -> ApiResult<MarketplaceUser> {
+    let token = headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .or_else(|| {
+            headers
+                .get("x-api-key")
+                .and_then(|value| value.to_str().ok())
+        })
+        .or_else(|| {
+            headers
+                .get("x-goog-api-key")
+                .and_then(|value| value.to_str().ok())
+        })
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ApiError::unauthorized("authentication_required", "Cloud access token is required")
+        })?;
+    let user_id = state
+        .cloud
+        .oauth_access_token_user(token, "model:invoke", Utc::now())?
+        .ok_or_else(|| {
+            ApiError::unauthorized("invalid_access_token", "Cloud access token is invalid")
+        })?;
+    state
+        .store
+        .user_by_id(&user_id)?
+        .map(|record| record.user)
+        .ok_or_else(|| {
+            ApiError::unauthorized("invalid_access_token", "Cloud access token is invalid")
+        })
 }
 
 async fn discovery(State(state): State<Arc<AppState>>) -> Json<MarketplaceDiscovery> {
@@ -283,15 +1120,30 @@ async fn auth_me(
     }))
 }
 
-async fn github_start(State(state): State<Arc<AppState>>) -> ApiResult<Response> {
+#[derive(Debug, Deserialize)]
+struct GitHubStartQuery {
+    #[serde(rename = "continue")]
+    return_url: Option<String>,
+}
+
+async fn github_start(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<GitHubStartQuery>,
+) -> ApiResult<Response> {
     let client_id = state.config.github_client_id.as_deref().ok_or_else(|| {
         ApiError::service_unavailable("github_disabled", "GitHub login is not configured")
     })?;
     let oauth_state = random_token(32)?;
     let verifier = random_token(32)?;
+    let return_url = query
+        .return_url
+        .as_deref()
+        .map(|value| validate_cloud_continue_url(&state, value))
+        .transpose()?;
     state.store.save_oauth_state(
         &token_hash(&oauth_state),
         &verifier,
+        return_url.as_deref(),
         Utc::now() + Duration::minutes(OAUTH_STATE_TTL_MINUTES),
     )?;
     let mut url = url::Url::parse("https://github.com/login/oauth/authorize")
@@ -359,9 +1211,16 @@ async fn github_callback(
         MarketplaceUserRole::User
     };
     let user = state.store.upsert_github_user(&identity, role)?;
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        Utc::now(),
+    )?;
     let (token, expires_at) = create_session(&state, &user)?;
-    let mut response =
-        Redirect::to(&format!("{}?auth=github", state.config.web_base_url)).into_response();
+    let destination = stored_state
+        .return_url
+        .unwrap_or_else(|| format!("{}?auth=github", state.config.web_base_url));
+    let mut response = Redirect::to(&destination).into_response();
     set_session_cookie(
         response.headers_mut(),
         session_cookie(
@@ -498,6 +1357,11 @@ async fn github_api_request(
 }
 
 fn authenticated_response(state: &AppState, user: MarketplaceUser) -> ApiResult<Response> {
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        Utc::now(),
+    )?;
     let (token, expires_at) = create_session(state, &user)?;
     let mut response = (
         StatusCode::OK,
@@ -689,7 +1553,6 @@ async fn publish(
 ) -> ApiResult<(StatusCode, Json<MarketplaceSubmission>)> {
     require_same_origin(&state, &headers)?;
     let user = require_user(&state, &headers)?;
-    validate_publish_request(&request)?;
     let upload = state.store.upload(&upload_id)?.ok_or_else(|| {
         ApiError::not_found("upload_not_found", "Upload does not exist or has expired")
     })?;
@@ -699,6 +1562,13 @@ async fn publish(
             "The staged upload belongs to another user",
         ));
     }
+    if request != upload.preview.publication {
+        return Err(ApiError::bad_request(
+            "package_metadata_mismatch",
+            "Publication metadata must match the inspected package",
+        ));
+    }
+    validate_publish_request(&request)?;
     if !upload
         .preview
         .available_primary_resources
@@ -1088,6 +1958,131 @@ impl From<MarketplaceAuthError> for ApiError {
     }
 }
 
+impl From<PaymentError> for ApiError {
+    fn from(error: PaymentError) -> Self {
+        match error {
+            PaymentError::ProviderNotConfigured(_) => {
+                Self::service_unavailable("payment_not_configured", error.to_string())
+            }
+            PaymentError::InvalidOrder
+            | PaymentError::UnsupportedCurrency
+            | PaymentError::InvalidProviderResponse
+            | PaymentError::OrderMismatch
+            | PaymentError::IgnoredEvent => {
+                Self::bad_request("payment_invalid_request", error.to_string())
+            }
+            PaymentError::InvalidSignature
+            | PaymentError::ExpiredSignature
+            | PaymentError::UnknownWechatKey(_)
+            | PaymentError::InvalidEncryptedPayload => {
+                Self::unauthorized("payment_signature", error.to_string())
+            }
+            PaymentError::ProviderResponse { .. } | PaymentError::Transport(_) => {
+                Self::bad_gateway("payment_provider", error.to_string())
+            }
+            PaymentError::Store(error) => error.into(),
+            _ => Self::internal("payment", error.to_string()),
+        }
+    }
+}
+
+impl From<GatewayError> for ApiError {
+    fn from(error: GatewayError) -> Self {
+        match error {
+            GatewayError::GatewayNotConfigured => {
+                Self::service_unavailable("gateway_not_configured", error.to_string())
+            }
+            GatewayError::InvalidRequestId
+            | GatewayError::InvalidRequest(_)
+            | GatewayError::ProtocolMismatch
+            | GatewayError::InvalidUpstreamUrl => {
+                Self::bad_request("gateway_invalid_request", error.to_string())
+            }
+            GatewayError::Transport(_) => Self::bad_gateway("gateway_upstream", error.to_string()),
+            GatewayError::Store(error) => error.into(),
+            _ => Self::internal("gateway", error.to_string()),
+        }
+    }
+}
+
+impl From<CloudStoreError> for ApiError {
+    fn from(error: CloudStoreError) -> Self {
+        match error {
+            CloudStoreError::InvalidBillingTimezone(_)
+            | CloudStoreError::InvalidBillingAnchorDay(_)
+            | CloudStoreError::InvalidProrationWindow
+            | CloudStoreError::ZeroCreditAmount
+            | CloudStoreError::InvalidReservation
+            | CloudStoreError::InvalidPlan
+            | CloudStoreError::InvalidPaymentProvider(_)
+            | CloudStoreError::InvalidPlanOrder(_)
+            | CloudStoreError::PlanUpgradeOfferMismatch
+            | CloudStoreError::InvalidScheduledPlan
+            | CloudStoreError::InvalidIdempotencyKey
+            | CloudStoreError::InvalidTopUpProduct
+            | CloudStoreError::InvalidUpstreamProvider
+            | CloudStoreError::InvalidOfficialModel
+            | CloudStoreError::ModelProtocolMismatch => {
+                Self::bad_request("cloud_invalid_request", error.to_string())
+            }
+            CloudStoreError::InsufficientCredits { .. } => {
+                Self::conflict("insufficient_credits", error.to_string())
+            }
+            CloudStoreError::IdempotencyConflict => {
+                Self::conflict("idempotency_conflict", error.to_string())
+            }
+            CloudStoreError::RevisionConflict { .. } => {
+                Self::conflict("revision_conflict", error.to_string())
+            }
+            CloudStoreError::PlanSlugConflict(_) => {
+                Self::conflict("plan_slug_conflict", error.to_string())
+            }
+            CloudStoreError::TopUpSlugConflict(_) => {
+                Self::conflict("top_up_slug_conflict", error.to_string())
+            }
+            CloudStoreError::UpstreamProviderSlugConflict(_)
+            | CloudStoreError::OfficialModelIdConflict(_) => {
+                Self::conflict("model_catalog_conflict", error.to_string())
+            }
+            CloudStoreError::PlanDowngradeMustBeScheduled
+            | CloudStoreError::SubscriptionConflict
+            | CloudStoreError::PendingRenewalExists
+            | CloudStoreError::InvalidPaymentOrderState
+            | CloudStoreError::PaymentFulfillmentConflict => {
+                Self::conflict("cloud_state_conflict", error.to_string())
+            }
+            CloudStoreError::DuplicateModelRequest => {
+                Self::conflict("duplicate_model_request", error.to_string())
+            }
+            CloudStoreError::PaymentProviderMismatch => {
+                Self::conflict("payment_provider_mismatch", error.to_string())
+            }
+            CloudStoreError::PlanOfferNotFound | CloudStoreError::TopUpOfferNotFound => {
+                Self::not_found("offer_not_found", error.to_string())
+            }
+            CloudStoreError::PaymentOrderNotFound => {
+                Self::not_found("payment_order_not_found", error.to_string())
+            }
+            CloudStoreError::UpstreamProviderNotFound | CloudStoreError::OfficialModelNotFound => {
+                Self::not_found("official_model_not_found", error.to_string())
+            }
+            CloudStoreError::ModelNotEntitled => {
+                Self::forbidden("model_not_entitled", error.to_string())
+            }
+            CloudStoreError::UpstreamCredentialRequired => {
+                Self::bad_request("upstream_credential_required", error.to_string())
+            }
+            CloudStoreError::ReservationNotFound => {
+                Self::not_found("reservation_not_found", error.to_string())
+            }
+            CloudStoreError::InvalidOAuthGrant | CloudStoreError::OAuthRefreshReuse => {
+                Self::unauthorized("invalid_grant", error.to_string())
+            }
+            _ => Self::internal("cloud_store", error.to_string()),
+        }
+    }
+}
+
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
         Self::internal("marketplace_io", error.to_string())
@@ -1100,4 +2095,6 @@ pub enum MarketplaceServerError {
     InvalidConfiguration(String),
     #[error(transparent)]
     Store(#[from] MarketplaceStoreError),
+    #[error(transparent)]
+    CloudStore(#[from] CloudStoreError),
 }
