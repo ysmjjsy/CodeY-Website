@@ -1,6 +1,7 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { t } from '../i18n/utils'
+import Container from './ui/Container.astro'
 
 interface Props {
   locale: Locale
@@ -10,7 +11,7 @@ const { locale } = Astro.props
 ---
 
 <section class="section" id="features">
-  <div class="container">
+  <Container>
     <div class="section-head reveal">
       <p class="section-tag">{t(locale, 'features.tag')}</p>
       <h2 class="section-title">{t(locale, 'features.title')}</h2>
@@ -118,7 +119,7 @@ const { locale } = Astro.props
         <p>{t(locale, 'features.i18n.desc')}</p>
       </article>
     </div>
-  </div>
+  </Container>
 </section>
 
 <style>

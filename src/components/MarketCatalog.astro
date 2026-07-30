@@ -2,6 +2,11 @@
 import type { Locale } from '../i18n/ui'
 import { marketCopy } from '../i18n/market'
 import { docsPath, marketPath } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import StateMessage from './ui/StateMessage.astro'
 
 interface Props {
   locale: Locale
@@ -22,15 +27,12 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
   data-copy={JSON.stringify(copy)}
 >
   <div class="market-results">
-    <header class="market-results-head market-hero">
-      <div>
-        <p class="market-eyebrow">{copy.eyebrow}</p>
-        <h1>
+    <PageHeader class="market-results-head market-hero" eyebrow={copy.eyebrow} eyebrowClass="market-eyebrow" description={copy.description}>
+      <Fragment slot="title">
           {discoverTitlePrefix}<span>CodeY</span>{discoverTitleSuffix}
-        </h1>
-        <p>{copy.description}</p>
-      </div>
-      <div class="market-hero-actions">
+      </Fragment>
+      <Fragment slot="actions">
+        <div class="market-hero-actions">
         <form class="market-search" data-market-search>
           <label class="sr-only" for="market-query">{copy.searchLabel}</label>
           <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
@@ -43,11 +45,12 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
           />
           <button type="submit" aria-label={copy.search}><kbd>⌘ K</kbd></button>
         </form>
-        <button class="btn btn-primary market-upload-button" type="button" data-market-upload-open>
+        <Button class="market-upload-button" variant="primary" data-market-upload-open>
           <i class="ph ph-upload-simple" aria-hidden="true"></i>{copy.upload}
-        </button>
-      </div>
-    </header>
+        </Button>
+        </div>
+      </Fragment>
+    </PageHeader>
 
     <div class="market-toolbar">
       <nav class="market-category-list" aria-label={copy.categories} data-market-filters>
@@ -73,37 +76,37 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
       <p class="market-result-count" data-result-count aria-live="polite"></p>
     </div>
 
-    <div class="market-grid" data-market-grid aria-live="polite"></div>
-    <div class="market-state" data-market-state>{copy.loading}</div>
-    <section class="market-empty" data-market-empty hidden aria-labelledby="market-empty-title">
-      <div class="market-empty-copy">
-        <h2 id="market-empty-title" data-market-empty-title>{copy.emptyTitle}</h2>
-        <p data-market-empty-description>{copy.emptyDescription}</p>
-        <div class="market-empty-actions" data-market-inventory-actions>
-          <button class="btn btn-primary" type="button" data-market-upload-open>
-            <i class="ph ph-upload-simple" aria-hidden="true"></i>{copy.publishFirst}
-          </button>
-          <a class="btn btn-ghost" href={docsPath(locale, 'sdk/agent-definitions')}>
-            <i class="ph ph-file-code" aria-hidden="true"></i>{copy.learnPackage}
-          </a>
+    <List class="market-catalog-list">
+      <div class="market-grid" data-market-grid aria-live="polite"></div>
+      <StateMessage as="div" class="market-state" data-market-state>{copy.loading}</StateMessage>
+      <section slot="empty" class="market-empty" data-market-empty hidden aria-labelledby="market-empty-title">
+        <div class="market-empty-copy">
+          <h2 id="market-empty-title" data-market-empty-title>{copy.emptyTitle}</h2>
+          <p data-market-empty-description>{copy.emptyDescription}</p>
+          <div class="market-empty-actions" data-market-inventory-actions>
+            <Button variant="primary" data-market-upload-open>
+              <i class="ph ph-upload-simple" aria-hidden="true"></i>{copy.publishFirst}
+            </Button>
+            <Button href={docsPath(locale, 'sdk/agent-definitions')}>
+              <i class="ph ph-file-code" aria-hidden="true"></i>{copy.learnPackage}
+            </Button>
+          </div>
+          <div class="market-empty-actions" data-market-no-results-actions hidden>
+            <Button variant="primary" data-market-clear-filters>
+              <i class="ph ph-x-circle" aria-hidden="true"></i>{copy.clearFilters}
+            </Button>
+          </div>
         </div>
-        <div class="market-empty-actions" data-market-no-results-actions hidden>
-          <button class="btn btn-primary" type="button" data-market-clear-filters>
-            <i class="ph ph-x-circle" aria-hidden="true"></i>{copy.clearFilters}
-          </button>
-        </div>
-      </div>
-      <picture class="market-empty-visual">
-        <img class="market-empty-visual-light" src="/images/market/empty-market-light.png" alt="" width="720" height="440" />
-        <img class="market-empty-visual-dark" src="/images/market/empty-market-dark.png" alt="" width="720" height="440" />
-      </picture>
-    </section>
+        <picture class="market-empty-visual">
+          <img class="market-empty-visual-light" src="/images/market/empty-market-light.png" alt="" width="720" height="440" />
+          <img class="market-empty-visual-dark" src="/images/market/empty-market-dark.png" alt="" width="720" height="440" />
+        </picture>
+      </section>
+      <Pagination slot="footer" locale={locale} pageSize={12} pageSizeOptions={[12, 24, 48]} data-market-pagination />
+    </List>
     <p class="market-trust-note">
       <i class="ph ph-shield-check" aria-hidden="true"></i>{copy.trustNote}
     </p>
-    <div class="market-load-more" hidden data-market-more>
-      <button class="btn btn-ghost" type="button">{copy.loadMore}</button>
-    </div>
   </div>
 </section>
 
@@ -122,6 +125,9 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
 </style>
 
 <script>
+  import { createPagination, type PaginationChange } from '../lib/pagination'
+  import { toast } from '../lib/toast'
+
   type Listing = {
     listingId: string
     packageId?: string
@@ -151,14 +157,16 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
     const inventoryActions = root.querySelector<HTMLElement>('[data-market-inventory-actions]')!
     const noResultsActions = root.querySelector<HTMLElement>('[data-market-no-results-actions]')!
     const clearFilters = root.querySelector<HTMLButtonElement>('[data-market-clear-filters]')!
-    const more = root.querySelector<HTMLElement>('[data-market-more]')!
-    const moreButton = more.querySelector<HTMLButtonElement>('button')!
     const search = root.querySelector<HTMLFormElement>('[data-market-search]')!
     const queryInput = search.elements.namedItem('q') as HTMLInputElement
     const filterButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-kind]'))
     const resultCount = root.querySelector<HTMLElement>('[data-result-count]')!
+    const paginationRoot = root.querySelector<HTMLElement>('[data-market-pagination]')
+    const pagination = createPagination(paginationRoot)
     let activeKind = ''
-    let nextCursor: string | null = null
+    let page = 1
+    let pageSize = 12
+    let cursors = new Map<number, string | null>([[1, null]])
     let loading = false
 
     const kindCopy: Record<Listing['kind'], string> = {
@@ -255,51 +263,57 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
       empty.hidden = false
     }
 
-    async function load(append = false): Promise<void> {
+    async function load(targetPage = 1): Promise<void> {
       if (loading) return
+      const cursor = cursors.get(targetPage)
+      if (targetPage > 1 && cursor === undefined) return
       loading = true
-      state.hidden = append
+      state.hidden = false
       empty.hidden = true
-      if (!append) {
-        state.textContent = copy.loading
-        grid.replaceChildren()
-        more.hidden = true
-        resultCount.textContent = ''
-      }
+      state.textContent = copy.loading
+      grid.replaceChildren()
+      resultCount.textContent = ''
       try {
         const url = new URL(`${apiBase}/listings`, window.location.origin)
         const query = queryInput.value.trim()
         if (query) url.searchParams.set('q', query)
         if (activeKind) url.searchParams.set('kind', activeKind)
-        if (append && nextCursor) url.searchParams.set('cursor', nextCursor)
+        if (cursor) url.searchParams.set('cursor', cursor)
+        url.searchParams.set('limit', String(pageSize))
         const response = await fetch(url, { headers: { Accept: 'application/json' } })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const payload = (await response.json()) as CatalogResponse
-        payload.listings.forEach((listing) => grid.append(card(listing)))
+        grid.replaceChildren(...payload.listings.map(card))
         updateCount()
-        nextCursor = payload.nextCursor || null
-        more.hidden = !nextCursor
+        page = targetPage
+        if (payload.nextCursor) cursors.set(page + 1, payload.nextCursor)
+        else cursors.delete(page + 1)
+        pagination.set({ page, pageSize, hasNext: Boolean(payload.nextCursor) })
         state.hidden = true
         if (grid.childElementCount > 0) empty.hidden = true
         else showEmptyState(Boolean(query || activeKind))
       } catch {
-        if (!append) {
-          empty.hidden = true
-          state.replaceChildren(text('span', copy.unavailable))
-          const retry = text('button', copy.retry, 'btn btn-ghost') as HTMLButtonElement
-          retry.type = 'button'
-          retry.addEventListener('click', () => void load())
-          state.append(document.createElement('br'), retry)
-          state.hidden = false
-        }
+        toast.error(copy.unavailable)
+        empty.hidden = true
+        const retry = text('button', copy.retry, 'btn btn-ghost') as HTMLButtonElement
+        retry.type = 'button'
+        retry.addEventListener('click', () => void load(targetPage))
+        state.replaceChildren(retry)
+        state.hidden = false
       } finally {
         loading = false
       }
     }
 
+    function resetPagination(): void {
+      page = 1
+      cursors = new Map([[1, null]])
+      pagination.reset()
+    }
+
     search.addEventListener('submit', (event) => {
       event.preventDefault()
-      nextCursor = null
+      resetPagination()
       void load()
     })
     clearFilters.addEventListener('click', () => {
@@ -310,7 +324,7 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
         item.setAttribute('aria-pressed', String(active))
         item.classList.toggle('is-active', active)
       })
-      nextCursor = null
+      resetPagination()
       void load()
     })
     window.addEventListener('keydown', (event) => {
@@ -327,11 +341,17 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
           item.setAttribute('aria-pressed', String(active))
           item.classList.toggle('is-active', active)
         })
-        nextCursor = null
+        resetPagination()
         void load()
       })
     })
-    moreButton.addEventListener('click', () => void load(true))
+    paginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => {
+      if (event.detail.pageSize !== pageSize) {
+        pageSize = event.detail.pageSize
+        resetPagination()
+      }
+      void load(event.detail.page)
+    }) as EventListener)
     void load()
   }
 </script>

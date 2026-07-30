@@ -1,5 +1,5 @@
+use crate::db::{params, OptionalExtension, Transaction, TransactionBehavior};
 use chrono::{DateTime, Datelike as _, Duration, Utc};
-use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 use super::store::{insert_grant, insert_grant_available, parse_time, stored_i64, stored_u64};
 use super::{
@@ -1035,16 +1035,16 @@ fn payment_order_by_idempotency(
 }
 
 pub(super) fn payment_order_by_id(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     order_id: &str,
 ) -> Result<Option<PaymentOrder>, CloudStoreError> {
     payment_order_query(connection, "WHERE order_id=?1", [order_id])
 }
 
 fn payment_order_query(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     predicate: &str,
-    parameters: impl rusqlite::Params,
+    parameters: impl crate::db::Params,
 ) -> Result<Option<PaymentOrder>, CloudStoreError> {
     let row = connection
         .query_row(
@@ -1139,7 +1139,7 @@ mod tests {
 
     fn store() -> (TempDir, CloudStore) {
         let root = TempDir::new().unwrap();
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         (root, store)
     }
 
@@ -1159,6 +1159,8 @@ mod tests {
                     slug: slug.into(),
                     display_name: slug.into(),
                     description: slug.into(),
+                    display_name_i18n: Default::default(),
+                    description_i18n: Default::default(),
                     tier_rank: rank,
                     is_default: false,
                     monthly_credit_micros: credits,
@@ -1204,6 +1206,8 @@ mod tests {
                     slug: slug.into(),
                     display_name: slug.into(),
                     description: slug.into(),
+                    display_name_i18n: Default::default(),
+                    description_i18n: Default::default(),
                     tier_rank: rank,
                     is_default: false,
                     monthly_credit_micros: credits,
@@ -1404,6 +1408,8 @@ mod tests {
                     slug: "pro".into(),
                     display_name: "pro".into(),
                     description: "pro".into(),
+                    display_name_i18n: Default::default(),
+                    description_i18n: Default::default(),
                     tier_rank: 10,
                     is_default: false,
                     monthly_credit_micros: 100_000_000,

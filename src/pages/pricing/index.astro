@@ -1,0 +1,12 @@
+---
+import PricingCatalog from '../../components/PricingCatalog.astro'
+import { commercialCopy } from '../../i18n/commercial'
+import CommercialLayout from '../../layouts/CommercialLayout.astro'
+
+const locale = 'zh-CN' as const
+const copy = commercialCopy(locale)
+---
+
+<CommercialLayout title={`${copy.pricingTitle} · CodeY`} description={copy.pricingDescription} locale={locale} alternateHref="/en/pricing/">
+  <PricingCatalog locale={locale} />
+</CommercialLayout>

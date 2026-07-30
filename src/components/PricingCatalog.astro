@@ -1,0 +1,569 @@
+---
+import type { Locale } from '../i18n/ui'
+import { commercialCopy } from '../i18n/commercial'
+import { consolePath, modelsPath } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Container from './ui/Container.astro'
+import Dialog from './ui/Dialog.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import SectionHeader from './ui/SectionHeader.astro'
+import StateMessage from './ui/StateMessage.astro'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy = commercialCopy(locale)
+---
+
+<section
+  class="commercial-page pricing-page"
+  data-pricing-catalog
+  data-locale={locale}
+  data-copy={JSON.stringify(copy)}
+  data-console-path={consolePath(locale)}
+>
+  <Container>
+    <PageHeader class="commercial-hero" align="center" eyebrow={copy.pricingEyebrow} eyebrowClass="commercial-eyebrow" title={copy.pricingTitle} description={copy.pricingDescription} />
+
+    <StateMessage as="div" class="catalog-state" data-state>
+      <span>{copy.loading}</span>
+    </StateMessage>
+
+    <div hidden data-content>
+      <List class="paginated-card-list">
+        <div class="plan-grid" data-plan-grid></div>
+        <Pagination slot="footer" locale={locale} pageSize={6} pageSizeOptions={[6, 12, 24]} data-plan-pagination />
+      </List>
+
+      <section class="commercial-section">
+        <SectionHeader class="commercial-section-head" title={copy.compareTitle} description={copy.compareDescription}>
+          <Button slot="actions" class="section-link" href={modelsPath(locale)}>{copy.details}</Button>
+        </SectionHeader>
+        <List class="commercial-panel model-coverage">
+          <div class="coverage-row coverage-head">
+            <span>{copy.model}</span>
+            <span>{copy.provider}</span>
+            <span>{copy.capability}</span>
+            <span>{copy.inputPrice}</span>
+            <span>{copy.outputPrice}</span>
+          </div>
+          <div data-model-rows></div>
+          <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-model-pagination />
+        </List>
+      </section>
+
+      <section class="commercial-section">
+        <SectionHeader class="commercial-section-head" title={copy.creditPacks} description={copy.creditPacksDescription} />
+        <List class="paginated-card-list">
+          <div class="credit-pack-grid" data-topup-grid></div>
+          <Pagination slot="footer" locale={locale} pageSize={6} pageSizeOptions={[6, 12, 24]} data-topup-pagination />
+        </List>
+      </section>
+    </div>
+  </Container>
+
+  <Dialog class="commerce-dialog purchase-dialog" data-purchase-dialog aria-labelledby="purchase-dialog-title">
+    <form class="commerce-dialog-card" method="dialog" data-purchase-form>
+      <h2 id="purchase-dialog-title" data-confirm-title>{copy.confirmTitle}</h2>
+      <p>{copy.confirmDescription}</p>
+      <div class="purchase-summary">
+        <div><span data-summary-label></span><strong data-summary-name></strong></div>
+        <div><span>{copy.planEffect}</span><strong data-summary-effect></strong></div>
+      </div>
+      <fieldset class="payment-options" data-payment-options>
+        <legend>{copy.paymentMethod}</legend>
+      </fieldset>
+      <div class="commerce-dialog-actions">
+        <Button value="cancel" data-purchase-cancel>{copy.cancel}</Button>
+        <Button variant="primary" type="submit" data-purchase-confirm>{copy.confirmPurchase}</Button>
+      </div>
+    </form>
+  </Dialog>
+
+  <Dialog class="commerce-dialog checkout-dialog" data-checkout-dialog>
+    <div class="commerce-dialog-card">
+      <h2>{copy.paymentPending}</h2>
+      <img hidden data-payment-qr alt={copy.paymentPending} />
+      <Button as="a" variant="primary" class="checkout-action" data-payment-link target="_blank" rel="noopener">{copy.openPayment}</Button>
+      <Button class="checkout-action" data-payment-copy>{copy.copyPayment}</Button>
+      <code data-payment-code></code>
+      <div class="commerce-dialog-actions single">
+        <Button data-checkout-close>{copy.close}</Button>
+      </div>
+    </div>
+  </Dialog>
+</section>
+
+<script>
+  import { createPagination, pagedItems, type PaginationChange } from '../lib/pagination'
+  import { toast } from '../lib/toast'
+
+  type User = { userId: string; role: 'user' | 'admin' }
+  type AuthResponse = { user?: User | null }
+  type Offer = { offerId: string; region: string; currency: string; paymentProvider: string; amountMinor: number }
+  type Benefit = { resourceType: string; resourceId?: string | null; action: string }
+  type Localized = Record<string, string>
+  type Plan = { planId: string; slug: string; displayName: string; description: string; displayNameI18n?: Localized; descriptionI18n?: Localized; tierRank: number; isDefault: boolean; monthlyCreditMicros: number; offers: Offer[]; benefits: Benefit[] }
+  type PlanCatalog = { plans: Plan[] }
+  type TopUp = { productId: string; displayName: string; description: string; displayNameI18n?: Localized; descriptionI18n?: Localized; creditMicros: number; offers: Offer[] }
+  type TopUpCatalog = { products: TopUp[] }
+  type Pricing = { inputCreditMicrosPerMillion: number; outputCreditMicrosPerMillion: number }
+  type Model = { publicModelId: string; displayName: string; providerDisplayName: string; capability: Record<string, unknown>; pricing: Pricing }
+  type ModelCatalog = { models: Model[] }
+  type PaymentAvailability = { providers: string[] }
+  type Account = { subscription: { planId: string; status: 'active' | 'expired'; currentPeriodId: string; scheduledPlanId?: string | null } }
+  type Checkout = {
+    order: { orderId: string }
+    action:
+      | { type: 'redirect'; url: string }
+      | { type: 'qr_code'; code_url: string; image_data_url: string }
+      | { type: 'form'; method: string; action: string; fields: Record<string, string> }
+  }
+  type Selection = { kind: 'plan'; id: string } | { kind: 'topup'; id: string }
+
+  const root = document.querySelector<HTMLElement>('[data-pricing-catalog]')
+  if (root) {
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const state = root.querySelector<HTMLElement>('[data-state]')!
+    const content = root.querySelector<HTMLElement>('[data-content]')!
+    const purchaseDialog = root.querySelector<HTMLDialogElement>('[data-purchase-dialog]')!
+    const checkoutDialog = root.querySelector<HTMLDialogElement>('[data-checkout-dialog]')!
+    const purchaseForm = root.querySelector<HTMLFormElement>('[data-purchase-form]')!
+    const paymentOptions = root.querySelector<HTMLElement>('[data-payment-options]')!
+    const planPaginationRoot = root.querySelector<HTMLElement>('[data-plan-pagination]')
+    const modelPaginationRoot = root.querySelector<HTMLElement>('[data-model-pagination]')
+    const topupPaginationRoot = root.querySelector<HTMLElement>('[data-topup-pagination]')
+    const planPagination = createPagination(planPaginationRoot)
+    const modelPagination = createPagination(modelPaginationRoot)
+    const topupPagination = createPagination(topupPaginationRoot)
+    let plans: Plan[] = []
+    let topups: TopUp[] = []
+    let models: Model[] = []
+    let availableProviders: string[] = []
+    let user: User | null = null
+    let account: Account | null = null
+    let selection: Selection | null = null
+    let polling: number | undefined
+    let planPage = 1
+    let planPageSize = 6
+    let modelPage = 1
+    let modelPageSize = 10
+    let topupPage = 1
+    let topupPageSize = 6
+
+    const points = (value: number): string =>
+      new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / 1_000_000)
+    const currency = (offer: Offer): string =>
+      new Intl.NumberFormat(locale, { style: 'currency', currency: offer.currency, maximumFractionDigits: 2 }).format(offer.amountMinor / 100)
+    const providerName = (value: string): string =>
+      ({ stripe: 'Stripe', alipay: locale === 'en' ? 'Alipay' : '支付宝', wechat_pay: locale === 'en' ? 'WeChat Pay' : '微信支付', test: 'Test' })[value] || value
+    const localized = (values: Localized | undefined, fallback: string): string => values?.[locale] || fallback
+
+    async function api<T>(path: string, init?: RequestInit): Promise<T> {
+      const response = await fetch(path, {
+        ...init,
+        headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { message?: string; error?: { message?: string } } | null
+        throw new Error(payload?.error?.message || payload?.message || copy.unavailable)
+      }
+      return response.json() as Promise<T>
+    }
+
+    function preferredOffer(offers: Offer[]): Offer | null {
+      const available = offers.filter((offer) => availableProviders.includes(offer.paymentProvider))
+      const currencyCode = locale === 'en' ? 'USD' : 'CNY'
+      return available.find((offer) => offer.currency === currencyCode) || available[0] || null
+    }
+
+    function planModels(plan: Plan): Model[] {
+      const benefits = plan.benefits.filter((benefit) => benefit.resourceType === 'model' && benefit.action === 'invoke')
+      if (benefits.some((benefit) => !benefit.resourceId)) return models
+      const ids = new Set(benefits.map((benefit) => benefit.resourceId))
+      return models.filter((model) => ids.has(model.publicModelId))
+    }
+
+    function capabilityLabels(model: Model): string {
+      const labels: string[] = []
+      const input = Array.isArray(model.capability.input_modalities) ? model.capability.input_modalities as string[] : []
+      if (input.includes('image')) labels.push(copy.vision)
+      if (model.capability.reasoning) labels.push(copy.reasoning)
+      if (model.capability.tool_calling) labels.push(copy.tools)
+      if (model.capability.structured_output) labels.push(copy.structured)
+      return labels.slice(0, 2).join(' · ') || copy.text
+    }
+
+    function actionLabel(plan: Plan): string {
+      if (account?.subscription.status === 'active' && account.subscription.planId === plan.planId) return copy.managePlan
+      if (account?.subscription.scheduledPlanId === plan.planId) return copy.scheduledDone
+      const current = plans.find((candidate) => candidate.planId === account?.subscription.planId)
+      if (current && account?.subscription.status === 'active' && plan.tierRank < current.tierRank) return copy.downgrade
+      return account?.subscription.status === 'active' ? copy.upgrade : copy.choose
+    }
+
+    function renderPlans(): void {
+      const grid = root.querySelector<HTMLElement>('[data-plan-grid]')!
+      const paid = plans.filter((plan) => !plan.isDefault).sort((a, b) => a.tierRank - b.tierRank)
+      const recommendedId = paid[0]?.planId
+      const sortedPlans = [...plans].sort((a, b) => a.tierRank - b.tierRank)
+      planPage = Math.min(planPage, Math.max(1, Math.ceil(sortedPlans.length / planPageSize)))
+      planPagination.set({ page: planPage, pageSize: planPageSize, totalItems: sortedPlans.length })
+      grid.replaceChildren(...pagedItems(sortedPlans, planPage, planPageSize).map((plan) => {
+        const relatedModels = planModels(plan)
+        const offer = preferredOffer(plan.offers)
+        const current = account?.subscription.status === 'active' && account.subscription.planId === plan.planId
+        const scheduled = account?.subscription.scheduledPlanId === plan.planId
+        const card = document.createElement('article')
+        card.className = `plan-card${plan.planId === recommendedId ? ' is-recommended' : ''}${current ? ' is-current' : ''}`
+        const badge = current ? `<span class="plan-badge current">${copy.current}</span>` : plan.planId === recommendedId ? `<span class="plan-badge">${copy.recommended}</span>` : ''
+        const price = plan.isDefault ? `<strong>${copy.free}</strong>` : offer ? `<strong>${currency(offer)}<small>${copy.from}</small></strong>` : `<strong>—</strong>`
+        const modelSummary = relatedModels.length
+          ? `${relatedModels.slice(0, 2).map((model) => escapeHtml(model.displayName)).join(' · ')}${relatedModels.length > 2 ? ` · +${relatedModels.length - 2}` : ''}`
+          : copy.noModels
+        card.innerHTML = `${badge}<header><span class="plan-name">${escapeHtml(localized(plan.displayNameI18n, plan.displayName))}</span><p>${escapeHtml(localized(plan.descriptionI18n, plan.description))}</p></header><div class="plan-price">${price}</div><div class="plan-credit"><b>${points(plan.monthlyCreditMicros)}</b><span>${copy.monthlyCredits}</span></div><div class="plan-features"><span>${copy.includedModels}</span><p class="model-summary">${modelSummary}</p><ul><li><i class="ph ph-check-circle" aria-hidden="true"></i><span>${copy.planBenefitUsage}</span></li><li><i class="ph ph-check-circle" aria-hidden="true"></i><span>${copy.planBenefitStreaming}</span></li><li><i class="ph ph-check-circle" aria-hidden="true"></i><span>${copy.planBenefitGateway}</span></li></ul></div>`
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = `btn ${plan.planId === recommendedId ? 'btn-primary' : 'btn-ghost'}`
+        button.textContent = actionLabel(plan)
+        button.disabled = scheduled
+        button.addEventListener('click', () => choose({ kind: 'plan', id: plan.planId }))
+        const note = document.createElement('small')
+        note.className = 'plan-login-note'
+        note.innerHTML = `<i class="ph ph-lock-key" aria-hidden="true"></i>${copy.loginNote}`
+        card.append(button, note)
+        return card
+      }))
+    }
+
+    function renderModels(): void {
+      const rows = root.querySelector<HTMLElement>('[data-model-rows]')!
+      modelPage = Math.min(modelPage, Math.max(1, Math.ceil(models.length / modelPageSize)))
+      modelPagination.set({ page: modelPage, pageSize: modelPageSize, totalItems: models.length })
+      if (!models.length) {
+        const empty = document.createElement('p')
+        empty.className = 'coverage-empty'
+        empty.textContent = copy.noModels
+        rows.replaceChildren(empty)
+        return
+      }
+      rows.replaceChildren(...pagedItems(models, modelPage, modelPageSize).map((model) => {
+        const row = document.createElement('div')
+        row.className = 'coverage-row'
+        row.innerHTML = `<span><strong>${escapeHtml(model.displayName)}</strong><small>${escapeHtml(model.publicModelId)}</small></span><span>${escapeHtml(model.providerDisplayName)}</span><span>${escapeHtml(capabilityLabels(model))}</span><span>${points(model.pricing.inputCreditMicrosPerMillion)} ${copy.points}</span><span>${points(model.pricing.outputCreditMicrosPerMillion)} ${copy.points}</span>`
+        return row
+      }))
+    }
+
+    function renderTopups(): void {
+      const grid = root.querySelector<HTMLElement>('[data-topup-grid]')!
+      topupPage = Math.min(topupPage, Math.max(1, Math.ceil(topups.length / topupPageSize)))
+      topupPagination.set({ page: topupPage, pageSize: topupPageSize, totalItems: topups.length })
+      grid.replaceChildren(...pagedItems(topups, topupPage, topupPageSize).map((product) => {
+        const offer = preferredOffer(product.offers)
+        const card = document.createElement('article')
+        card.className = 'credit-pack commercial-panel'
+        card.innerHTML = `<div><h3>${escapeHtml(localized(product.displayNameI18n, product.displayName))}</h3><p>${escapeHtml(localized(product.descriptionI18n, product.description))}</p></div><strong>${points(product.creditMicros)} <small>${copy.permanentCredits}</small></strong><span>${offer ? currency(offer) : '—'}</span>`
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'btn btn-ghost'
+        button.textContent = copy.buy
+        button.addEventListener('click', () => choose({ kind: 'topup', id: product.productId }))
+        card.append(button)
+        return card
+      }))
+    }
+
+    function escapeHtml(value: string): string {
+      const span = document.createElement('span')
+      span.textContent = value
+      return span.innerHTML
+    }
+
+    async function refreshAccount(): Promise<void> {
+      if (!user) {
+        account = null
+        return
+      }
+      account = await api<Account>('/api/cloud/v1/me')
+    }
+
+    function storeIntent(value: Selection): void {
+      sessionStorage.setItem('codey-purchase-intent', JSON.stringify(value))
+    }
+
+    function restoreIntent(): Selection | null {
+      const raw = sessionStorage.getItem('codey-purchase-intent')
+      if (!raw) return null
+      sessionStorage.removeItem('codey-purchase-intent')
+      try {
+        const value = JSON.parse(raw) as Selection
+        return value.kind === 'plan' || value.kind === 'topup' ? value : null
+      } catch {
+        return null
+      }
+    }
+
+    function availableOffers(value: Selection): Offer[] {
+      const offers = value.kind === 'plan'
+        ? plans.find((plan) => plan.planId === value.id)?.offers || []
+        : topups.find((product) => product.productId === value.id)?.offers || []
+      return offers.filter((offer) => availableProviders.includes(offer.paymentProvider))
+    }
+
+    function openConfirmation(value: Selection): void {
+      selection = value
+      const plan = value.kind === 'plan' ? plans.find((candidate) => candidate.planId === value.id) : null
+      const topup = value.kind === 'topup' ? topups.find((candidate) => candidate.productId === value.id) : null
+      const current = plans.find((candidate) => candidate.planId === account?.subscription.planId)
+      const downgrade = Boolean(plan && current && account?.subscription.status === 'active' && plan.tierRank < current.tierRank)
+      const offers = availableOffers(value)
+      if (!downgrade && !plan?.isDefault && !offers.length) {
+        toast.warning(copy.noPaymentOffer)
+        return
+      }
+      root.querySelector<HTMLElement>('[data-confirm-title]')!.textContent = value.kind === 'plan' ? copy.confirmTitle : copy.confirmTopUpTitle
+      root.querySelector<HTMLElement>('[data-summary-label]')!.textContent = value.kind === 'plan' ? copy.choose : copy.creditPacks
+      root.querySelector<HTMLElement>('[data-summary-name]')!.textContent = plan ? localized(plan.displayNameI18n, plan.displayName) : topup ? localized(topup.displayNameI18n, topup.displayName) : '—'
+      root.querySelector<HTMLElement>('[data-summary-effect]')!.textContent = downgrade ? copy.scheduled : copy.immediate
+      paymentOptions.hidden = downgrade || Boolean(plan?.isDefault)
+      paymentOptions.replaceChildren()
+      if (!paymentOptions.hidden) {
+        const legend = document.createElement('legend')
+        legend.textContent = copy.paymentMethod
+        paymentOptions.append(legend, ...offers.map((offer, index) => {
+          const label = document.createElement('label')
+          label.innerHTML = `<input type="radio" name="offer" value="${offer.offerId}" ${index === 0 ? 'checked' : ''}><span>${providerName(offer.paymentProvider)}</span><strong>${currency(offer)}</strong>`
+          return label
+        }))
+      }
+      purchaseDialog.showModal()
+    }
+
+    async function choose(value: Selection): Promise<void> {
+      if (!user) {
+        storeIntent(value)
+        window.dispatchEvent(new CustomEvent('market-auth-required'))
+        toast.info(copy.signedOut)
+        return
+      }
+      const plan = value.kind === 'plan' ? plans.find((candidate) => candidate.planId === value.id) : null
+      if (plan?.isDefault || (plan && account?.subscription.planId === plan.planId)) {
+        window.location.assign(root.dataset.consolePath || '/console/')
+        return
+      }
+      if (!account) {
+        toast.error(copy.accountUnavailable)
+        return
+      }
+      openConfirmation(value)
+    }
+
+    async function beginCheckout(path: string, offerId: string): Promise<void> {
+      const checkout = await api<Checkout>(path, {
+        method: 'POST',
+        body: JSON.stringify({ offerId, idempotencyKey: crypto.randomUUID() }),
+      })
+      if (checkout.action.type === 'redirect') {
+        window.location.assign(checkout.action.url)
+        return
+      }
+      if (checkout.action.type === 'form') {
+        const form = document.createElement('form')
+        form.method = checkout.action.method
+        form.action = checkout.action.action
+        for (const [name, value] of Object.entries(checkout.action.fields)) {
+          const input = document.createElement('input')
+          input.type = 'hidden'
+          input.name = name
+          input.value = value
+          form.append(input)
+        }
+        document.body.append(form)
+        form.submit()
+        return
+      }
+      const link = root.querySelector<HTMLAnchorElement>('[data-payment-link]')!
+      const image = root.querySelector<HTMLImageElement>('[data-payment-qr]')!
+      const code = root.querySelector<HTMLElement>('[data-payment-code]')!
+      link.href = checkout.action.code_url
+      image.src = checkout.action.image_data_url
+      image.hidden = false
+      code.textContent = checkout.action.code_url
+      root.querySelector<HTMLButtonElement>('[data-payment-copy]')!.onclick = () => {
+        void navigator.clipboard.writeText(checkout.action.code_url)
+          .then(() => toast.success(copy.paymentLinkCopied))
+          .catch(() => toast.error(copy.copyFailed))
+      }
+      checkoutDialog.showModal()
+      polling = window.setInterval(async () => {
+        try {
+          const order = await api<{ status: string }>(`/api/cloud/v1/orders/${checkout.order.orderId}`)
+          if (order.status === 'fulfilled') {
+            window.clearInterval(polling)
+            checkoutDialog.close()
+            await refreshAccount()
+            renderPlans()
+          }
+        } catch {
+          // A transient poll failure does not invalidate the checkout.
+        }
+      }, 2000)
+    }
+
+    async function confirmSelection(): Promise<void> {
+      if (!selection || !account) throw new Error(copy.accountUnavailable)
+      const plan = selection.kind === 'plan' ? plans.find((candidate) => candidate.planId === selection!.id) : null
+      const current = plans.find((candidate) => candidate.planId === account?.subscription.planId)
+      const downgrade = Boolean(plan && current && account.subscription.status === 'active' && plan.tierRank < current.tierRank)
+      if (downgrade && plan) {
+        await api('/api/cloud/v1/subscription/scheduled-plan', {
+          method: 'POST',
+          body: JSON.stringify({ planId: plan.planId, expectedPeriodId: account.subscription.currentPeriodId }),
+        })
+        await refreshAccount()
+        purchaseDialog.close()
+        renderPlans()
+        toast.success(copy.scheduledDone)
+        return
+      }
+      const offerId = new FormData(purchaseForm).get('offer')
+      if (typeof offerId !== 'string') throw new Error(copy.unavailable)
+      await beginCheckout(selection.kind === 'plan' ? '/api/cloud/v1/orders/plans' : '/api/cloud/v1/orders/top-ups', offerId)
+      purchaseDialog.close()
+    }
+
+    async function load(): Promise<void> {
+      state.hidden = false
+      state.innerHTML = `<span>${copy.loading}</span>`
+      try {
+        const [planCatalog, topupCatalog, modelCatalog, availability, auth] = await Promise.all([
+          api<PlanCatalog>('/api/cloud/v1/plans'),
+          api<TopUpCatalog>('/api/cloud/v1/top-ups'),
+          api<ModelCatalog>('/api/cloud/v1/public-models'),
+          api<PaymentAvailability>('/api/cloud/v1/payments/availability'),
+          api<AuthResponse>('/api/market/v1/auth/me').catch(() => ({ user: null })),
+        ])
+        plans = planCatalog.plans
+        topups = topupCatalog.products
+        models = modelCatalog.models
+        availableProviders = availability.providers
+        user = auth.user || null
+        await refreshAccount()
+        renderPlans()
+        renderModels()
+        renderTopups()
+        content.hidden = false
+        state.hidden = true
+      } catch (reason) {
+        content.hidden = true
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void load()
+        state.replaceChildren(retry)
+      }
+    }
+
+    purchaseForm.addEventListener('submit', (event) => {
+      event.preventDefault()
+      const button = root.querySelector<HTMLButtonElement>('[data-purchase-confirm]')!
+      button.disabled = true
+      void confirmSelection()
+        .catch((reason) => {
+          toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        })
+        .finally(() => { button.disabled = false })
+    })
+    root.querySelector('[data-purchase-cancel]')?.addEventListener('click', () => purchaseDialog.close())
+    root.querySelector('[data-checkout-close]')?.addEventListener('click', () => checkoutDialog.close())
+    planPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { planPage = event.detail.page; planPageSize = event.detail.pageSize; renderPlans() }) as EventListener)
+    modelPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { modelPage = event.detail.page; modelPageSize = event.detail.pageSize; renderModels() }) as EventListener)
+    topupPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { topupPage = event.detail.page; topupPageSize = event.detail.pageSize; renderTopups() }) as EventListener)
+    checkoutDialog.addEventListener('close', () => { if (polling) window.clearInterval(polling) })
+    window.addEventListener('market-auth-changed', ((event: CustomEvent<AuthResponse>) => {
+      user = event.detail.user || null
+      void refreshAccount().then(() => {
+        renderPlans()
+        state.hidden = true
+        const intent = user ? restoreIntent() : null
+        if (intent) openConfirmation(intent)
+      }).catch(() => toast.error(copy.accountUnavailable))
+    }) as EventListener)
+    void load()
+  }
+</script>
+
+<style is:global>
+  .pricing-page.commercial-page { padding-top: 32px; }
+  .pricing-page .commercial-hero { max-width: 760px; margin-inline: 0; text-align: left; }
+  .pricing-page .commercial-eyebrow { display: none; }
+  .pricing-page .commercial-hero h1 { font-size: clamp(2rem, 4vw, 2.65rem); line-height: 1.12; letter-spacing: -.045em; }
+  .pricing-page .commercial-hero p { margin: 8px 0 0; font-size: .9rem; }
+  .plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+  .plan-card { position: relative; display: flex; min-height: 430px; flex-direction: column; padding: 25px 27px 21px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 18px 50px rgb(0 0 0 / .12); }
+  .plan-card.is-recommended { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft), 0 24px 72px var(--accent-glow); }
+  .plan-card.is-current:not(.is-recommended) { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); }
+  .plan-badge { position: absolute; top: 19px; right: 19px; padding: 5px 9px; border-radius: 99px; color: var(--btn-primary-fg); background: var(--accent); font: 600 .67rem/1 var(--font-body); }
+  .plan-badge.current { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+  .plan-card header { min-height: 72px; padding-right: 50px; }
+  .plan-name { font: 600 1.15rem/1.3 var(--font-display); }
+  .plan-card header p { margin: 8px 0 0; color: var(--fg-muted); font-size: .82rem; line-height: 1.6; }
+  .plan-price { min-height: 48px; margin-top: 16px; }
+  .plan-price strong { font: 600 1.75rem/1 var(--font-display); letter-spacing: -.04em; }
+  .plan-price small { margin-left: 8px; color: var(--fg-faint); font: 400 .72rem var(--font-body); }
+  .plan-credit { display: flex; align-items: baseline; gap: 9px; padding: 12px 0; border-block: 1px solid var(--border); }
+  .plan-credit b { font: 600 1.14rem var(--font-mono); }
+  .plan-credit span { color: var(--fg-faint); font-size: .73rem; }
+  .plan-features { flex: 1; padding-top: 14px; }
+  .plan-features > span { color: var(--fg-faint); font-size: .72rem; }
+  .plan-features .model-summary { min-height: 2.5em; margin: 5px 0 0; color: var(--fg-muted); font-size: .72rem; line-height: 1.45; }
+  .plan-features ul { display: grid; gap: 8px; margin: 10px 0 15px; padding: 0; list-style: none; }
+  .plan-features li { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+  .plan-features i { color: var(--accent-bright); }
+  .plan-features li.muted { color: var(--fg-faint); }
+  .plan-card > .btn { justify-content: center; width: 100%; min-height: 43px; padding: 10px 15px; }
+  .plan-login-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; color: var(--fg-faint); font-size: .66rem; text-align: center; }
+  .section-link { min-height: 38px; padding: 8px 14px; white-space: nowrap; }
+  .paginated-card-list > .ui-list__footer { margin-top: 14px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+  .model-coverage { overflow: hidden; }
+  .model-coverage > .ui-list__viewport { overflow-x: auto; }
+  .coverage-row { display: grid; grid-template-columns: minmax(210px, 1.4fr) minmax(120px, .85fr) minmax(160px, 1fr) minmax(150px, .8fr) minmax(150px, .8fr); min-width: 900px; }
+  .coverage-row > span { display: flex; min-height: 62px; flex-direction: column; justify-content: center; padding: 12px 17px; border-bottom: 1px solid var(--border); color: var(--fg-muted); font-size: .76rem; }
+  .coverage-row > span strong { color: var(--fg); font-size: .82rem; }
+  .coverage-row > span small { color: var(--fg-faint); font: .68rem var(--font-mono); }
+  .coverage-head > span { min-height: 46px; color: var(--fg-faint); background: var(--chip-bg); font-size: .67rem; font-weight: 600; text-transform: uppercase; }
+  [data-model-rows] .coverage-row:last-child > span { border-bottom: 0; }
+  .coverage-empty { margin: 0; padding: 30px; color: var(--fg-muted); text-align: center; }
+  .credit-pack-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .credit-pack { display: grid; grid-template-columns: 1fr auto; gap: 17px; padding: 22px; }
+  .credit-pack h3 { font-size: 1rem; }
+  .credit-pack p { margin: 7px 0 0; color: var(--fg-muted); font-size: .76rem; }
+  .credit-pack > strong { font: 600 1.15rem var(--font-mono); }
+  .credit-pack > strong small { display: block; margin-top: 3px; color: var(--fg-faint); font: 400 .65rem var(--font-body); }
+  .credit-pack > span { align-self: center; color: var(--fg-muted); font-size: .8rem; }
+  .credit-pack .btn { grid-column: 1 / -1; justify-content: center; min-height: 39px; padding: 8px 12px; }
+  .purchase-summary { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: var(--chip-bg); }
+  .purchase-summary > div { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .purchase-summary span { color: var(--fg-faint); font-size: .74rem; }
+  .purchase-summary strong { font-size: .82rem; text-align: right; }
+  .payment-options { display: grid; gap: 7px; margin: 19px 0 0; padding: 0; border: 0; }
+  .payment-options legend { margin-bottom: 8px; color: var(--fg-faint); font-size: .72rem; }
+  .payment-options label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+  .payment-options label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .payment-options span, .payment-options strong { font-size: .78rem; }
+  .checkout-dialog img { display: block; width: min(280px, 100%); aspect-ratio: 1; margin: 20px auto; border-radius: 10px; background: #fff; }
+  .checkout-dialog img[hidden] { display: none; }
+  .checkout-action { display: flex; justify-content: center; width: 100%; margin-top: 9px; }
+  .checkout-dialog code { display: block; max-height: 84px; margin-top: 14px; overflow: auto; color: var(--fg-faint); font-size: .65rem; overflow-wrap: anywhere; }
+  .commerce-dialog-actions.single { grid-template-columns: 1fr; }
+  @media (max-width: 900px) { .plan-grid, .credit-pack-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 620px) { .plan-grid, .credit-pack-grid { grid-template-columns: 1fr; } .plan-card { min-height: auto; } }
+</style>

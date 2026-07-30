@@ -3,6 +3,7 @@ import { Code } from 'astro:components'
 import githubDark from 'shiki/themes/github-dark-default.mjs'
 import type { Locale } from '../i18n/ui'
 import { docsPath, t } from '../i18n/utils'
+import Container from './ui/Container.astro'
 
 interface Props {
   locale: Locale
@@ -57,7 +58,7 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
 ---
 
 <section class="section" id="sdk">
-  <div class="container sdk-grid">
+  <Container class="sdk-grid">
     <div class="sdk-copy reveal">
       <p class="section-tag">{t(locale, 'sdk.tag')}</p>
       <h2 class="section-title">{t(locale, 'sdk.title')}</h2>
@@ -101,7 +102,7 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
         <Code code={rsCode} lang="rust" theme={githubDark} />
       </div>
     </div>
-  </div>
+  </Container>
 </section>
 
 <style>

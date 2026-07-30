@@ -2,10 +2,12 @@
 import { Image } from 'astro:assets'
 import logo from '../assets/logo.png'
 import type { Locale } from '../i18n/ui'
-import { docsPath, homePath, marketPath, t } from '../i18n/utils'
+import { docsPath, homePath, marketPath, modelsPath, pricingPath, t } from '../i18n/utils'
 import ThemeToggle from './ThemeToggle.astro'
 import LangToggle from './LangToggle.astro'
 import AccountMenu from './AccountMenu.astro'
+import Button from './ui/Button.astro'
+import Container from './ui/Container.astro'
 
 interface Props {
   locale: Locale
@@ -17,16 +19,16 @@ const home = homePath(locale)
 ---
 
 <header class="site-nav" id="site-nav">
-  <div class="container nav-inner">
+  <Container class="nav-inner">
     <a href={homePath(locale)} class="nav-brand">
       <Image src={logo} alt="CodeY" width="30" height="30" />
       <span>CodeY</span>
     </a>
 
     <nav class="nav-links" id="nav-menu" aria-label={t(locale, 'nav.aria')}>
-      <a href={`${home}#features`}>{t(locale, 'nav.features')}</a>
-      <a href={`${home}#architecture`}>{t(locale, 'nav.architecture')}</a>
-      <a href={`${home}#sdk`}>{t(locale, 'nav.sdk')}</a>
+      <a href={home}>{t(locale, 'nav.product')}</a>
+      <a href={modelsPath(locale)}>{t(locale, 'nav.models')}</a>
+      <a href={pricingPath(locale)}>{t(locale, 'nav.pricing')}</a>
       <a href={marketPath(locale)}>{t(locale, 'nav.market')}</a>
       <a href={docsPath(locale, 'intro')}>{t(locale, 'nav.docs')}</a>
     </nav>
@@ -48,9 +50,9 @@ const home = homePath(locale)
           ></path>
         </svg>
       </a>
-      <a id="nav-cta" class="btn btn-primary nav-cta" href={docsPath(locale, 'getting-started')}>
+      <Button id="nav-cta" class="nav-cta" size="sm" variant="primary" href={docsPath(locale, 'getting-started')}>
         {t(locale, 'nav.cta')}
-      </a>
+      </Button>
       <button
         class="nav-toggle"
         type="button"
@@ -64,7 +66,7 @@ const home = homePath(locale)
         <span class="nav-toggle-bars" aria-hidden="true"></span>
       </button>
     </div>
-  </div>
+  </Container>
   <div class="nav-backdrop" id="nav-backdrop" hidden></div>
 </header>
 

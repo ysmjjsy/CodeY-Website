@@ -1,370 +1,1124 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { cloudCopy } from '../i18n/cloud'
+import { providerPresets } from '../lib/provider-presets'
+import Button from './ui/Button.astro'
+import Dialog from './ui/Dialog.astro'
+import EmptyState from './ui/EmptyState.astro'
+import Field from './ui/Field.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import SectionHeader from './ui/SectionHeader.astro'
+import StateMessage from './ui/StateMessage.astro'
 
-interface Props { locale: Locale }
-const { locale } = Astro.props
+interface Props { locale: Locale; section?: 'models' | 'plans' | 'topups' }
+const { locale, section = 'models' } = Astro.props
 const copy = cloudCopy(locale)
+const title = section === 'plans' ? copy.planAdminTitle : section === 'topups' ? copy.topUpAdminTitle : copy.adminTitle
+const description = section === 'plans' ? copy.planAdminDescription : section === 'topups' ? copy.topUpAdminDescription : copy.adminDescription
 ---
 
-<section class="admin-shell" data-cloud-admin data-locale={locale} data-copy={JSON.stringify(copy)}>
-  <header class="admin-head">
-    <p>CodeY Cloud Admin</p>
-    <h1>{copy.adminTitle}</h1>
-    <span>{copy.adminDescription}</span>
-  </header>
-  <p class="admin-state" data-state>{copy.loading}</p>
+<section class="admin-shell" data-cloud-admin data-admin-section={section} data-locale={locale} data-copy={JSON.stringify(copy)}>
+  {section !== 'models' && <PageHeader class="admin-head" title={title} description={description} />}
+  <StateMessage class="admin-state" data-state>{copy.loading}</StateMessage>
 
   <div class="admin-content" hidden data-content>
-    <section class="admin-section">
-      <div class="section-head"><h2>{copy.providers}</h2></div>
-      <div class="record-list" data-provider-list></div>
-      <form class="editor" data-provider-form>
-        <input name="providerId" type="hidden" />
-        <label><span>Slug</span><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
-        <label><span>Display name</span><input name="displayName" required /></label>
-        <label><span>Protocol family</span><select name="providerKind"><option value="openai_compatible">OpenAI compatible</option><option value="anthropic">Anthropic</option><option value="gemini">Gemini</option></select></label>
-        <label class="wide"><span>Base URL</span><input name="baseUrl" type="url" required placeholder="https://api.example.com" /></label>
-        <label class="wide"><span>API key</span><input name="apiKey" type="password" autocomplete="new-password" placeholder="Leave blank to keep the stored credential" /></label>
-        <label class="check"><input name="active" type="checkbox" checked /><span>{copy.active}</span></label>
-        <button class="btn btn-primary" type="submit">{copy.saveProvider}</button>
-      </form>
+    <div class="model-admin-section model-admin-tabs" role="tablist" aria-label={copy.adminTitle}>
+      <button type="button" role="tab" aria-selected="true" aria-controls="provider-management-panel" id="provider-management-tab" data-model-tab="providers"><i class="ph ph-plugs-connected" aria-hidden="true"></i>{copy.providerTab}</button>
+      <button type="button" role="tab" aria-selected="false" aria-controls="model-management-panel" id="model-management-tab" data-model-tab="models"><i class="ph ph-brain" aria-hidden="true"></i>{copy.modelTab}</button>
+    </div>
+
+    <section class="admin-section model-admin-section model-tab-panel" role="tabpanel" id="provider-management-panel" aria-labelledby="provider-management-tab" data-model-panel="providers">
+      <SectionHeader class="admin-section-header model-section-header" title={copy.providers} description={copy.providersDescription}>
+        <Button slot="actions" variant="primary" data-new-provider><i class="ph ph-plus" aria-hidden="true"></i>{copy.addProvider}</Button>
+      </SectionHeader>
+      <List class="config-table-shell">
+        <table class="config-table provider-config-table" data-provider-table hidden>
+          <thead><tr><th scope="col">{copy.providerColumn}</th><th scope="col">{copy.connectionColumn}</th><th scope="col">{copy.modelCountColumn}</th><th scope="col">{copy.credentialColumn}</th><th scope="col">{copy.latencyColumn}</th><th scope="col">{copy.statusColumn}</th><th scope="col"><span class="sr-only">{copy.actionColumn}</span></th></tr></thead>
+          <tbody data-provider-list></tbody>
+        </table>
+        <EmptyState class="config-empty" title={copy.emptyProviders} description={copy.emptyProvidersDescription} data-provider-empty>
+          <i slot="icon" class="ph ph-plugs-connected" aria-hidden="true"></i>
+          <Button slot="actions" data-new-provider><i class="ph ph-plus" aria-hidden="true"></i>{copy.addProvider}</Button>
+        </EmptyState>
+        <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-provider-pagination />
+      </List>
     </section>
 
-    <section class="admin-section">
-      <div class="section-head"><h2>{copy.models}</h2></div>
-      <div class="record-list" data-model-list></div>
-      <form class="editor" data-model-form>
-        <input name="modelId" type="hidden" />
-        <label><span>Public model ID</span><input name="publicModelId" required /></label>
-        <label><span>Display name</span><input name="displayName" required /></label>
-        <label><span>Upstream provider</span><select name="upstreamProviderId" required data-provider-select></select></label>
-        <label><span>Upstream model ID</span><input name="upstreamModelId" required /></label>
-        <label><span>Protocol</span><select name="protocol"><option value="chat_completions">Chat Completions</option><option value="responses">Responses</option><option value="messages">Messages</option><option value="generate_content">Generate Content</option></select></label>
-        <label><span>Context window</span><input name="contextWindow" type="number" min="1" value="128000" required /></label>
-        <label><span>Max output tokens</span><input name="maxOutputTokens" type="number" min="1" value="8192" required /></label>
-        <label><span>Input / 1M tokens (credits)</span><input name="inputPrice" type="number" min="0" step="0.000001" value="0" required /></label>
-        <label><span>Output / 1M tokens (credits)</span><input name="outputPrice" type="number" min="0" step="0.000001" value="0" required /></label>
-        <label><span>Cache read / 1M (credits)</span><input name="cacheReadPrice" type="number" min="0" step="0.000001" value="0" required /></label>
-        <label><span>Cache write / 1M (credits)</span><input name="cacheWritePrice" type="number" min="0" step="0.000001" value="0" required /></label>
-        <label><span>Fixed / request (credits)</span><input name="fixedPrice" type="number" min="0" step="0.000001" value="0" required /></label>
-        <div class="checks wide">
-          <label class="check"><input name="vision" type="checkbox" /><span>Vision</span></label>
-          <label class="check"><input name="tools" type="checkbox" checked /><span>Tool calling</span></label>
-          <label class="check"><input name="reasoning" type="checkbox" /><span>Reasoning</span></label>
-          <label class="check"><input name="promptCache" type="checkbox" /><span>Prompt cache</span></label>
-          <label class="check"><input name="structuredOutput" type="checkbox" /><span>Structured output</span></label>
-          <label class="check"><input name="active" type="checkbox" checked /><span>{copy.active}</span></label>
-        </div>
-        <button class="btn btn-primary" type="submit">{copy.publishModel}</button>
-      </form>
+    <aside class="provider-model-popover" role="dialog" aria-label={copy.availableModels} hidden data-provider-model-popover>
+      <strong data-provider-model-popover-title></strong>
+      <div data-provider-model-popover-list></div>
+    </aside>
+
+    <section class="admin-section model-admin-section model-tab-panel" role="tabpanel" id="model-management-panel" aria-labelledby="model-management-tab" data-model-panel="models" hidden>
+      <SectionHeader class="admin-section-header model-section-header" title={copy.models} description={copy.modelsDescription}>
+        <Button slot="actions" data-new-model disabled><i class="ph ph-plus" aria-hidden="true"></i>{copy.addModel}</Button>
+      </SectionHeader>
+      <List class="config-table-shell">
+        <table class="config-table model-config-table" data-model-table hidden>
+          <thead><tr><th scope="col">{copy.modelColumn}</th><th scope="col">{copy.providerColumn}</th><th scope="col">{copy.protocol}</th><th scope="col">{copy.capabilityColumn}</th><th scope="col">{copy.pricingColumn}</th><th scope="col">{copy.latencyColumn}</th><th scope="col">{copy.statusColumn}</th><th scope="col"><span class="sr-only">{copy.actionColumn}</span></th></tr></thead>
+          <tbody data-model-list></tbody>
+        </table>
+        <EmptyState class="config-empty" title={copy.emptyModels} description={copy.emptyModelsDescription} data-model-empty>
+          <i slot="icon" class="ph ph-brain" aria-hidden="true"></i>
+          <Button slot="actions" data-new-model disabled><i class="ph ph-plus" aria-hidden="true"></i>{copy.addModel}</Button>
+        </EmptyState>
+        <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-model-pagination />
+      </List>
     </section>
 
-    <section class="admin-section">
-      <div class="section-head"><h2>{copy.plans}</h2></div>
-      <div class="record-list" data-plan-list></div>
-      <form class="editor" data-plan-form>
-        <input name="planId" type="hidden" />
-        <label><span>Slug</span><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
-        <label><span>Display name</span><input name="displayName" required /></label>
-        <label class="wide"><span>Description</span><textarea name="description" rows="3" required></textarea></label>
-        <label><span>Tier rank</span><input name="tierRank" type="number" min="0" value="0" required /></label>
-        <label><span>Monthly credits</span><input name="monthlyCredits" type="number" min="0" step="0.000001" value="0" required /></label>
-        <label class="check"><input name="isDefault" type="checkbox" /><span>Default free plan</span></label>
-        <fieldset class="wide offer-editor"><legend>Payment offers</legend><div data-plan-offer-rows></div><button class="btn btn-ghost" type="button" data-add-plan-offer>Add payment offer</button></fieldset>
-        <fieldset class="wide model-access"><legend>Allowed official models</legend><div data-plan-models></div></fieldset>
-        <button class="btn btn-primary" type="submit">Save plan version</button>
-      </form>
+    <section class="admin-section plan-admin-section">
+      <SectionHeader class="admin-section-header" title={copy.plans}><Button slot="actions" variant="primary" data-new-plan>{copy.addPlan}</Button></SectionHeader>
+      <List class="config-table-shell">
+        <table class="config-table plan-config-table" data-plan-table hidden>
+          <thead><tr><th scope="col">{copy.planColumn}</th><th scope="col">{copy.monthlyCredits}</th><th scope="col">{copy.tierRank}</th><th scope="col">{copy.allowedModels}</th><th scope="col">{copy.paymentOffers}</th><th scope="col">{copy.planTypeColumn}</th><th scope="col"><span class="sr-only">{copy.actionColumn}</span></th></tr></thead>
+          <tbody data-plan-list></tbody>
+        </table>
+        <EmptyState class="config-empty" title={copy.emptyPlans} description={copy.emptyPlansDescription} data-plan-empty>
+          <i slot="icon" class="ph ph-credit-card" aria-hidden="true"></i>
+          <Button slot="actions" data-new-plan><i class="ph ph-plus" aria-hidden="true"></i>{copy.addPlan}</Button>
+        </EmptyState>
+        <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-plan-pagination />
+      </List>
     </section>
 
-    <section class="admin-section">
-      <div class="section-head"><h2>{copy.topUps}</h2></div>
-      <div class="record-list" data-topup-list></div>
-      <form class="editor" data-topup-form>
-        <input name="productId" type="hidden" />
-        <label><span>Slug</span><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></label>
-        <label><span>Display name</span><input name="displayName" required /></label>
-        <label class="wide"><span>Description</span><textarea name="description" rows="3" required></textarea></label>
-        <label><span>Permanent credits</span><input name="credits" type="number" min="0.000001" step="0.000001" required /></label>
-        <fieldset class="wide offer-editor"><legend>Payment offers</legend><div data-topup-offer-rows></div><button class="btn btn-ghost" type="button" data-add-topup-offer>Add payment offer</button></fieldset>
-        <button class="btn btn-primary" type="submit">Save credit pack version</button>
-      </form>
+    <section class="admin-section topup-admin-section">
+      <SectionHeader class="admin-section-header" title={copy.topUps}><Button slot="actions" variant="primary" data-new-topup>{copy.addTopUp}</Button></SectionHeader>
+      <List class="record-list">
+        <div data-topup-list></div>
+        <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-topup-pagination />
+      </List>
     </section>
   </div>
+
+  <Dialog class="admin-dialog model-config-dialog provider-config-dialog" data-provider-dialog aria-labelledby="provider-dialog-title">
+    <div class="dialog-card">
+      <header class="dialog-head"><div><h2 id="provider-dialog-title" data-provider-dialog-title>{copy.addProvider}</h2><p>{copy.providerFormDescription}</p></div><button type="button" data-close aria-label={copy.close}><i class="ph ph-x" aria-hidden="true"></i></button></header>
+      <form class="model-config-editor connection-editor" data-provider-form>
+        <input name="providerId" type="hidden" />
+        <Field label={copy.providerVendor} hint={copy.providerVendorHelp}><select name="providerPresetId" required>{providerPresets.map((preset) => <option value={preset.id}>{preset.displayName}</option>)}<option value="custom">{copy.customProvider}</option></select></Field>
+        <div data-provider-credential-field><Field label={copy.apiKey}><input name="apiKey" type="password" autocomplete="new-password" placeholder={copy.apiKeyCreateHint} /></Field></div>
+        <div class="provider-advanced-fields">
+          <Field label={copy.displayName}><input name="displayName" required maxlength="100" /></Field>
+          <Field label={copy.slug} hint={copy.slugHelp}><input name="slug" required minlength="2" maxlength="100" pattern="[a-z0-9][a-z0-9._-]{1,99}" /></Field>
+          <Field label={copy.protocolFamily} hint={copy.protocolFamilyHelp}><select name="providerKind"><option value="openai_compatible">{copy.openaiCompatible}</option><option value="anthropic">Anthropic</option><option value="gemini">Gemini</option></select></Field>
+          <Field label={copy.baseUrl} hint={copy.baseUrlHelp}><input name="baseUrl" type="url" required placeholder="https://api.example.com" /></Field>
+        </div>
+        <section class="provider-discovery" aria-live="polite" data-provider-discovery hidden>
+          <div><i class="ph ph-radar" aria-hidden="true"></i><span data-provider-discovery-text>{copy.discoveryRequired}</span></div>
+          <div class="provider-model-preview" data-provider-model-preview hidden></div>
+        </section>
+        <label class="setting-toggle"><span><strong>{copy.active}</strong><small>{copy.providerEnabledHelp}</small></span><input name="active" type="checkbox" role="switch" checked /></label>
+        <div class="dialog-actions provider-dialog-actions"><Button data-discover-provider><i class="ph ph-plugs-connected" aria-hidden="true"></i><span>{copy.testAndFetchModels}</span></Button><Button variant="primary" type="submit" data-save-provider>{copy.saveProvider}</Button></div>
+      </form>
+    </div>
+  </Dialog>
+
+  <Dialog class="admin-dialog model-config-dialog model-editor-dialog" data-model-dialog aria-labelledby="model-dialog-title">
+    <div class="dialog-card">
+      <header class="dialog-head"><div><h2 id="model-dialog-title" data-model-dialog-title>{copy.addModel}</h2><p>{copy.modelFormDescription}</p></div><button type="button" data-close aria-label={copy.close}><i class="ph ph-x" aria-hidden="true"></i></button></header>
+      <form class="model-config-editor model-editor" data-model-form>
+        <input name="modelId" type="hidden" />
+        <fieldset class="model-form-section"><legend>{copy.routing}</legend><p>{copy.routingDescription}</p><div class="model-form-grid">
+          <Field label={copy.upstreamProvider}><select name="upstreamProviderId" required data-provider-select></select></Field>
+          <Field label={copy.protocol}><select name="protocol" required data-protocol-select></select></Field>
+          <Field label={copy.publicModelId} hint={copy.publicModelIdHelp}><input name="publicModelId" required minlength="2" maxlength="100" pattern="[a-z0-9][a-z0-9._-]{1,99}" /></Field>
+          <Field label={copy.upstreamModelId} hint={copy.upstreamModelIdHelp}><select name="upstreamModelId" required data-upstream-model-select></select></Field>
+          <Field class="model-field-wide" label={copy.displayName}><input name="displayName" required maxlength="100" /></Field>
+        </div></fieldset>
+        <fieldset class="model-form-section" data-token-model-section><legend>{copy.capacity}</legend><p>{copy.capacityDescription}</p><div class="model-form-grid">
+          <Field label={copy.contextWindow}><input name="contextWindow" type="number" min="1" value="128000" required /></Field>
+          <Field label={copy.maxOutputTokens}><input name="maxOutputTokens" type="number" min="1" value="8192" required /></Field>
+        </div></fieldset>
+        <fieldset class="model-form-section" data-token-model-section><legend>{copy.capabilities}</legend><p>{copy.capabilitiesDescription}</p><div class="capability-grid">
+          <label><input name="vision" type="checkbox" /><span>{copy.vision}</span></label>
+          <label><input name="tools" type="checkbox" checked /><span>{copy.toolCalling}</span></label>
+          <label><input name="reasoning" type="checkbox" /><span>{copy.reasoning}</span></label>
+          <label><input name="promptCache" type="checkbox" /><span>{copy.promptCache}</span></label>
+          <label><input name="structuredOutput" type="checkbox" /><span>{copy.structuredOutput}</span></label>
+        </div></fieldset>
+        <fieldset class="model-form-section"><legend>{copy.pricing}</legend><p>{copy.pricingDescription}</p><div class="model-form-grid pricing-grid">
+          <Field class="token-pricing-field" label={copy.inputPrice}><input name="inputPrice" type="number" min="0" step="0.000001" value="0" required /></Field>
+          <Field class="token-pricing-field" label={copy.outputPrice}><input name="outputPrice" type="number" min="0" step="0.000001" value="0" required /></Field>
+          <Field class="token-pricing-field" label={copy.cacheReadPrice}><input name="cacheReadPrice" type="number" min="0" step="0.000001" value="0" required /></Field>
+          <Field class="token-pricing-field" label={copy.cacheWritePrice}><input name="cacheWritePrice" type="number" min="0" step="0.000001" value="0" required /></Field>
+          <Field class="model-field-wide" label={copy.fixedPrice}><input name="fixedPrice" type="number" min="0" step="0.000001" value="0" required /></Field>
+        </div></fieldset>
+        <label class="setting-toggle"><span><strong>{copy.active}</strong><small>{copy.modelEnabledHelp}</small></span><input name="active" type="checkbox" role="switch" checked /></label>
+        <div class="dialog-actions"><Button data-close>{copy.cancel}</Button><Button data-test-model><i class="ph ph-play-circle" aria-hidden="true"></i><span>{copy.testModel}</span></Button><Button variant="primary" type="submit">{copy.publishModel}</Button></div>
+      </form>
+    </div>
+  </Dialog>
+
+  <Dialog class="admin-dialog" data-plan-dialog>
+    <div class="dialog-card">
+      <header class="dialog-head"><h2 data-plan-dialog-title>{copy.addPlan}</h2><button type="button" data-close aria-label={copy.close}>×</button></header>
+      <form class="editor" data-plan-form>
+        <input name="planId" type="hidden" />
+        <Field label={copy.slug}><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></Field>
+        <Field label={copy.tierRank}><input name="tierRank" type="number" min="0" value="0" required /></Field>
+        <Field label={copy.displayNameZh}><input name="displayNameZh" required /></Field>
+        <Field label={copy.displayNameEn}><input name="displayNameEn" required /></Field>
+        <Field label={copy.descriptionZh}><textarea name="descriptionZh" rows="3" required></textarea></Field>
+        <Field label={copy.descriptionEn}><textarea name="descriptionEn" rows="3" required></textarea></Field>
+        <Field label={copy.monthlyCredits}><input name="monthlyCredits" type="number" min="0" step="0.000001" value="0" required /></Field>
+        <label class="check"><input name="isDefault" type="checkbox" /><span>{copy.defaultPlan}</span></label>
+        <fieldset class="wide offer-editor" data-plan-offers><legend>{copy.paymentOffers}</legend><div data-plan-offer-rows></div><Button data-add-plan-offer>{copy.addOffer}</Button></fieldset>
+        <fieldset class="wide model-access"><legend>{copy.allowedModels}</legend><div data-plan-models></div></fieldset>
+        <div class="dialog-actions wide"><Button data-close>{copy.cancel}</Button><Button variant="primary" type="submit">{copy.savePlan}</Button></div>
+      </form>
+    </div>
+  </Dialog>
+
+  <Dialog class="admin-dialog" data-topup-dialog>
+    <div class="dialog-card">
+      <header class="dialog-head"><h2 data-topup-dialog-title>{copy.addTopUp}</h2><button type="button" data-close aria-label={copy.close}>×</button></header>
+      <form class="editor" data-topup-form>
+        <input name="productId" type="hidden" />
+        <Field label={copy.slug}><input name="slug" required pattern="[a-z0-9][a-z0-9-]*" /></Field>
+        <Field label={copy.permanentCreditAmount}><input name="credits" type="number" min="0.000001" step="0.000001" required /></Field>
+        <Field label={copy.displayNameZh}><input name="displayNameZh" required /></Field>
+        <Field label={copy.displayNameEn}><input name="displayNameEn" required /></Field>
+        <Field label={copy.descriptionZh}><textarea name="descriptionZh" rows="3" required></textarea></Field>
+        <Field label={copy.descriptionEn}><textarea name="descriptionEn" rows="3" required></textarea></Field>
+        <fieldset class="wide offer-editor"><legend>{copy.paymentOffers}</legend><div data-topup-offer-rows></div><Button data-add-topup-offer>{copy.addOffer}</Button></fieldset>
+        <div class="dialog-actions wide"><Button data-close>{copy.cancel}</Button><Button variant="primary" type="submit">{copy.saveTopUp}</Button></div>
+      </form>
+    </div>
+  </Dialog>
 </section>
 
 <script>
-  type Provider = { providerId: string; slug: string; displayName: string; providerKind: string; baseUrl: string; credentialConfigured: boolean; active: boolean }
+  import { createPagination, pagedItems, type PaginationChange } from '../lib/pagination'
+  import { providerPresets } from '../lib/provider-presets'
+  import { toast } from '../lib/toast'
+
+  type Localized = Record<string, string>
+  type AvailableModel = { upstreamModelId: string; displayName: string; protocol: string; inputModalities: string[]; outputModalities: string[]; asynchronous: boolean }
+  type Provider = { providerId: string; providerPresetId: string; slug: string; displayName: string; providerKind: string; baseUrl: string; credentialConfigured: boolean; availableModels: AvailableModel[]; modelsRefreshedAt?: string | null; lastTestLatencyMs?: number | null; active: boolean }
+  type ProviderDiscovery = { models: AvailableModel[]; fetchedAt: string; latencyMs: number; source: 'upstream' | 'provider_preset' }
   type Pricing = { inputCreditMicrosPerMillion: number; outputCreditMicrosPerMillion: number; cacheReadCreditMicrosPerMillion: number; cacheWriteCreditMicrosPerMillion: number; fixedCreditMicrosPerRequest: number }
-  type Model = { modelId: string; publicModelId: string; displayName: string; upstreamProviderId: string; upstreamModelId: string; protocol: string; capability: Record<string, unknown>; pricing: Pricing; active: boolean }
+  type Model = { modelId: string; publicModelId: string; displayName: string; upstreamProviderId: string; upstreamModelId: string; protocol: string; capability: Record<string, unknown>; pricing: Pricing; lastTestLatencyMs?: number | null; active: boolean }
+  type ModelTestResult = { latencyMs: number }
   type ModelCatalog = { revision: number; providers: Provider[]; models: Model[] }
-  type Offer = { offerId?: string; region: string; currency: string; paymentProvider: string; amountMinor: number }
+  type Offer = { region: string; currency: string; paymentProvider: string; amountMinor: number }
   type Benefit = { resourceType: string; resourceId?: string | null; action: string }
-  type Plan = { planId: string; slug: string; displayName: string; description: string; tierRank: number; isDefault: boolean; monthlyCreditMicros: number; offers: Offer[]; benefits: Benefit[] }
+  type Plan = { planId: string; slug: string; displayName: string; description: string; displayNameI18n?: Localized; descriptionI18n?: Localized; tierRank: number; isDefault: boolean; monthlyCreditMicros: number; offers: Offer[]; benefits: Benefit[] }
   type PlanCatalog = { revision: number; plans: Plan[] }
-  type TopUp = { productId: string; slug: string; displayName: string; description: string; creditMicros: number; offers: Offer[] }
+  type TopUp = { productId: string; slug: string; displayName: string; description: string; displayNameI18n?: Localized; descriptionI18n?: Localized; creditMicros: number; offers: Offer[] }
   type TopUpCatalog = { revision: number; products: TopUp[] }
 
   const root = document.querySelector<HTMLElement>('[data-cloud-admin]')
   if (root) {
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const section = root.dataset.adminSection || 'models'
     const state = root.querySelector<HTMLElement>('[data-state]')!
     const content = root.querySelector<HTMLElement>('[data-content]')!
     const providerForm = root.querySelector<HTMLFormElement>('[data-provider-form]')!
     const modelForm = root.querySelector<HTMLFormElement>('[data-model-form]')!
     const planForm = root.querySelector<HTMLFormElement>('[data-plan-form]')!
     const topupForm = root.querySelector<HTMLFormElement>('[data-topup-form]')!
+    const providerDialog = root.querySelector<HTMLDialogElement>('[data-provider-dialog]')!
+    const modelDialog = root.querySelector<HTMLDialogElement>('[data-model-dialog]')!
+    const planDialog = root.querySelector<HTMLDialogElement>('[data-plan-dialog]')!
+    const topupDialog = root.querySelector<HTMLDialogElement>('[data-topup-dialog]')!
     const planOfferRows = root.querySelector<HTMLElement>('[data-plan-offer-rows]')!
     const topupOfferRows = root.querySelector<HTMLElement>('[data-topup-offer-rows]')!
+    const providerDiscovery = root.querySelector<HTMLElement>('[data-provider-discovery]')!
+    const providerDiscoveryText = root.querySelector<HTMLElement>('[data-provider-discovery-text]')!
+    const providerModelPreview = root.querySelector<HTMLElement>('[data-provider-model-preview]')!
+    const discoverProviderButton = root.querySelector<HTMLButtonElement>('[data-discover-provider]')!
+    const saveProviderButton = root.querySelector<HTMLButtonElement>('[data-save-provider]')!
+    const providerCredentialField = root.querySelector<HTMLElement>('[data-provider-credential-field]')!
+    const testModelButton = root.querySelector<HTMLButtonElement>('[data-test-model]')!
+    const providerModelPopover = root.querySelector<HTMLElement>('[data-provider-model-popover]')!
+    const providerModelPopoverTitle = root.querySelector<HTMLElement>('[data-provider-model-popover-title]')!
+    const providerModelPopoverList = root.querySelector<HTMLElement>('[data-provider-model-popover-list]')!
+    const providerPaginationRoot = root.querySelector<HTMLElement>('[data-provider-pagination]')
+    const modelPaginationRoot = root.querySelector<HTMLElement>('[data-model-pagination]')
+    const planPaginationRoot = root.querySelector<HTMLElement>('[data-plan-pagination]')
+    const topupPaginationRoot = root.querySelector<HTMLElement>('[data-topup-pagination]')
+    const providerPagination = createPagination(providerPaginationRoot)
+    const modelPagination = createPagination(modelPaginationRoot)
+    const planPagination = createPagination(planPaginationRoot)
+    const topupPagination = createPagination(topupPaginationRoot)
     let modelCatalog: ModelCatalog = { revision: 0, providers: [], models: [] }
     let planCatalog: PlanCatalog = { revision: 0, plans: [] }
     let topupCatalog: TopUpCatalog = { revision: 0, products: [] }
+    let providerDiscoveryModels: AvailableModel[] | null = null
+    let providerDiscoveryLatency: number | null = null
+    let providerModelPopoverTrigger: HTMLButtonElement | null = null
+    let providerModelPopoverPinned = false
+    let providerPage = 1
+    let providerPageSize = 10
+    let modelPage = 1
+    let modelPageSize = 10
+    let planPage = 1
+    let planPageSize = 10
+    let topupPage = 1
+    let topupPageSize = 10
+    let providerModelPopoverTimer: number | undefined
 
     async function api<T>(path: string, init?: RequestInit): Promise<T> {
-      const response = await fetch(`/api/cloud/v1${path}`, {
-        ...init,
-        headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
-      })
+      const response = await fetch(`/api/cloud/v1${path}`, { ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } })
       if (response.status === 401) { window.dispatchEvent(new CustomEvent('market-auth-required')); throw new Error(copy.signIn) }
       if (response.status === 403) throw new Error(copy.adminRequired)
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { message?: string } | null
-        throw new Error(payload?.message || copy.unavailable)
-      }
+      if (!response.ok) { const payload = await response.json().catch(() => null) as { message?: string; error?: { message?: string } } | null; throw new Error(payload?.error?.message || payload?.message || copy.unavailable) }
       return response.json() as Promise<T>
     }
-
-    function field(form: HTMLFormElement, name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
-      return form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    }
+    function field(form: HTMLFormElement, name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement { return form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement }
     function checked(form: HTMLFormElement, name: string): boolean { return (field(form, name) as HTMLInputElement).checked }
     function setChecked(form: HTMLFormElement, name: string, value: boolean): void { (field(form, name) as HTMLInputElement).checked = value }
     function toMicros(value: string): number { return Math.round(Number(value) * 1_000_000) }
     function fromMicros(value: number): string { return String(value / 1_000_000) }
     function capability(model: Model, key: string, fallback: unknown): any { return model.capability[key] ?? fallback }
+    function localized(values: Localized | undefined, fallback: string): string { return values?.[locale] || fallback }
+    function title(dialog: HTMLDialogElement, value: string): void { dialog.querySelector<HTMLElement>('h2')!.textContent = value }
+    function interpolate(template: string, values: Record<string, string | number>): string { return Object.entries(values).reduce((result, [key, value]) => result.replace(`{${key}}`, String(value)), template) }
+    function setFormBusy(form: HTMLFormElement, busy: boolean): void { form.toggleAttribute('aria-busy', busy); form.querySelectorAll<HTMLButtonElement>('button').forEach((button) => { button.disabled = busy }) }
+    function announceSaved(): void { toast.success(copy.saved) }
+
+    const protocolOptions: Record<string, Array<[string, string]>> = {
+      openai_compatible: [
+        ['chat_completions', 'OpenAI Chat Completions'],
+        ['responses', 'OpenAI Responses'],
+        ['image_generation', copy.imageGeneration],
+        ['image_edit', copy.imageEdit],
+        ['video_generation', copy.videoGeneration],
+        ['speech_synthesis', copy.speechSynthesis],
+        ['music_generation', copy.musicGeneration],
+      ],
+      anthropic: [['messages', 'Anthropic Messages']],
+      gemini: [['generate_content', 'Gemini Generate Content']],
+    }
+    function providerPreset(id: string) { return providerPresets.find((preset) => preset.id === id) }
+    function providerNeedsCredential(provider: Pick<Provider, 'providerPresetId'>): boolean { return providerPreset(provider.providerPresetId)?.credentialRequired ?? true }
+    function providerKindLabel(kind: string): string { return kind === 'openai_compatible' ? copy.openaiCompatible : kind === 'anthropic' ? 'Anthropic' : kind === 'gemini' ? 'Gemini' : kind }
+    function protocolLabel(protocol: string): string { return Object.values(protocolOptions).flat().find(([value]) => value === protocol)?.[1] || protocol }
+    function selectModelTab(selected: 'providers' | 'models'): void {
+      root.querySelectorAll<HTMLButtonElement>('[data-model-tab]').forEach((button) => { button.setAttribute('aria-selected', String(button.dataset.modelTab === selected)) })
+      root.querySelectorAll<HTMLElement>('[data-model-panel]').forEach((panel) => { panel.hidden = panel.dataset.modelPanel !== selected })
+    }
+    function syncProviderOptions(preferred?: string, preferredModel?: string): void {
+      const select = field(modelForm, 'upstreamProviderId') as HTMLSelectElement
+      const selected = preferred || select.value
+      const providers = modelCatalog.providers.filter((provider) => (provider.active && provider.availableModels.length > 0) || provider.providerId === selected)
+      select.replaceChildren(...providers.map((provider) => {
+        const option = new Option(provider.displayName, provider.providerId)
+        option.disabled = (!provider.active || provider.availableModels.length === 0) && provider.providerId !== selected
+        return option
+      }))
+      if (selected && providers.some((provider) => provider.providerId === selected)) select.value = selected
+      else select.value = providers[0]?.providerId || ''
+      syncUpstreamModelOptions(preferredModel)
+      syncProtocols()
+    }
+    function syncProtocols(preferred?: string): void {
+      const providerId = field(modelForm, 'upstreamProviderId').value
+      const provider = modelCatalog.providers.find((item) => item.providerId === providerId)
+      const selectedModel = provider?.availableModels.find((model) => model.upstreamModelId === field(modelForm, 'upstreamModelId').value)
+      const supported = providerPreset(provider?.providerPresetId || '')?.protocols as readonly string[] | undefined
+      const options = provider ? (protocolOptions[provider.providerKind] || []).filter(([value]) => (!supported || supported.includes(value)) && (!selectedModel || !isMediaProtocol(selectedModel.protocol) || value === selectedModel.protocol)) : []
+      const select = field(modelForm, 'protocol') as HTMLSelectElement
+      select.replaceChildren(...options.map(([value, label]) => new Option(label, value)))
+      const selected = preferred || selectedModel?.protocol
+      if (selected && options.some(([value]) => value === selected)) select.value = selected
+      syncModelFormMode()
+    }
+    function syncUpstreamModelOptions(preferred?: string): void {
+      const provider = modelCatalog.providers.find((item) => item.providerId === field(modelForm, 'upstreamProviderId').value)
+      const select = field(modelForm, 'upstreamModelId') as HTMLSelectElement
+      const options = provider?.availableModels || []
+      const nodes: HTMLOptionElement[] = [new Option(options.length ? copy.selectUpstreamModel : copy.noAvailableModels, '')]
+      nodes[0].disabled = true
+      nodes.push(...options.map((model) => new Option(`${protocolLabel(model.protocol)} · ${model.displayName === model.upstreamModelId ? model.upstreamModelId : `${model.displayName} · ${model.upstreamModelId}`}`, model.upstreamModelId)))
+      if (preferred && !options.some((model) => model.upstreamModelId === preferred)) nodes.push(new Option(preferred, preferred))
+      select.replaceChildren(...nodes)
+      select.value = preferred && nodes.some((option) => option.value === preferred) ? preferred : ''
+    }
+    function modelSlug(value: string): string { return value.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[._-]+|[._-]+$/g, '').slice(0, 100) }
+    function applySelectedModelDefaults(): void {
+      const provider = modelCatalog.providers.find((item) => item.providerId === field(modelForm, 'upstreamProviderId').value)
+      const selected = provider?.availableModels.find((model) => model.upstreamModelId === field(modelForm, 'upstreamModelId').value)
+      if (!selected) return
+      syncProtocols(selected.protocol)
+      if (field(modelForm, 'modelId').value) return
+      if (!field(modelForm, 'displayName').value.trim()) field(modelForm, 'displayName').value = selected.displayName
+      if (!field(modelForm, 'publicModelId').value.trim()) field(modelForm, 'publicModelId').value = modelSlug(selected.upstreamModelId)
+      if (isMediaProtocol(selected.protocol)) {
+        for (const name of ['inputPrice', 'outputPrice', 'cacheReadPrice', 'cacheWritePrice']) field(modelForm, name).value = '0'
+      }
+    }
+    function isMediaProtocol(protocol = field(modelForm, 'protocol').value): boolean { return ['image_generation', 'image_edit', 'video_generation', 'speech_synthesis', 'music_generation'].includes(protocol) }
+    function syncModelFormMode(): void {
+      const media = isMediaProtocol()
+      modelForm.querySelectorAll<HTMLElement>('[data-token-model-section], .token-pricing-field').forEach((element) => { element.hidden = media })
+    }
+    function applyProviderPresetDefaults(resetValues: boolean, credentialConfigured = false): void {
+      const presetId = field(providerForm, 'providerPresetId').value
+      const preset = providerPreset(presetId)
+      if (resetValues) {
+        field(providerForm, 'displayName').value = preset?.displayName || ''
+        field(providerForm, 'slug').value = preset?.id || ''
+        field(providerForm, 'providerKind').value = preset?.providerKind || 'openai_compatible'
+        field(providerForm, 'baseUrl').value = preset?.baseUrl || ''
+        field(providerForm, 'apiKey').value = ''
+      }
+      const credentialRequired = preset?.credentialRequired ?? true
+      providerCredentialField.hidden = !credentialRequired
+      ;(field(providerForm, 'providerKind') as HTMLSelectElement).disabled = Boolean(preset)
+      const apiKey = field(providerForm, 'apiKey') as HTMLInputElement
+      apiKey.required = credentialRequired && !credentialConfigured
+      apiKey.placeholder = credentialConfigured ? copy.apiKeyHint : copy.apiKeyCreateHint
+    }
+    function renderProviderDiscovery(message?: string): void {
+      const models = providerDiscoveryModels || []
+      const status = message || (models.length ? interpolate(copy.discoverySuccess, { count: models.length }) : '')
+      providerDiscovery.hidden = !status && models.length === 0
+      providerDiscoveryText.textContent = status
+      providerModelPreview.hidden = models.length === 0
+      providerModelPreview.replaceChildren(...models.slice(0, 12).map((model) => textElement('span', '', model.displayName)))
+      if (models.length > 12) providerModelPreview.append(textElement('span', 'more', `+${models.length - 12}`))
+      discoverProviderButton.querySelector('span')!.textContent = models.length ? copy.refreshModels : copy.testAndFetchModels
+      saveProviderButton.disabled = models.length === 0
+    }
+    function invalidateProviderDiscovery(): void {
+      providerDiscoveryModels = null
+      providerDiscoveryLatency = null
+      renderProviderDiscovery()
+    }
+    async function discoverProviderModels(): Promise<void> {
+      if (!providerForm.reportValidity()) return
+      providerDiscovery.hidden = false
+      setFormBusy(providerForm, true); providerDiscoveryText.textContent = copy.testingConnection
+      try {
+        const result = await api<ProviderDiscovery>('/admin/model-providers/discover', { method: 'POST', body: JSON.stringify({ providerId: field(providerForm, 'providerId').value || null, providerPresetId: field(providerForm, 'providerPresetId').value, providerKind: field(providerForm, 'providerKind').value, baseUrl: field(providerForm, 'baseUrl').value.trim(), apiKey: field(providerForm, 'apiKey').value || null }) })
+        providerDiscoveryModels = result.models
+        providerDiscoveryLatency = result.latencyMs
+        const success = result.source === 'provider_preset' ? interpolate(copy.presetModelsLoaded, { count: result.models.length }) : interpolate(copy.discoverySuccess, { count: result.models.length })
+        renderProviderDiscovery(result.models.length ? success : copy.discoveryEmpty)
+      } catch (reason) { providerDiscoveryModels = null; providerDiscoveryLatency = null; toast.error(reason instanceof Error ? reason.message : copy.unavailable); renderProviderDiscovery(copy.discoveryRequired) }
+      finally { setFormBusy(providerForm, false); renderProviderDiscovery(providerDiscoveryText.textContent || undefined) }
+    }
+    async function testModel(): Promise<void> {
+      const controls = ['upstreamProviderId', 'upstreamModelId', 'protocol'].map((name) => field(modelForm, name))
+      if (!controls.every((control) => control.reportValidity())) return
+      setFormBusy(modelForm, true)
+      testModelButton.querySelector('i')!.className = 'ph ph-circle-notch provider-action-spin'
+      testModelButton.querySelector('span')!.textContent = copy.testingModel
+      try {
+        const result = await api<ModelTestResult>('/admin/models/test', {
+          method: 'POST',
+          body: JSON.stringify({
+            modelId: null,
+            upstreamProviderId: field(modelForm, 'upstreamProviderId').value,
+            upstreamModelId: field(modelForm, 'upstreamModelId').value,
+            protocol: field(modelForm, 'protocol').value,
+          }),
+        })
+        toast.success(interpolate(copy.modelTestSuccess, { latency: result.latencyMs }))
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      } finally {
+        setFormBusy(modelForm, false)
+        testModelButton.querySelector('i')!.className = 'ph ph-play-circle'
+        testModelButton.querySelector('span')!.textContent = copy.testModel
+      }
+    }
 
     function offerRow(offer: Offer, minimumAmount: number): HTMLElement {
-      const row = document.createElement('div')
-      row.className = 'offer-row'
-      const providerLabel = document.createElement('label')
-      const providerTitle = document.createElement('span'); providerTitle.textContent = 'Payment provider'
+      const row = document.createElement('div'); row.className = 'offer-row'
+      const makeLabel = (label: string, control: HTMLElement) => { const element = document.createElement('label'); const span = document.createElement('span'); span.textContent = label; element.append(span, control); return element }
       const provider = document.createElement('select'); provider.dataset.offerProvider = ''; provider.required = true
-      provider.replaceChildren(new Option('Stripe', 'stripe'), new Option('微信支付', 'wechat_pay'), new Option('支付宝', 'alipay'), new Option('Test', 'test'))
-      provider.value = offer.paymentProvider
-      providerLabel.append(providerTitle, provider)
-      const regionLabel = document.createElement('label')
-      const regionTitle = document.createElement('span'); regionTitle.textContent = 'Region'
+      provider.replaceChildren(new Option('Stripe', 'stripe'), new Option(locale === 'en' ? 'WeChat Pay' : '微信支付', 'wechat_pay'), new Option(locale === 'en' ? 'Alipay' : '支付宝', 'alipay'), new Option('Test', 'test')); provider.value = offer.paymentProvider
       const region = document.createElement('input'); region.dataset.offerRegion = ''; region.required = true; region.maxLength = 16; region.value = offer.region
-      regionLabel.append(regionTitle, region)
-      const currencyLabel = document.createElement('label')
-      const currencyTitle = document.createElement('span'); currencyTitle.textContent = 'Currency'
       const currency = document.createElement('input'); currency.dataset.offerCurrency = ''; currency.required = true; currency.minLength = 3; currency.maxLength = 3; currency.value = offer.currency
-      currencyLabel.append(currencyTitle, currency)
-      const amountLabel = document.createElement('label')
-      const amountTitle = document.createElement('span'); amountTitle.textContent = 'Price (major unit)'
       const amount = document.createElement('input'); amount.dataset.offerAmount = ''; amount.type = 'number'; amount.required = true; amount.min = String(minimumAmount); amount.step = '0.01'; amount.value = String(offer.amountMinor / 100)
-      amountLabel.append(amountTitle, amount)
-      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-ghost'; remove.textContent = 'Remove'; remove.onclick = () => { if (row.parentElement?.childElementCount !== 1) row.remove() }
-      row.append(providerLabel, regionLabel, currencyLabel, amountLabel, remove)
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-ghost'; remove.textContent = copy.remove; remove.onclick = () => { if (row.parentElement?.childElementCount !== 1) row.remove() }
+      row.append(makeLabel(copy.paymentProvider, provider), makeLabel(copy.region, region), makeLabel(copy.currency, currency), makeLabel(copy.priceMajor, amount), remove)
       return row
     }
+    function defaultOffer(): Offer { return { paymentProvider: 'stripe', region: locale === 'en' ? 'GLOBAL' : 'CN', currency: locale === 'en' ? 'USD' : 'CNY', amountMinor: 0 } }
+    function setOfferRows(container: HTMLElement, offers: Offer[], minimumAmount: number): void { container.replaceChildren(...(offers.length ? offers : [defaultOffer()]).map((offer) => offerRow(offer, minimumAmount))) }
+    function collectOffers(container: HTMLElement): Offer[] { return [...container.querySelectorAll<HTMLElement>('.offer-row')].map((row) => ({ paymentProvider: row.querySelector<HTMLSelectElement>('[data-offer-provider]')!.value, region: row.querySelector<HTMLInputElement>('[data-offer-region]')!.value.trim().toUpperCase(), currency: row.querySelector<HTMLInputElement>('[data-offer-currency]')!.value.trim().toUpperCase(), amountMinor: Math.round(Number(row.querySelector<HTMLInputElement>('[data-offer-amount]')!.value) * 100) })) }
+    function syncPlanOffers(): void { const editor = root.querySelector<HTMLFieldSetElement>('[data-plan-offers]')!; const disabled = checked(planForm, 'isDefault'); editor.hidden = disabled; editor.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((control) => { control.disabled = disabled }) }
 
-    function defaultOffer(): Offer {
-      return { paymentProvider: 'stripe', region: 'global', currency: 'USD', amountMinor: 0 }
-    }
-
-    function setOfferRows(container: HTMLElement, offers: Offer[], minimumAmount: number): void {
-      container.replaceChildren(...(offers.length ? offers : [defaultOffer()]).map((offer) => offerRow(offer, minimumAmount)))
-    }
-
-    function collectOffers(container: HTMLElement): Offer[] {
-      return [...container.querySelectorAll<HTMLElement>('.offer-row')].map((row) => ({
-        paymentProvider: row.querySelector<HTMLSelectElement>('[data-offer-provider]')!.value,
-        region: row.querySelector<HTMLInputElement>('[data-offer-region]')!.value.trim(),
-        currency: row.querySelector<HTMLInputElement>('[data-offer-currency]')!.value.trim().toUpperCase(),
-        amountMinor: Math.round(Number(row.querySelector<HTMLInputElement>('[data-offer-amount]')!.value) * 100),
-      }))
-    }
-
-    function record(title: string, meta: string, active: boolean, onEdit: () => void): HTMLElement {
-      const element = document.createElement('article')
-      element.className = 'record'
-      const text = document.createElement('div')
-      const heading = document.createElement('strong'); heading.textContent = title
-      const detail = document.createElement('span'); detail.textContent = meta
-      text.append(heading, detail)
+    function empty(text: string): HTMLElement { const value = document.createElement('p'); value.className = 'record-empty'; value.textContent = text; return value }
+    function record(titleText: string, meta: string, active: boolean, onEdit: () => void): HTMLElement {
+      const element = document.createElement('article'); element.className = 'record'
+      const text = document.createElement('div'); const heading = document.createElement('strong'); heading.textContent = titleText; const detail = document.createElement('span'); detail.textContent = meta; text.append(heading, detail)
       const status = document.createElement('span'); status.className = `record-status ${active ? 'active' : ''}`; status.textContent = active ? copy.active : copy.inactive
-      const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'btn btn-ghost'; edit.textContent = copy.edit; edit.onclick = onEdit
-      element.append(text, status, edit)
-      return element
+      const edit = editButton(`${copy.edit}: ${titleText}`, onEdit)
+      element.append(text, status, edit); return element
     }
-
-    function render(): void {
-      const providerList = root.querySelector<HTMLElement>('[data-provider-list]')!
-      providerList.replaceChildren(...modelCatalog.providers.map((provider) => record(
-        provider.displayName,
-        `${provider.providerKind} · ${provider.credentialConfigured ? copy.credentialSet : copy.noCredential}`,
-        provider.active,
-        () => editProvider(provider),
-      )))
-      const providerSelect = field(modelForm, 'upstreamProviderId') as HTMLSelectElement
-      providerSelect.replaceChildren(...modelCatalog.providers.map((provider) => new Option(provider.displayName, provider.providerId)))
-
-      const modelList = root.querySelector<HTMLElement>('[data-model-list]')!
-      modelList.replaceChildren(...modelCatalog.models.map((model) => record(
-        model.displayName,
-        `${model.publicModelId} · ${model.protocol}`,
-        model.active,
-        () => editModel(model),
-      )))
-      const modelAccess = root.querySelector<HTMLElement>('[data-plan-models]')!
-      modelAccess.replaceChildren(...modelCatalog.models.map((model) => {
-        const label = document.createElement('label'); label.className = 'check'
-        const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'allowedModel'; input.value = model.publicModelId
-        const span = document.createElement('span'); span.textContent = model.displayName
-        label.append(input, span); return label
-      }))
-
-      const planList = root.querySelector<HTMLElement>('[data-plan-list]')!
-      planList.replaceChildren(...planCatalog.plans.map((plan) => record(
-        plan.displayName,
-        `${fromMicros(plan.monthlyCreditMicros)} credits · tier ${plan.tierRank}`,
-        true,
-        () => editPlan(plan),
-      )))
-      const topupList = root.querySelector<HTMLElement>('[data-topup-list]')!
-      topupList.replaceChildren(...topupCatalog.products.map((product) => record(
-        product.displayName,
-        `${fromMicros(product.creditMicros)} permanent credits`,
-        true,
-        () => editTopUp(product),
-      )))
+    function cell(...children: Array<Node | string>): HTMLTableCellElement { const value = document.createElement('td'); value.append(...children); return value }
+    function textElement(tag: 'span' | 'strong' | 'code' | 'i', className: string, value: string): HTMLElement { const element = document.createElement(tag); element.className = className; element.textContent = value; return element }
+    function setLatencyText(element: HTMLElement, latency: number | null | undefined): void { element.classList.toggle('untested', latency == null); element.textContent = latency == null ? copy.notTested : `${latency} ms` }
+    function latencyElement(latency: number | null | undefined): HTMLElement { const element = textElement('span', 'latency-value', ''); setLatencyText(element, latency); return element }
+    function statusBadge(label: string, tone: 'active' | 'inactive' | 'warning'): HTMLElement { return textElement('span', `config-status ${tone}`, label) }
+    function editButton(label: string, onEdit: () => void): HTMLButtonElement {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost list-action config-edit'; button.setAttribute('aria-label', label)
+      const icon = document.createElement('i'); icon.className = 'ph ph-pencil-simple'; icon.setAttribute('aria-hidden', 'true')
+      const text = document.createElement('span'); text.textContent = copy.edit; button.append(icon, text); button.onclick = onEdit; return button
     }
-
-    function editProvider(provider: Provider): void {
-      field(providerForm, 'providerId').value = provider.providerId
-      field(providerForm, 'slug').value = provider.slug
-      field(providerForm, 'displayName').value = provider.displayName
-      field(providerForm, 'providerKind').value = provider.providerKind
-      field(providerForm, 'baseUrl').value = provider.baseUrl
-      field(providerForm, 'apiKey').value = ''
-      setChecked(providerForm, 'active', provider.active)
-      providerForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    function providerActionButton(label: string, iconName: string, onAction: (button: HTMLButtonElement) => void): HTMLButtonElement {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-ghost list-action provider-action'; button.setAttribute('aria-label', label)
+      const icon = document.createElement('i'); icon.className = `ph ${iconName}`; icon.setAttribute('aria-hidden', 'true')
+      const text = document.createElement('span'); text.textContent = label; button.append(icon, text); button.onclick = () => onAction(button); return button
     }
-
-    function editModel(model: Model): void {
-      for (const [name, value] of Object.entries({ modelId: model.modelId, publicModelId: model.publicModelId, displayName: model.displayName, upstreamProviderId: model.upstreamProviderId, upstreamModelId: model.upstreamModelId, protocol: model.protocol, contextWindow: capability(model, 'context_window', 128000), maxOutputTokens: capability(model, 'max_output_tokens', 8192), inputPrice: fromMicros(model.pricing.inputCreditMicrosPerMillion), outputPrice: fromMicros(model.pricing.outputCreditMicrosPerMillion), cacheReadPrice: fromMicros(model.pricing.cacheReadCreditMicrosPerMillion), cacheWritePrice: fromMicros(model.pricing.cacheWriteCreditMicrosPerMillion), fixedPrice: fromMicros(model.pricing.fixedCreditMicrosPerRequest) })) field(modelForm, name).value = String(value)
-      setChecked(modelForm, 'vision', (capability(model, 'input_modalities', []) as string[]).includes('image'))
-      setChecked(modelForm, 'tools', Boolean(capability(model, 'tool_calling', true)))
-      setChecked(modelForm, 'reasoning', Boolean(capability(model, 'reasoning', false)))
-      setChecked(modelForm, 'promptCache', Boolean(capability(model, 'prompt_cache', false)))
-      setChecked(modelForm, 'structuredOutput', Boolean(capability(model, 'structured_output', false)))
-      setChecked(modelForm, 'active', model.active)
-      modelForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    function cancelProviderModelPopoverClose(): void {
+      if (providerModelPopoverTimer !== undefined) window.clearTimeout(providerModelPopoverTimer)
+      providerModelPopoverTimer = undefined
     }
-
-    function editPlan(plan: Plan): void {
-      for (const [name, value] of Object.entries({ planId: plan.planId, slug: plan.slug, displayName: plan.displayName, description: plan.description, tierRank: plan.tierRank, monthlyCredits: fromMicros(plan.monthlyCreditMicros) })) field(planForm, name).value = String(value)
-      setChecked(planForm, 'isDefault', plan.isDefault)
-      setOfferRows(planOfferRows, plan.offers, 0)
-      const allowed = new Set(plan.benefits.filter((benefit) => benefit.resourceType === 'model' && benefit.action === 'invoke').map((benefit) => benefit.resourceId))
-      root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]').forEach((input) => { input.checked = allowed.has(input.value) || allowed.has(null) })
-      planForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    function hideProviderModelPopover(force = false): void {
+      cancelProviderModelPopoverClose()
+      if (providerModelPopoverPinned && !force) return
+      providerModelPopover.hidden = true
+      providerModelPopoverTrigger?.setAttribute('aria-expanded', 'false')
+      providerModelPopoverTrigger = null
+      providerModelPopoverPinned = false
     }
-
-    function editTopUp(product: TopUp): void {
-      for (const [name, value] of Object.entries({ productId: product.productId, slug: product.slug, displayName: product.displayName, description: product.description, credits: fromMicros(product.creditMicros) })) field(topupForm, name).value = String(value)
-      setOfferRows(topupOfferRows, product.offers, 0.01)
-      topupForm.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    function scheduleProviderModelPopoverClose(): void {
+      cancelProviderModelPopoverClose()
+      providerModelPopoverTimer = window.setTimeout(() => hideProviderModelPopover(), 120)
     }
-
-    async function load(): Promise<void> {
-      state.hidden = false; state.textContent = copy.loading
+    function showProviderModelPopover(trigger: HTMLButtonElement, provider: Provider, pinned = false): void {
+      cancelProviderModelPopoverClose()
+      providerModelPopoverTrigger?.setAttribute('aria-expanded', 'false')
+      providerModelPopoverTrigger = trigger
+      providerModelPopoverPinned = pinned
+      trigger.setAttribute('aria-expanded', 'true')
+      providerModelPopoverTitle.textContent = interpolate(copy.providerModelsTitle, { provider: provider.displayName })
+      providerModelPopoverList.replaceChildren(...(provider.availableModels.length
+        ? provider.availableModels.map((model) => {
+          const item = document.createElement('div'); item.className = 'provider-model-popover-item'
+            const heading = document.createElement('span'); heading.className = 'provider-model-popover-heading'; heading.append(textElement('strong', '', model.displayName), textElement('em', '', protocolLabel(model.protocol)))
+            item.append(heading, textElement('code', '', model.upstreamModelId)); return item
+          })
+        : [textElement('span', 'provider-model-popover-empty', copy.providerModelsEmpty)]))
+      providerModelPopover.hidden = false
+      const triggerRect = trigger.getBoundingClientRect()
+      const safeTop = 80
+      const roomAbove = Math.max(0, triggerRect.top - safeTop - 8)
+      const roomBelow = Math.max(0, window.innerHeight - triggerRect.bottom - 12)
+      const placeBelow = roomBelow >= 220 || roomBelow >= roomAbove
+      providerModelPopover.style.maxHeight = `${Math.max(140, Math.min(380, placeBelow ? roomBelow : roomAbove))}px`
+      const popoverRect = providerModelPopover.getBoundingClientRect()
+      const left = Math.min(window.innerWidth - popoverRect.width - 12, Math.max(12, triggerRect.left))
+      const top = placeBelow ? triggerRect.bottom + 8 : Math.max(safeTop, triggerRect.top - popoverRect.height - 8)
+      providerModelPopover.style.left = `${left}px`; providerModelPopover.style.top = `${top}px`
+    }
+    function providerModelTrigger(provider: Provider, publishedCount: number): HTMLButtonElement {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'provider-model-trigger'; button.setAttribute('aria-haspopup', 'dialog'); button.setAttribute('aria-expanded', 'false')
+      button.append(textElement('span', 'config-count', interpolate(copy.providerModelCountLabel, { available: provider.availableModels.length, published: publishedCount })), textElement('i', 'ph ph-caret-down', ''))
+      button.addEventListener('mouseenter', () => showProviderModelPopover(button, provider))
+      button.addEventListener('mouseleave', scheduleProviderModelPopoverClose)
+      button.addEventListener('focus', () => showProviderModelPopover(button, provider))
+      button.addEventListener('blur', scheduleProviderModelPopoverClose)
+      button.addEventListener('click', (event) => {
+        event.stopPropagation()
+        const shouldClose = providerModelPopoverTrigger === button && providerModelPopoverPinned
+        if (shouldClose) hideProviderModelPopover(true); else showProviderModelPopover(button, provider, true)
+      })
+      return button
+    }
+    function providerUpsertPayload(provider: Provider, active: boolean, availableModels?: AvailableModel[], lastTestLatencyMs?: number): Record<string, unknown> {
+      return { providerId: provider.providerId, providerPresetId: provider.providerPresetId, slug: provider.slug, displayName: provider.displayName, providerKind: provider.providerKind, baseUrl: provider.baseUrl, apiKey: null, ...(availableModels ? { availableModels } : {}), ...(lastTestLatencyMs !== undefined ? { lastTestLatencyMs } : {}), active, expectedRevision: modelCatalog.revision }
+    }
+    async function testProvider(provider: Provider, button: HTMLButtonElement): Promise<void> {
+      button.disabled = true; button.querySelector('i')!.className = 'ph ph-circle-notch provider-action-spin'; button.querySelector('span')!.textContent = copy.testingProvider
       try {
-        ;[modelCatalog, planCatalog, topupCatalog] = await Promise.all([api<ModelCatalog>('/admin/model-catalog'), api<PlanCatalog>('/plans'), api<TopUpCatalog>('/top-ups')])
-        render(); content.hidden = false; state.hidden = true
-      } catch (reason) { content.hidden = true; state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+        const result = await api<ProviderDiscovery>('/admin/model-providers/discover', { method: 'POST', body: JSON.stringify({ providerId: provider.providerId, providerPresetId: provider.providerPresetId, providerKind: provider.providerKind, baseUrl: provider.baseUrl, apiKey: null }) })
+        modelCatalog = await api<ModelCatalog>('/admin/model-providers', { method: 'POST', body: JSON.stringify(providerUpsertPayload(provider, provider.active, result.models, result.latencyMs)) })
+        hideProviderModelPopover(true); render(); toast.success(result.source === 'provider_preset' ? interpolate(copy.presetModelsLoaded, { count: result.models.length }) : interpolate(copy.discoverySuccess, { count: result.models.length }))
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        if (button.isConnected) { button.disabled = false; button.querySelector('i')!.className = 'ph ph-plugs-connected'; button.querySelector('span')!.textContent = copy.testProvider }
+      }
+    }
+    async function toggleProvider(provider: Provider, button: HTMLButtonElement): Promise<void> {
+      button.disabled = true
+      try {
+        modelCatalog = await api<ModelCatalog>('/admin/model-providers', { method: 'POST', body: JSON.stringify(providerUpsertPayload(provider, !provider.active)) })
+        hideProviderModelPopover(true); render(); toast.success(provider.active ? copy.providerDisabled : copy.providerEnabled)
+      } catch (reason) {
+        button.disabled = false; toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      }
+    }
+    function inlineStatusToggle(active: boolean, label: string, ariaLabel: string, onToggle: (button: HTMLButtonElement) => void, tone = ''): HTMLButtonElement {
+      const button = document.createElement('button'); button.type = 'button'; button.className = `inline-status-toggle ${tone}`.trim(); button.setAttribute('role', 'switch'); button.setAttribute('aria-checked', String(active)); button.setAttribute('aria-label', ariaLabel)
+      const track = document.createElement('span'); track.className = 'inline-status-track'; track.setAttribute('aria-hidden', 'true'); track.append(document.createElement('span'))
+      const text = document.createElement('span'); text.className = 'inline-status-label'; text.textContent = label
+      button.append(track, text); button.onclick = () => onToggle(button); return button
+    }
+    function providerRow(provider: Provider): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      const identity = document.createElement('div'); identity.className = 'config-identity'; identity.append(textElement('strong', '', provider.displayName), textElement('code', '', provider.slug))
+      const connection = document.createElement('div'); connection.className = 'config-connection'; connection.append(textElement('span', '', providerKindLabel(provider.providerKind)), textElement('code', '', provider.baseUrl))
+      const publishedCount = modelCatalog.models.filter((model) => model.upstreamProviderId === provider.providerId).length
+      const actions = document.createElement('div'); actions.className = 'provider-actions'
+      const test = providerActionButton(copy.testProvider, 'ph-plugs-connected', (button) => void testProvider(provider, button)); test.disabled = providerNeedsCredential(provider) && !provider.credentialConfigured; test.setAttribute('aria-label', `${copy.testProvider}: ${provider.displayName}`)
+      actions.append(test, editButton(`${copy.edit}: ${provider.displayName}`, () => editProvider(provider)))
+      row.append(
+        cell(identity),
+        cell(connection),
+        cell(providerModelTrigger(provider, publishedCount)),
+        cell(statusBadge(!providerNeedsCredential(provider) ? copy.credentialNotRequired : provider.credentialConfigured ? copy.credentialSet : copy.noCredential, !providerNeedsCredential(provider) || provider.credentialConfigured ? 'active' : 'warning')),
+        cell(latencyElement(provider.lastTestLatencyMs)),
+        cell(inlineStatusToggle(provider.active, provider.active ? copy.active : copy.inactive, `${provider.active ? copy.disableProvider : copy.enableProvider}: ${provider.displayName}`, (button) => void toggleProvider(provider, button))),
+        cell(actions),
+      )
+      return row
+    }
+    function modelCapabilities(model: Model): string[] {
+      const outputs = capability(model, 'output_modalities', ['text']) as string[]
+      return [
+        outputs.includes('image') ? copy.imageOutput : '',
+        outputs.includes('video') ? copy.videoOutput : '',
+        outputs.includes('audio') ? copy.audioOutput : '',
+        (capability(model, 'input_modalities', []) as string[]).includes('image') ? copy.vision : '',
+        capability(model, 'tool_calling', false) ? copy.toolCalling : '',
+        capability(model, 'reasoning', false) ? copy.reasoning : '',
+        capability(model, 'prompt_cache', false) ? copy.promptCache : '',
+        capability(model, 'structured_output', false) ? copy.structuredOutput : '',
+      ].filter(Boolean)
+    }
+    function modelUpsertPayload(model: Model, active: boolean): Record<string, unknown> {
+      return {
+        modelId: model.modelId,
+        publicModelId: model.publicModelId,
+        displayName: model.displayName,
+        upstreamProviderId: model.upstreamProviderId,
+        upstreamModelId: model.upstreamModelId,
+        protocol: model.protocol,
+        capability: model.capability,
+        pricing: {
+          inputCreditMicrosPerMillion: model.pricing.inputCreditMicrosPerMillion,
+          outputCreditMicrosPerMillion: model.pricing.outputCreditMicrosPerMillion,
+          cacheReadCreditMicrosPerMillion: model.pricing.cacheReadCreditMicrosPerMillion,
+          cacheWriteCreditMicrosPerMillion: model.pricing.cacheWriteCreditMicrosPerMillion,
+          fixedCreditMicrosPerRequest: model.pricing.fixedCreditMicrosPerRequest,
+        },
+        active,
+        expectedRevision: modelCatalog.revision,
+      }
+    }
+    async function toggleModel(model: Model, button: HTMLButtonElement): Promise<void> {
+      button.disabled = true
+      try {
+        modelCatalog = await api<ModelCatalog>('/admin/models', { method: 'POST', body: JSON.stringify(modelUpsertPayload(model, !model.active)) })
+        render(); toast.success(model.active ? copy.modelDisabled : copy.modelEnabled)
+      } catch (reason) {
+        button.disabled = false; toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      }
+    }
+    async function testModelFromList(model: Model, button: HTMLButtonElement): Promise<void> {
+      button.disabled = true; button.querySelector('i')!.className = 'ph ph-circle-notch provider-action-spin'; button.querySelector('span')!.textContent = copy.testingProvider
+      try {
+        const result = await api<ModelTestResult>('/admin/models/test', { method: 'POST', body: JSON.stringify({ modelId: model.modelId, upstreamProviderId: model.upstreamProviderId, upstreamModelId: model.upstreamModelId, protocol: model.protocol }) })
+        model.lastTestLatencyMs = result.latencyMs; render(); toast.success(interpolate(copy.modelTestSuccess, { latency: result.latencyMs }))
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        if (button.isConnected) { button.disabled = false; button.querySelector('i')!.className = 'ph ph-play-circle'; button.querySelector('span')!.textContent = copy.testProvider }
+      }
+    }
+    function modelRow(model: Model): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      const provider = modelCatalog.providers.find((candidate) => candidate.providerId === model.upstreamProviderId)
+      const identity = document.createElement('div'); identity.className = 'config-identity'; identity.append(textElement('strong', '', model.displayName), textElement('code', '', model.publicModelId))
+      const upstream = document.createElement('div'); upstream.className = 'config-identity'; upstream.append(textElement('span', '', provider?.displayName || '—'), textElement('code', '', model.upstreamModelId))
+      const capabilities = document.createElement('div'); capabilities.className = 'capability-list'
+      const capabilityLabels = modelCapabilities(model); capabilities.append(...(capabilityLabels.length ? capabilityLabels.map((label) => textElement('span', '', label)) : [textElement('span', 'empty', '—')]))
+      const pricing = document.createElement('div'); pricing.className = 'pricing-summary'
+      if (model.pricing.inputCreditMicrosPerMillion || model.pricing.outputCreditMicrosPerMillion) pricing.append(textElement('span', '', interpolate(copy.inputOutputPrice, { input: fromMicros(model.pricing.inputCreditMicrosPerMillion), output: fromMicros(model.pricing.outputCreditMicrosPerMillion) })))
+      if (model.pricing.fixedCreditMicrosPerRequest) pricing.append(textElement('span', '', interpolate(copy.fixedPriceSummary, { price: fromMicros(model.pricing.fixedCreditMicrosPerRequest) })))
+      if (!pricing.childElementCount) pricing.append(textElement('span', '', '—'))
+      const enabled = model.active && Boolean(provider?.active)
+      const status = enabled ? copy.active : model.active && provider && !provider.active ? copy.providerInactive : copy.inactive
+      const actions = document.createElement('div'); actions.className = 'provider-actions'
+      const test = providerActionButton(copy.testProvider, 'ph-play-circle', (button) => void testModelFromList(model, button)); test.disabled = !provider || !provider.active || (providerNeedsCredential(provider) && !provider.credentialConfigured); test.setAttribute('aria-label', `${copy.testModel}: ${model.displayName}`)
+      actions.append(test, editButton(`${copy.edit}: ${model.displayName}`, () => editModel(model)))
+      row.append(
+        cell(identity),
+        cell(upstream),
+        cell(textElement('span', 'protocol-badge', protocolLabel(model.protocol))),
+        cell(capabilities),
+        cell(pricing),
+        cell(latencyElement(model.lastTestLatencyMs)),
+        cell(inlineStatusToggle(model.active, status, `${model.active ? copy.disableModel : copy.enableModel}: ${model.displayName}`, (button) => void toggleModel(model, button), model.active && !provider?.active ? 'warning' : '')),
+        cell(actions),
+      )
+      return row
+    }
+    function planModelAccess(plan: Plan): string {
+      const modelBenefits = plan.benefits.filter((benefit) => benefit.resourceType === 'model' && benefit.action === 'invoke')
+      if (modelBenefits.some((benefit) => benefit.resourceId == null)) return copy.allModelsAllowed
+      const count = new Set(modelBenefits.map((benefit) => benefit.resourceId).filter(Boolean)).size
+      return count ? interpolate(copy.modelAccessCount, { count }) : copy.noModelAccess
+    }
+    function planOfferSummary(plan: Plan): HTMLElement {
+      const summary = document.createElement('div'); summary.className = 'plan-offer-summary'
+      if (plan.isDefault) {
+        summary.append(textElement('strong', '', copy.freePlan), textElement('span', '', copy.noPaymentRequired))
+        return summary
+      }
+      if (!plan.offers.length) {
+        summary.append(textElement('span', 'plan-cell-empty', copy.noPaymentOffers))
+        return summary
+      }
+      const first = plan.offers[0]
+      let price = `${first.currency} ${first.amountMinor / 100}`
+      try {
+        price = new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'zh-CN', { style: 'currency', currency: first.currency }).format(first.amountMinor / 100)
+      } catch {}
+      summary.append(textElement('strong', '', price), textElement('span', '', interpolate(copy.paymentChannelCount, { count: plan.offers.length })))
+      return summary
+    }
+    function planRow(plan: Plan): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      const name = localized(plan.displayNameI18n, plan.displayName)
+      const identity = document.createElement('div'); identity.className = 'config-identity'; identity.append(textElement('strong', '', name), textElement('code', '', plan.slug))
+      row.append(
+        cell(identity),
+        cell(textElement('strong', 'plan-credit-value', fromMicros(plan.monthlyCreditMicros))),
+        cell(textElement('span', 'plan-tier-value', String(plan.tierRank))),
+        cell(textElement('span', 'plan-access-value', planModelAccess(plan))),
+        cell(planOfferSummary(plan)),
+        cell(statusBadge(plan.isDefault ? copy.defaultPlanType : copy.standardPlanType, plan.isDefault ? 'active' : 'inactive')),
+        cell(editButton(`${copy.edit}: ${name}`, () => editPlan(plan))),
+      )
+      return row
+    }
+    function render(): void {
+      hideProviderModelPopover(true)
+      const providerTable = root.querySelector<HTMLTableElement>('[data-provider-table]')!
+      const providerList = root.querySelector<HTMLTableSectionElement>('[data-provider-list]')!
+      const providerEmpty = root.querySelector<HTMLElement>('[data-provider-empty]')!
+      providerPage = Math.min(providerPage, Math.max(1, Math.ceil(modelCatalog.providers.length / providerPageSize)))
+      providerTable.hidden = modelCatalog.providers.length === 0; providerEmpty.hidden = modelCatalog.providers.length > 0; providerList.replaceChildren(...pagedItems(modelCatalog.providers, providerPage, providerPageSize).map(providerRow))
+      providerPagination.set({ page: providerPage, pageSize: providerPageSize, totalItems: modelCatalog.providers.length })
+      syncProviderOptions()
+      const modelTable = root.querySelector<HTMLTableElement>('[data-model-table]')!
+      const modelList = root.querySelector<HTMLTableSectionElement>('[data-model-list]')!
+      const modelEmpty = root.querySelector<HTMLElement>('[data-model-empty]')!
+      modelPage = Math.min(modelPage, Math.max(1, Math.ceil(modelCatalog.models.length / modelPageSize)))
+      modelTable.hidden = modelCatalog.models.length === 0; modelEmpty.hidden = modelCatalog.models.length > 0; modelList.replaceChildren(...pagedItems(modelCatalog.models, modelPage, modelPageSize).map(modelRow))
+      modelPagination.set({ page: modelPage, pageSize: modelPageSize, totalItems: modelCatalog.models.length })
+      const discoverableProviders = modelCatalog.providers.filter((provider) => provider.active && provider.availableModels.length > 0)
+      root.querySelectorAll<HTMLButtonElement>('[data-new-model]').forEach((button) => { button.disabled = discoverableProviders.length === 0; button.title = discoverableProviders.length === 0 ? copy.selectProviderFirst : '' })
+      const modelAccess = root.querySelector<HTMLElement>('[data-plan-models]')!
+      modelAccess.replaceChildren(...(modelCatalog.models.length ? modelCatalog.models.map((model) => { const label = document.createElement('label'); label.className = 'check'; const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'allowedModel'; input.value = model.publicModelId; const span = document.createElement('span'); span.textContent = model.displayName; label.append(input, span); return label }) : [empty(copy.emptyModels)]))
+      const planTable = root.querySelector<HTMLTableElement>('[data-plan-table]')!
+      const planList = root.querySelector<HTMLTableSectionElement>('[data-plan-list]')!
+      const planEmpty = root.querySelector<HTMLElement>('[data-plan-empty]')!
+      planPage = Math.min(planPage, Math.max(1, Math.ceil(planCatalog.plans.length / planPageSize)))
+      planTable.hidden = planCatalog.plans.length === 0; planEmpty.hidden = planCatalog.plans.length > 0
+      planList.replaceChildren(...pagedItems(planCatalog.plans, planPage, planPageSize).map(planRow))
+      planPagination.set({ page: planPage, pageSize: planPageSize, totalItems: planCatalog.plans.length })
+      const topupList = root.querySelector<HTMLElement>('[data-topup-list]')!
+      topupPage = Math.min(topupPage, Math.max(1, Math.ceil(topupCatalog.products.length / topupPageSize)))
+      topupList.replaceChildren(...(topupCatalog.products.length ? pagedItems(topupCatalog.products, topupPage, topupPageSize).map((product) => record(localized(product.displayNameI18n, product.displayName), `${fromMicros(product.creditMicros)} ${copy.permanentUnit}`, true, () => editTopUp(product))) : [empty(copy.emptyTopUps)]))
+      topupPagination.set({ page: topupPage, pageSize: topupPageSize, totalItems: topupCatalog.products.length })
+    }
+
+    function newProvider(): void {
+      providerForm.reset(); field(providerForm, 'providerId').value = ''; field(providerForm, 'providerPresetId').value = 'openai'; applyProviderPresetDefaults(true)
+      providerDiscoveryModels = null; providerDiscoveryLatency = null; setChecked(providerForm, 'active', true); renderProviderDiscovery(); title(providerDialog, copy.addProvider); providerDialog.showModal()
+    }
+    function editProvider(provider: Provider): void {
+      providerForm.reset()
+      for (const [name, value] of Object.entries({ providerId: provider.providerId, providerPresetId: provider.providerPresetId || 'custom', slug: provider.slug, displayName: provider.displayName, providerKind: provider.providerKind, baseUrl: provider.baseUrl, apiKey: '' })) field(providerForm, name).value = value
+      applyProviderPresetDefaults(false, provider.credentialConfigured)
+      providerDiscoveryModels = provider.availableModels.length ? [...provider.availableModels] : null; providerDiscoveryLatency = provider.lastTestLatencyMs ?? null; setChecked(providerForm, 'active', provider.active); renderProviderDiscovery(); title(providerDialog, copy.editProvider); providerDialog.showModal()
+    }
+    function newModel(): void {
+      const provider = modelCatalog.providers.find((candidate) => candidate.active && candidate.availableModels.length > 0)
+      if (!provider) { toast.warning(copy.selectProviderFirst); return }
+      modelForm.reset(); field(modelForm, 'modelId').value = ''; field(modelForm, 'contextWindow').value = '128000'; field(modelForm, 'maxOutputTokens').value = '8192'; setChecked(modelForm, 'tools', true); setChecked(modelForm, 'active', true); syncProviderOptions(provider.providerId); (field(modelForm, 'inputPrice') as HTMLInputElement).setCustomValidity(''); title(modelDialog, copy.addModel); modelDialog.showModal()
+    }
+    function editModel(model: Model): void {
+      modelForm.reset(); syncProviderOptions(model.upstreamProviderId, model.upstreamModelId)
+      for (const [name, value] of Object.entries({ modelId: model.modelId, publicModelId: model.publicModelId, displayName: model.displayName, upstreamProviderId: model.upstreamProviderId, upstreamModelId: model.upstreamModelId, contextWindow: capability(model, 'context_window', 128000), maxOutputTokens: capability(model, 'max_output_tokens', 8192), inputPrice: fromMicros(model.pricing.inputCreditMicrosPerMillion), outputPrice: fromMicros(model.pricing.outputCreditMicrosPerMillion), cacheReadPrice: fromMicros(model.pricing.cacheReadCreditMicrosPerMillion), cacheWritePrice: fromMicros(model.pricing.cacheWriteCreditMicrosPerMillion), fixedPrice: fromMicros(model.pricing.fixedCreditMicrosPerRequest) })) field(modelForm, name).value = String(value)
+      syncProtocols(model.protocol); setChecked(modelForm, 'vision', (capability(model, 'input_modalities', []) as string[]).includes('image')); setChecked(modelForm, 'tools', Boolean(capability(model, 'tool_calling', true))); setChecked(modelForm, 'reasoning', Boolean(capability(model, 'reasoning', false))); setChecked(modelForm, 'promptCache', Boolean(capability(model, 'prompt_cache', false))); setChecked(modelForm, 'structuredOutput', Boolean(capability(model, 'structured_output', false))); setChecked(modelForm, 'active', model.active); (field(modelForm, 'inputPrice') as HTMLInputElement).setCustomValidity(''); title(modelDialog, copy.editModel); modelDialog.showModal()
+    }
+    function newPlan(): void { planForm.reset(); field(planForm, 'planId').value = ''; setOfferRows(planOfferRows, [], 0); syncPlanOffers(); root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]').forEach((input) => { input.checked = false }); title(planDialog, copy.addPlan); planDialog.showModal() }
+    function editPlan(plan: Plan): void {
+      const zhName = plan.displayNameI18n?.['zh-CN'] || plan.displayName; const enName = plan.displayNameI18n?.en || plan.displayName; const zhDescription = plan.descriptionI18n?.['zh-CN'] || plan.description; const enDescription = plan.descriptionI18n?.en || plan.description
+      for (const [name, value] of Object.entries({ planId: plan.planId, slug: plan.slug, displayNameZh: zhName, displayNameEn: enName, descriptionZh: zhDescription, descriptionEn: enDescription, tierRank: plan.tierRank, monthlyCredits: fromMicros(plan.monthlyCreditMicros) })) field(planForm, name).value = String(value)
+      setChecked(planForm, 'isDefault', plan.isDefault); setOfferRows(planOfferRows, plan.offers, 0); syncPlanOffers(); const allowed = new Set(plan.benefits.filter((benefit) => benefit.resourceType === 'model' && benefit.action === 'invoke').map((benefit) => benefit.resourceId)); root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]').forEach((input) => { input.checked = allowed.has(input.value) || allowed.has(null) }); title(planDialog, copy.editPlan); planDialog.showModal()
+    }
+    function newTopUp(): void { topupForm.reset(); field(topupForm, 'productId').value = ''; setOfferRows(topupOfferRows, [], 0.01); title(topupDialog, copy.addTopUp); topupDialog.showModal() }
+    function editTopUp(product: TopUp): void {
+      const zhName = product.displayNameI18n?.['zh-CN'] || product.displayName; const enName = product.displayNameI18n?.en || product.displayName; const zhDescription = product.descriptionI18n?.['zh-CN'] || product.description; const enDescription = product.descriptionI18n?.en || product.description
+      for (const [name, value] of Object.entries({ productId: product.productId, slug: product.slug, displayNameZh: zhName, displayNameEn: enName, descriptionZh: zhDescription, descriptionEn: enDescription, credits: fromMicros(product.creditMicros) })) field(topupForm, name).value = String(value); setOfferRows(topupOfferRows, product.offers, 0.01); title(topupDialog, copy.editTopUp); topupDialog.showModal()
+    }
+    const pricingFields = ['inputPrice', 'outputPrice', 'fixedPrice'] as const
+    function validateModelPricing(report = true): boolean {
+      const requiredFields = isMediaProtocol() ? ['fixedPrice'] as const : pricingFields
+      const valid = requiredFields.some((name) => Number(field(modelForm, name).value) > 0)
+      const input = field(modelForm, isMediaProtocol() ? 'fixedPrice' : 'inputPrice') as HTMLInputElement
+      input.setCustomValidity(valid ? '' : copy.pricingRequired)
+      if (!valid && report) input.reportValidity()
+      return valid
+    }
+    async function load(): Promise<void> {
+      state.hidden = false
+      state.dataset.tone = 'neutral'
+      state.textContent = copy.loading
+      try {
+        if (section === 'models') modelCatalog = await api<ModelCatalog>('/admin/model-catalog')
+        if (section === 'plans') [modelCatalog, planCatalog] = await Promise.all([api<ModelCatalog>('/admin/model-catalog'), api<PlanCatalog>('/plans')])
+        if (section === 'topups') topupCatalog = await api<TopUpCatalog>('/top-ups')
+        render()
+        content.hidden = false
+        state.hidden = true
+      } catch (reason) {
+        content.hidden = true
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void load()
+        state.replaceChildren(retry)
+      }
     }
 
     providerForm.addEventListener('submit', async (event) => {
-      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
+      event.preventDefault()
+      if (!providerDiscoveryModels?.length) { toast.warning(copy.discoveryRequired); return }
+      setFormBusy(providerForm, true)
       try {
-        modelCatalog = await api('/admin/model-providers', { method: 'POST', body: JSON.stringify({ providerId: field(providerForm, 'providerId').value || null, slug: field(providerForm, 'slug').value, displayName: field(providerForm, 'displayName').value, providerKind: field(providerForm, 'providerKind').value, baseUrl: field(providerForm, 'baseUrl').value, apiKey: field(providerForm, 'apiKey').value || null, active: checked(providerForm, 'active'), expectedRevision: modelCatalog.revision }) })
-        providerForm.reset(); field(providerForm, 'providerId').value = ''; setChecked(providerForm, 'active', true); render(); state.textContent = copy.saved
-      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+        modelCatalog = await api('/admin/model-providers', { method: 'POST', body: JSON.stringify({ providerId: field(providerForm, 'providerId').value || null, providerPresetId: field(providerForm, 'providerPresetId').value, slug: field(providerForm, 'slug').value.trim(), displayName: field(providerForm, 'displayName').value.trim(), providerKind: field(providerForm, 'providerKind').value, baseUrl: field(providerForm, 'baseUrl').value.trim(), apiKey: field(providerForm, 'apiKey').value || null, availableModels: providerDiscoveryModels, lastTestLatencyMs: providerDiscoveryLatency, active: checked(providerForm, 'active'), expectedRevision: modelCatalog.revision }) })
+        providerDialog.close(); render(); announceSaved()
+      } catch (reason) { toast.error(reason instanceof Error ? reason.message : copy.unavailable) }
+      finally { setFormBusy(providerForm, false); renderProviderDiscovery() }
     })
-
     modelForm.addEventListener('submit', async (event) => {
-      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
-      const inputModalities = checked(modelForm, 'vision') ? ['text', 'image'] : ['text']
+      event.preventDefault(); if (!validateModelPricing()) return
+      setFormBusy(modelForm, true)
+      const provider = modelCatalog.providers.find((item) => item.providerId === field(modelForm, 'upstreamProviderId').value)
+      const selected = provider?.availableModels.find((model) => model.upstreamModelId === field(modelForm, 'upstreamModelId').value)
+      const inputModalities = selected?.inputModalities || (checked(modelForm, 'vision') ? ['text', 'image'] : ['text'])
+      const outputModalities = selected?.outputModalities || ['text']
       try {
-        modelCatalog = await api('/admin/models', { method: 'POST', body: JSON.stringify({ modelId: field(modelForm, 'modelId').value || null, publicModelId: field(modelForm, 'publicModelId').value, displayName: field(modelForm, 'displayName').value, upstreamProviderId: field(modelForm, 'upstreamProviderId').value, upstreamModelId: field(modelForm, 'upstreamModelId').value, protocol: field(modelForm, 'protocol').value, capability: { input_modalities: inputModalities, output_modalities: ['text'], context_window: Number(field(modelForm, 'contextWindow').value), max_output_tokens: Number(field(modelForm, 'maxOutputTokens').value), streaming: true, tool_calling: checked(modelForm, 'tools'), reasoning: checked(modelForm, 'reasoning'), prompt_cache: checked(modelForm, 'promptCache'), structured_output: checked(modelForm, 'structuredOutput'), hosted_tool_search: false, tool_observation_protocol: null }, pricing: { inputCreditMicrosPerMillion: toMicros(field(modelForm, 'inputPrice').value), outputCreditMicrosPerMillion: toMicros(field(modelForm, 'outputPrice').value), cacheReadCreditMicrosPerMillion: toMicros(field(modelForm, 'cacheReadPrice').value), cacheWriteCreditMicrosPerMillion: toMicros(field(modelForm, 'cacheWritePrice').value), fixedCreditMicrosPerRequest: toMicros(field(modelForm, 'fixedPrice').value) }, active: checked(modelForm, 'active'), expectedRevision: modelCatalog.revision }) })
-        modelForm.reset(); field(modelForm, 'modelId').value = ''; field(modelForm, 'contextWindow').value = '128000'; field(modelForm, 'maxOutputTokens').value = '8192'; setChecked(modelForm, 'tools', true); setChecked(modelForm, 'active', true); render(); state.textContent = copy.saved
-      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+        modelCatalog = await api('/admin/models', { method: 'POST', body: JSON.stringify({ modelId: field(modelForm, 'modelId').value || null, publicModelId: field(modelForm, 'publicModelId').value.trim(), displayName: field(modelForm, 'displayName').value.trim(), upstreamProviderId: field(modelForm, 'upstreamProviderId').value, upstreamModelId: field(modelForm, 'upstreamModelId').value.trim(), protocol: field(modelForm, 'protocol').value, capability: { input_modalities: inputModalities, output_modalities: outputModalities, asynchronous: selected?.asynchronous || false, context_window: Number(field(modelForm, 'contextWindow').value), max_output_tokens: Number(field(modelForm, 'maxOutputTokens').value), streaming: !isMediaProtocol(), tool_calling: !isMediaProtocol() && checked(modelForm, 'tools'), reasoning: !isMediaProtocol() && checked(modelForm, 'reasoning'), prompt_cache: !isMediaProtocol() && checked(modelForm, 'promptCache'), structured_output: !isMediaProtocol() && checked(modelForm, 'structuredOutput'), hosted_tool_search: false, tool_observation_protocol: null }, pricing: { inputCreditMicrosPerMillion: toMicros(field(modelForm, 'inputPrice').value), outputCreditMicrosPerMillion: toMicros(field(modelForm, 'outputPrice').value), cacheReadCreditMicrosPerMillion: toMicros(field(modelForm, 'cacheReadPrice').value), cacheWriteCreditMicrosPerMillion: toMicros(field(modelForm, 'cacheWritePrice').value), fixedCreditMicrosPerRequest: toMicros(field(modelForm, 'fixedPrice').value) }, active: checked(modelForm, 'active'), expectedRevision: modelCatalog.revision }) })
+        modelDialog.close(); render(); announceSaved()
+      } catch (reason) { toast.error(reason instanceof Error ? reason.message : copy.unavailable) }
+      finally { setFormBusy(modelForm, false) }
     })
-
     planForm.addEventListener('submit', async (event) => {
-      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
+      event.preventDefault()
+      setFormBusy(planForm, true)
       const isDefault = checked(planForm, 'isDefault')
-      const benefits = [...root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]:checked')].map((input) => ({ code: `model:${input.value}:invoke`, resourceType: 'model', resourceId: input.value, action: 'invoke', limit: {} }))
-      const offers = isDefault ? [] : collectOffers(planOfferRows)
+      const benefits = [...root.querySelectorAll<HTMLInputElement>('[name="allowedModel"]:checked')].map((input) => ({
+        code: `model:${input.value}:invoke`,
+        resourceType: 'model',
+        resourceId: input.value,
+        action: 'invoke',
+        limit: {},
+      }))
+      const zhName = field(planForm, 'displayNameZh').value.trim()
+      const enName = field(planForm, 'displayNameEn').value.trim()
+      const zhDescription = field(planForm, 'descriptionZh').value.trim()
+      const enDescription = field(planForm, 'descriptionEn').value.trim()
       try {
-        planCatalog = await api('/admin/plans', { method: 'POST', body: JSON.stringify({ planId: field(planForm, 'planId').value || null, slug: field(planForm, 'slug').value, displayName: field(planForm, 'displayName').value, description: field(planForm, 'description').value, tierRank: Number(field(planForm, 'tierRank').value), isDefault, monthlyCreditMicros: toMicros(field(planForm, 'monthlyCredits').value), offers, benefits, expectedRevision: planCatalog.revision }) })
-        planForm.reset(); field(planForm, 'planId').value = ''; setOfferRows(planOfferRows, [], 0); render(); state.textContent = copy.saved
-      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+        planCatalog = await api('/admin/plans', {
+          method: 'POST',
+          body: JSON.stringify({
+            planId: field(planForm, 'planId').value || null,
+            slug: field(planForm, 'slug').value,
+            displayName: zhName,
+            description: zhDescription,
+            displayNameI18n: { 'zh-CN': zhName, en: enName },
+            descriptionI18n: { 'zh-CN': zhDescription, en: enDescription },
+            tierRank: Number(field(planForm, 'tierRank').value),
+            isDefault,
+            monthlyCreditMicros: toMicros(field(planForm, 'monthlyCredits').value),
+            offers: isDefault ? [] : collectOffers(planOfferRows),
+            benefits,
+            expectedRevision: planCatalog.revision,
+          }),
+        })
+        planDialog.close()
+        render()
+        announceSaved()
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      } finally {
+        setFormBusy(planForm, false)
+      }
     })
-
     topupForm.addEventListener('submit', async (event) => {
-      event.preventDefault(); state.hidden = false; state.textContent = copy.loading
-      const offers = collectOffers(topupOfferRows)
+      event.preventDefault()
+      setFormBusy(topupForm, true)
+      const zhName = field(topupForm, 'displayNameZh').value.trim()
+      const enName = field(topupForm, 'displayNameEn').value.trim()
+      const zhDescription = field(topupForm, 'descriptionZh').value.trim()
+      const enDescription = field(topupForm, 'descriptionEn').value.trim()
       try {
-        topupCatalog = await api('/admin/top-ups', { method: 'POST', body: JSON.stringify({ productId: field(topupForm, 'productId').value || null, slug: field(topupForm, 'slug').value, displayName: field(topupForm, 'displayName').value, description: field(topupForm, 'description').value, creditMicros: toMicros(field(topupForm, 'credits').value), offers, expectedRevision: topupCatalog.revision }) })
-        topupForm.reset(); field(topupForm, 'productId').value = ''; setOfferRows(topupOfferRows, [], 0.01); render(); state.textContent = copy.saved
-      } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable }
+        topupCatalog = await api('/admin/top-ups', {
+          method: 'POST',
+          body: JSON.stringify({
+            productId: field(topupForm, 'productId').value || null,
+            slug: field(topupForm, 'slug').value,
+            displayName: zhName,
+            description: zhDescription,
+            displayNameI18n: { 'zh-CN': zhName, en: enName },
+            descriptionI18n: { 'zh-CN': zhDescription, en: enDescription },
+            creditMicros: toMicros(field(topupForm, 'credits').value),
+            offers: collectOffers(topupOfferRows),
+            expectedRevision: topupCatalog.revision,
+          }),
+        })
+        topupDialog.close()
+        render()
+        announceSaved()
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      } finally {
+        setFormBusy(topupForm, false)
+      }
     })
 
-    root.querySelector('[data-add-plan-offer]')?.addEventListener('click', () => planOfferRows.append(offerRow(defaultOffer(), 0)))
-    root.querySelector('[data-add-topup-offer]')?.addEventListener('click', () => topupOfferRows.append(offerRow(defaultOffer(), 0.01)))
-    setOfferRows(planOfferRows, [], 0)
-    setOfferRows(topupOfferRows, [], 0.01)
-    window.addEventListener('market-auth-changed', () => void load())
-    void load()
+    root.querySelectorAll('[data-new-provider]').forEach((button) => button.addEventListener('click', newProvider)); root.querySelectorAll('[data-new-model]').forEach((button) => button.addEventListener('click', newModel)); root.querySelector('[data-new-plan]')?.addEventListener('click', newPlan); root.querySelector('[data-new-topup]')?.addEventListener('click', newTopUp)
+    root.querySelectorAll<HTMLButtonElement>('[data-model-tab]').forEach((button) => button.addEventListener('click', () => selectModelTab(button.dataset.modelTab === 'models' ? 'models' : 'providers')))
+    discoverProviderButton.addEventListener('click', () => void discoverProviderModels())
+    testModelButton.addEventListener('click', () => void testModel())
+    field(providerForm, 'providerPresetId').addEventListener('change', () => { applyProviderPresetDefaults(true); invalidateProviderDiscovery() })
+    for (const name of ['providerKind', 'baseUrl', 'apiKey']) field(providerForm, name).addEventListener(name === 'providerKind' ? 'change' : 'input', invalidateProviderDiscovery)
+    field(modelForm, 'upstreamProviderId').addEventListener('change', () => { syncProtocols(); syncUpstreamModelOptions() })
+    field(modelForm, 'upstreamModelId').addEventListener('change', applySelectedModelDefaults)
+    field(modelForm, 'protocol').addEventListener('change', syncModelFormMode)
+    pricingFields.forEach((name) => field(modelForm, name).addEventListener('input', () => validateModelPricing(false)))
+    field(planForm, 'isDefault').addEventListener('change', syncPlanOffers)
+    root.querySelector('[data-add-plan-offer]')?.addEventListener('click', () => planOfferRows.append(offerRow(defaultOffer(), 0))); root.querySelector('[data-add-topup-offer]')?.addEventListener('click', () => topupOfferRows.append(offerRow(defaultOffer(), 0.01)))
+    root.querySelectorAll<HTMLButtonElement>('[data-close]').forEach((button) => button.addEventListener('click', () => button.closest<HTMLDialogElement>('dialog')?.close()))
+    providerPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { providerPage = event.detail.page; providerPageSize = event.detail.pageSize; render() }) as EventListener)
+    modelPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { modelPage = event.detail.page; modelPageSize = event.detail.pageSize; render() }) as EventListener)
+    planPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { planPage = event.detail.page; planPageSize = event.detail.pageSize; render() }) as EventListener)
+    topupPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { topupPage = event.detail.page; topupPageSize = event.detail.pageSize; render() }) as EventListener)
+    providerModelPopover.addEventListener('mouseenter', cancelProviderModelPopoverClose)
+    providerModelPopover.addEventListener('mouseleave', scheduleProviderModelPopoverClose)
+    document.addEventListener('click', (event) => { if (!providerModelPopover.contains(event.target as Node) && event.target !== providerModelPopoverTrigger) hideProviderModelPopover(true) })
+    window.addEventListener('scroll', (event) => { if (event.target !== providerModelPopover) hideProviderModelPopover(true) }, true)
+    window.addEventListener('resize', () => hideProviderModelPopover(true))
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideProviderModelPopover(true) })
+    for (const dialog of [providerDialog, modelDialog, planDialog, topupDialog]) dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close() })
+    window.addEventListener('market-auth-changed', () => void load()); void load()
   }
 </script>
 
-<style>
-  .admin-shell { width: min(1120px, calc(100% - 36px)); margin: 0 auto; padding: 128px 0 100px; }
-  .admin-head { max-width: 760px; }
-  .admin-head > p { margin: 0 0 12px; color: var(--accent-bright); font: 600 .76rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
-  .admin-head h1 { font-size: clamp(2.15rem, 5vw, 3.8rem); letter-spacing: -.05em; }
-  .admin-head span { display: block; margin-top: 14px; color: var(--fg-muted); line-height: 1.7; }
-  .admin-state { min-height: 24px; margin: 32px 0 0; color: var(--fg-muted); }
-  .admin-section { margin-top: 48px; }
-  .section-head { margin-bottom: 15px; }
-  .section-head h2 { font-size: 1.4rem; }
-  .record-list { display: grid; gap: 8px; }
-  .record { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel-glass); }
-  .record > div { display: grid; gap: 4px; }
+<style is:global>
+  .admin-shell { width: 100%; }
+  .admin-shell[data-admin-section='models'] :is(.plan-admin-section, .topup-admin-section),
+  .admin-shell[data-admin-section='plans'] :is(.model-admin-section, .topup-admin-section),
+  .admin-shell[data-admin-section='topups'] :is(.model-admin-section, .plan-admin-section) { display: none; }
+  .admin-content { margin-top: 28px; }
+  .admin-head { width: 100%; }
+  .admin-head > div > p:last-child { max-width: 720px; }
+  .admin-state { display: grid; min-height: 156px; place-items: center; margin: 28px 0 0; padding: 24px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); color: var(--fg-muted); background: var(--panel-glass); font-size: .8rem; }
+  .admin-shell[data-admin-section='models'] .admin-content { margin-top: 0; }
+  .model-admin-tabs { display: flex; gap: 24px; margin-top: 0; border-bottom: 1px solid var(--border); }
+  .model-admin-tabs button { position: relative; display: inline-flex; min-height: 40px; align-items: center; gap: 6px; padding: 8px 2px 10px; border: 0; color: var(--fg-faint); background: transparent; font: inherit; font-size: .76rem; font-weight: 500; cursor: pointer; transition: color .16s ease; }
+  .model-admin-tabs button::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 999px 999px 0 0; background: var(--accent); content: ''; opacity: 0; transform: scaleX(.55); transition: opacity .16s ease, transform .16s ease; }
+  .model-admin-tabs button i { font-size: .85rem; }
+  .model-admin-tabs button:hover { color: var(--fg-muted); }
+  .model-admin-tabs button[aria-selected='true'] { color: var(--fg); font-weight: 600; }
+  .model-admin-tabs button[aria-selected='true']::after { opacity: 1; transform: scaleX(1); }
+  .model-admin-tabs button:focus-visible { outline: 0; border-radius: 5px; box-shadow: 0 0 0 2px var(--accent-soft); }
+  .model-tab-panel { margin-top: 20px; }
+  .admin-section { margin-top: 0; }
+  .admin-section-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px; width: 100%; margin-bottom: 12px; }
+  .admin-section-header h2 { font-size: 1.3rem; }
+  .admin-section-header p { max-width: 720px; margin: 5px 0 0; color: var(--fg-muted); font-size: .76rem; line-height: 1.55; }
+  .admin-section-header .btn { min-height: 38px; padding: 8px 14px; justify-self: end; }
+  .model-section-header .btn { display: inline-flex; align-items: center; gap: 6px; }
+  .model-section-header .btn:disabled, .config-empty .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .config-table-shell { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); box-shadow: inset 0 1px 0 var(--panel-inset); }
+  .config-table-shell > .ui-list__viewport { overflow-x: auto; overflow-y: hidden; }
+  .config-table { width: 100%; min-width: 780px; border-collapse: collapse; text-align: left; }
+  .provider-config-table { min-width: 960px; table-layout: fixed; }
+  .provider-config-table th:nth-child(1) { width: 105px; }
+  .provider-config-table th:nth-child(2) { width: 180px; }
+  .provider-config-table th:nth-child(3) { width: 150px; }
+  .provider-config-table th:nth-child(4) { width: 110px; }
+  .provider-config-table th:nth-child(5) { width: 80px; }
+  .provider-config-table th:nth-child(6) { width: 100px; }
+  .model-config-table { min-width: 980px; table-layout: fixed; }
+  .model-config-table th:nth-child(1) { width: 130px; }
+  .model-config-table th:nth-child(2) { width: 140px; }
+  .model-config-table th:nth-child(3) { width: 140px; }
+  .model-config-table th:nth-child(4) { width: 125px; }
+  .model-config-table th:nth-child(5) { width: 135px; }
+  .model-config-table th:nth-child(6) { width: 70px; }
+  .model-config-table th:nth-child(7) { width: 90px; }
+  .plan-config-table { min-width: 940px; table-layout: fixed; }
+  .plan-config-table th:nth-child(1) { width: 180px; }
+  .plan-config-table th:nth-child(2) { width: 110px; }
+  .plan-config-table th:nth-child(3) { width: 82px; }
+  .plan-config-table th:nth-child(4) { width: 145px; }
+  .plan-config-table th:nth-child(5) { width: 170px; }
+  .plan-config-table th:nth-child(6) { width: 115px; }
+  .plan-config-table th:last-child, .plan-config-table td:last-child { width: 100px; }
+  .config-table th { padding: 10px 13px; color: var(--fg-faint); background: var(--chip-bg); font-size: .68rem; font-weight: 600; white-space: nowrap; }
+  .config-table td { min-width: 0; padding: 13px; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: .76rem; vertical-align: middle; }
+  .config-table th:last-child, .config-table td:last-child { width: 150px; text-align: right; }
+  .provider-config-table th:last-child, .provider-config-table td:last-child { width: 150px; }
+  .config-identity, .config-connection, .pricing-summary { display: grid; min-width: 0; gap: 4px; }
+  .config-identity strong, .config-identity > span, .config-connection > span { overflow: hidden; color: var(--fg); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+  .config-identity code, .config-connection code { display: block; max-width: 250px; overflow: hidden; color: var(--fg-faint); font: .68rem/1.35 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .config-count { color: var(--fg-muted); white-space: nowrap; }
+  .provider-model-trigger { display: inline-flex; min-height: 30px; align-items: center; gap: 6px; padding: 5px 7px; border: 0; border-radius: 7px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+  .provider-model-trigger:hover, .provider-model-trigger:focus-visible, .provider-model-trigger[aria-expanded='true'] { outline: 0; background: var(--ghost-bg); }
+  .provider-model-trigger i { color: var(--fg-faint); font-size: .7rem; transition: transform .16s ease; }
+  .provider-model-trigger[aria-expanded='true'] i { transform: rotate(180deg); }
+  .provider-model-popover { position: fixed; z-index: 40; width: min(340px, calc(100vw - 24px)); max-height: min(380px, calc(100vh - 24px)); padding: 13px; overflow: auto; border: 1px solid var(--border-strong); border-radius: 11px; color: var(--fg); background: var(--bg); box-shadow: 0 18px 48px rgb(0 0 0 / .24); }
+  .provider-model-popover > strong { display: block; margin-bottom: 9px; font-size: .78rem; }
+  .provider-model-popover > div { display: grid; gap: 5px; }
+  .provider-model-popover-item { display: grid; gap: 3px; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-glass); }
+  .provider-model-popover-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
+  .provider-model-popover-heading em { flex: 0 0 auto; color: var(--accent-bright); font-size: .62rem; font-style: normal; font-weight: 600; }
+  .provider-model-popover-item strong { overflow: hidden; font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+  .provider-model-popover-item code { overflow: hidden; color: var(--fg-faint); font: .66rem/1.35 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .provider-model-popover-empty { padding: 12px 2px; color: var(--fg-muted); font-size: .72rem; }
+  .config-status, .protocol-badge, .capability-list span { display: inline-flex; width: fit-content; align-items: center; padding: 4px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-muted); background: var(--chip-bg); font-size: .67rem; line-height: 1; white-space: nowrap; }
+  .config-status.active { border-color: color-mix(in srgb, var(--success) 30%, var(--border)); color: var(--success); background: color-mix(in srgb, var(--success) 8%, var(--chip-bg)); }
+  .config-status.warning { border-color: color-mix(in srgb, var(--amber) 32%, var(--border)); color: var(--amber); background: var(--amber-soft); }
+  .config-status.inactive { color: var(--fg-faint); }
+  .inline-status-toggle { display: inline-flex; min-height: 30px; align-items: center; gap: 7px; padding: 4px 2px; border: 0; border-radius: 7px; color: var(--fg-muted); background: transparent; font: inherit; cursor: pointer; }
+  .inline-status-toggle:hover { color: var(--fg); }
+  .inline-status-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .inline-status-toggle:disabled { opacity: .55; cursor: wait; }
+  .inline-status-track { display: inline-flex; width: 32px; height: 18px; flex: 0 0 auto; align-items: center; padding: 2px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--chip-bg); transition: border-color .16s ease, background .16s ease; }
+  .inline-status-track > span { width: 12px; height: 12px; border-radius: 50%; background: var(--fg-faint); box-shadow: 0 1px 2px rgb(0 0 0 / .18); transition: transform .16s ease, background .16s ease; }
+  .inline-status-toggle[aria-checked='true'] .inline-status-track { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); background: color-mix(in srgb, var(--success) 22%, var(--chip-bg)); }
+  .inline-status-toggle[aria-checked='true'] .inline-status-track > span { transform: translateX(14px); background: var(--success); }
+  .inline-status-label { font-size: .7rem; white-space: nowrap; }
+  .inline-status-toggle.warning .inline-status-label { color: var(--amber); }
+  .protocol-badge { border-color: var(--accent-ring); color: var(--accent-bright); background: var(--accent-soft); }
+  .capability-list { display: flex; max-width: 210px; flex-wrap: wrap; gap: 4px; }
+  .capability-list .empty { border: 0; background: transparent; }
+  .pricing-summary { min-width: 130px; }
+  .pricing-summary span { white-space: nowrap; }
+  .plan-credit-value, .plan-tier-value { color: var(--fg); font: 600 .75rem var(--font-mono); white-space: nowrap; }
+  .plan-access-value { color: var(--fg-muted); white-space: nowrap; }
+  .plan-offer-summary { display: grid; min-width: 0; gap: 4px; }
+  .plan-offer-summary strong { color: var(--fg); font-size: .76rem; font-weight: 600; white-space: nowrap; }
+  .plan-offer-summary span { color: var(--fg-faint); font-size: .68rem; white-space: nowrap; }
+  .plan-offer-summary .plan-cell-empty { color: var(--fg-muted); font-size: .74rem; }
+  .latency-value { color: var(--fg); font: 600 .7rem var(--font-mono); white-space: nowrap; }
+  .latency-value.untested { color: var(--fg-faint); font-family: inherit; font-weight: 400; }
+  .btn.list-action { min-width: 0; min-height: 32px; gap: 5px; padding: 6px 9px; border-color: transparent; border-radius: 8px; color: var(--fg-muted); background: transparent; box-shadow: none; font-size: .72rem; font-weight: 600; white-space: nowrap; }
+  .btn.list-action i { display: grid; width: 15px; height: 15px; place-items: center; color: var(--fg-faint); font-size: .88rem; transition: color .16s ease; }
+  .btn.list-action:hover:not(:disabled) { border-color: var(--border); color: var(--fg); background: var(--ghost-bg); box-shadow: 0 1px 2px rgb(0 0 0 / .06); transform: none; }
+  .btn.list-action:hover:not(:disabled) i { color: var(--accent-bright); }
+  .btn.list-action:active:not(:disabled) { background: var(--ghost-bg-hover); transform: scale(.97); }
+  .btn.list-action:focus-visible { outline-width: 2px; outline-offset: 2px; }
+  .config-edit { display: inline-flex; align-items: center; justify-content: center; }
+  .provider-actions { display: flex; justify-content: flex-end; gap: 6px; }
+  .provider-action { display: inline-flex; align-items: center; justify-content: center; }
+  .provider-action:disabled { opacity: .45; cursor: not-allowed; }
+  .provider-action-spin { animation: provider-action-spin .8s linear infinite; }
+  @keyframes provider-action-spin { to { transform: rotate(360deg); } }
+  .config-empty { display: grid; min-height: 178px; justify-items: center; align-content: center; padding: 28px 18px; text-align: center; }
+  .config-empty > i { margin-bottom: 10px; color: var(--fg-faint); font-size: 1.55rem; }
+  .config-empty strong { font-size: .86rem; }
+  .config-empty p { max-width: 440px; margin: 6px 0 15px; color: var(--fg-muted); font-size: .76rem; line-height: 1.55; }
+  .config-empty .btn { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; padding: 7px 12px; }
+  .record-list { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); box-shadow: inset 0 1px 0 var(--panel-inset); }
+  .record { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; min-height: 64px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .record:last-child { border-bottom: 0; }
+  .record > div { display: grid; gap: 4px; min-width: 0; }
+  .record strong, .record span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .record span { color: var(--fg-muted); font-size: .74rem; }
   .record-status { padding: 4px 8px; border-radius: 999px; background: var(--ghost-bg); }
   .record-status.active { color: var(--accent-bright); background: var(--accent-soft); }
-  .editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; padding: 22px; border: 1px solid var(--border); border-radius: 15px; background: var(--panel-glass); }
+  .record-empty { margin: 0; padding: 28px 16px; color: var(--fg-muted); text-align: center; }
+  .admin-dialog { width: min(860px, calc(100% - 28px)); max-height: min(88vh, 920px); margin: auto; padding: 0; overflow: auto; border: 1px solid var(--border-strong); border-radius: 16px; color: var(--fg); background: var(--bg); box-shadow: 0 32px 100px rgb(0 0 0 / .42); }
+  .provider-config-dialog { width: min(560px, calc(100% - 16px)); max-height: calc(100vh - 16px); }
+  .model-editor-dialog { width: min(780px, calc(100% - 28px)); }
+  .model-config-dialog { max-height: calc(100vh - 32px); }
+  .admin-dialog::backdrop { background: rgb(0 0 0 / .65); backdrop-filter: blur(5px); }
+  .dialog-card { padding: 22px; }
+  .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 17px; border-bottom: 1px solid var(--border); }
+  .dialog-head h2 { font-size: 1.25rem; }
+  .dialog-head p { max-width: 650px; margin: 6px 0 0; color: var(--fg-muted); font-size: .76rem; line-height: 1.55; }
+  .dialog-head button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--fg-muted); background: var(--chip-bg); cursor: pointer; }
+  .editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
   .editor label:not(.check) { display: grid; gap: 7px; }
   .editor label > span, .model-access legend, .offer-editor legend { color: var(--fg-muted); font-size: .76rem; font-weight: 600; }
-  .editor input:not([type="checkbox"]), .editor select, .editor textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 8px; outline: 0; color: var(--fg); background: var(--bg); font: inherit; }
+  .editor input:not([type='checkbox']), .editor select, .editor textarea, .model-config-editor input:not([type='checkbox']), .model-config-editor select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 8px; outline: 0; color: var(--fg); background: var(--bg); font: inherit; }
   .editor textarea { resize: vertical; }
-  .editor input:focus, .editor select:focus, .editor textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .editor input:focus, .editor select:focus, .editor textarea:focus, .model-config-editor input:focus, .model-config-editor select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .editor .wide { grid-column: 1 / -1; }
+  .model-config-editor { display: grid; gap: 16px; margin-top: 20px; }
+  .model-config-editor label:not(.setting-toggle) { display: grid; gap: 7px; color: var(--fg-muted); font-size: .75rem; font-weight: 600; }
+  .model-config-editor label small { color: var(--fg-faint); font-size: .67rem; font-weight: 400; line-height: 1.45; }
+  .provider-config-dialog .dialog-card { padding: 20px; }
+  .provider-config-dialog .dialog-head { padding-bottom: 14px; }
+  .connection-editor { gap: 10px; margin-top: 14px; }
+  .connection-editor label:not(.setting-toggle) { gap: 5px; }
+  .connection-editor label small { line-height: 1.3; }
+  .connection-editor :is(input:not([type='checkbox']), select) { min-height: 36px; padding-block: 6px; }
+  .provider-advanced-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .provider-advanced-fields > label { min-width: 0; align-content: start; align-self: start; }
+  .provider-advanced-fields select:disabled { opacity: .65; cursor: not-allowed; }
+  .provider-discovery { display: grid; gap: 9px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-glass); }
+  .provider-discovery > div:first-child { display: flex; align-items: center; gap: 8px; color: var(--fg-muted); font-size: .72rem; line-height: 1.45; }
+  .provider-discovery > div:first-child i { color: var(--accent-bright); font-size: .9rem; }
+  .provider-model-preview { display: flex; max-height: 68px; flex-wrap: wrap; gap: 5px; overflow: auto; }
+  .provider-model-preview span { padding: 4px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-muted); background: var(--chip-bg); font: .65rem/1 var(--font-mono); }
+  .provider-model-preview .more { color: var(--accent-bright); }
+  .setting-toggle { display: flex; min-height: 62px; align-items: center; justify-content: space-between; gap: 20px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px; background: var(--chip-bg); cursor: pointer; }
+  .setting-toggle > span { display: grid; gap: 3px; }
+  .setting-toggle strong { color: var(--fg); font-size: .78rem; }
+  .setting-toggle input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); }
+  .model-form-section { min-width: 0; margin: 0; padding: 15px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel-glass); }
+  .model-form-section legend { padding: 0 6px; color: var(--fg); font-size: .82rem; font-weight: 600; }
+  .model-form-section > p { margin: -1px 0 13px; color: var(--fg-faint); font-size: .7rem; line-height: 1.5; }
+  .model-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .model-field-wide { grid-column: 1 / -1; }
+  .capability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .capability-grid label { display: flex !important; min-height: 42px; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--fg) !important; background: var(--bg); cursor: pointer; }
+  .capability-grid input { width: 16px !important; height: 16px; min-height: 0 !important; padding: 0 !important; accent-color: var(--accent); }
   .checks, .model-access > div { display: flex; flex-wrap: wrap; gap: 15px; }
   .check { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; }
-  .model-access { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+  .model-access, .offer-editor { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
   .model-access legend, .offer-editor legend { padding: 0 6px; }
-  .offer-editor { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
   .offer-editor > div { display: grid; gap: 10px; }
   .offer-row { display: grid; grid-template-columns: 1.1fr .8fr .65fr .9fr auto; align-items: end; gap: 10px; }
   .offer-row > label { display: grid; gap: 7px; }
   .offer-editor > .btn { margin-top: 12px; }
-  .editor > .btn { justify-self: start; min-width: 190px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .dialog-actions .btn { min-width: 120px; justify-content: center; }
+  .model-config-editor .dialog-actions { position: sticky; bottom: -22px; z-index: 1; margin-inline: -22px; padding: 16px 22px 22px; background: var(--bg); }
+  .connection-editor .dialog-actions { position: sticky; bottom: -20px; z-index: 1; margin-inline: -20px; padding: 10px 20px 12px; background: var(--bg); }
+  .provider-dialog-actions .btn { min-width: 0; min-height: 38px; padding-block: 7px; }
+  .provider-dialog-actions .btn:first-child { margin-right: auto; }
+  .connection-editor .setting-toggle { min-height: 54px; padding-block: 8px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   @media (max-width: 900px) { .offer-row { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 680px) { .admin-shell { width: calc(100% - 24px); padding-top: 106px; } .editor { grid-template-columns: 1fr; padding: 16px; } .editor .wide { grid-column: auto; } .record { grid-template-columns: 1fr auto; } .record-status { display: none; } .offer-row { grid-template-columns: 1fr; } }
+  @media (max-width: 680px) {
+    .admin-content { margin-top: 22px; }
+    .admin-shell[data-admin-section='models'] .admin-content { margin-top: 0; }
+    .admin-section-header { align-items: end; }
+    .admin-section-header p { display: none; }
+    .editor { grid-template-columns: 1fr; }
+    .editor .wide, .model-field-wide { grid-column: auto; }
+    .model-form-grid { grid-template-columns: 1fr; }
+    .capability-grid { grid-template-columns: 1fr 1fr; }
+    .provider-advanced-fields { grid-template-columns: 1fr; }
+    .record { grid-template-columns: 1fr auto; }
+    .record-status { display: none; }
+    .offer-row { grid-template-columns: 1fr; }
+    .dialog-card { padding: 16px; }
+    .model-config-editor .dialog-actions { bottom: -16px; margin-inline: -16px; padding: 14px 16px 16px; }
+    .connection-editor .dialog-actions { bottom: -16px; }
+    .dialog-actions .btn { min-width: 0; flex: 1; }
+    .provider-dialog-actions { flex-wrap: wrap; }
+    .provider-dialog-actions .btn:first-child { min-width: 100%; order: -1; margin-right: 0; }
+  }
 </style>

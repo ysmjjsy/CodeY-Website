@@ -13,17 +13,22 @@ Environment variables:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `CODEY_MARKET_ADDR` | `127.0.0.1:8787` | Listen address |
-| `CODEY_MARKET_DATA_ROOT` | `.codey-market` | SQLite database, staged uploads, and artifacts |
+| `CODEY_DATABASE_URL` | required | PostgreSQL connection URL for accounts, marketplace, and cloud data |
+| `CODEY_MARKET_DATA_ROOT` | `.codey-market` | Staged uploads and published artifacts |
 | `CODEY_MARKET_WEB_BASE_URL` | `http://127.0.0.1:4321/market` | Public marketplace page |
 | `CODEY_MARKET_API_BASE_URL` | `http://127.0.0.1:8787/api/market/v1` | Public API base URL |
 | `CODEY_MARKET_CORS_ORIGIN` | `http://127.0.0.1:4321` | Website origin allowed to call the API |
 | `CODEY_MARKET_GITHUB_CLIENT_ID` | unset | GitHub OAuth App client ID |
 | `CODEY_MARKET_GITHUB_CLIENT_SECRET` | unset | GitHub OAuth App client secret |
 | `CODEY_MARKET_ADMIN_GITHUB_LOGINS` | unset | Comma-separated GitHub logins promoted to administrators |
+| `CODEY_MARKET_ADMIN_USERNAME` | `admin` | Local administrator username |
+| `CODEY_MARKET_ADMIN_PASSWORD` | `a773949603` | Local administrator password |
 
 Local accounts support login by either username or email. Passwords are stored as Argon2id
-hashes. GitHub login is enabled only when both OAuth variables are configured. The OAuth App
-callback is `<website-origin>/api/market/v1/auth/github/callback`.
+hashes. The configured local administrator is created on startup; changing its configured password
+updates the stored hash on the next startup. GitHub login is enabled only when both OAuth variables
+are configured. The OAuth App callback is
+`<website-origin>/api/market/v1/auth/github/callback`.
 
 The normal development and production entry points live in `CodeY-Website`: `pnpm dev` and
 `pnpm start` manage this service and proxy both `/.well-known/codey-market.json` and

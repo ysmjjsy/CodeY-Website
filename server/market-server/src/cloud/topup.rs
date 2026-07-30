@@ -1,5 +1,5 @@
+use crate::db::{params, OptionalExtension, TransactionBehavior};
 use chrono::{DateTime, Duration, Utc};
-use rusqlite::{params, OptionalExtension, TransactionBehavior};
 
 use super::store::{stored_i64, stored_u64};
 use super::{
@@ -50,16 +50,23 @@ impl CloudStore {
         }
         transaction.execute(
             "INSERT INTO cloud_top_up_product(
-                product_id, slug, display_name, description, active, created_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)
+                product_id, slug, display_name, description, display_name_i18n_json,
+                description_i18n_json, active, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7)
              ON CONFLICT(product_id) DO UPDATE SET slug=excluded.slug,
                 display_name=excluded.display_name, description=excluded.description,
+                display_name_i18n_json=excluded.display_name_i18n_json,
+                description_i18n_json=excluded.description_i18n_json,
                 active=1, updated_at=excluded.updated_at",
             params![
                 product_id,
                 request.slug,
                 request.display_name,
                 request.description,
+                serde_json::to_string(&request.display_name_i18n)
+                    .map_err(|error| CloudStoreError::Json(error.to_string()))?,
+                serde_json::to_string(&request.description_i18n)
+                    .map_err(|error| CloudStoreError::Json(error.to_string()))?,
                 now.to_rfc3339(),
             ],
         )?;
@@ -101,7 +108,7 @@ impl CloudStore {
         }
         transaction.execute(
             "UPDATE cloud_config_revision SET revision=revision+1 WHERE domain='topups'",
-            [],
+            params![],
         )?;
         let result = catalog(&transaction, now)?;
         transaction.commit()?;
@@ -200,12 +207,13 @@ impl CloudStore {
 }
 
 fn catalog(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     now: DateTime<Utc>,
 ) -> Result<TopUpCatalog, CloudStoreError> {
     let mut statement = connection.prepare(
         "SELECT p.product_id, v.product_version_id, v.version, p.slug, p.display_name,
-                p.description, v.credit_micros, v.published_at
+                p.description, p.display_name_i18n_json, p.description_i18n_json,
+                v.credit_micros, v.published_at
          FROM cloud_top_up_product p
          JOIN cloud_top_up_product_version v ON v.product_id=p.product_id
          WHERE p.active=1 AND v.version=(SELECT MAX(latest.version)
@@ -213,7 +221,7 @@ fn catalog(
          ORDER BY v.credit_micros, p.product_id",
     )?;
     let rows = statement
-        .query_map([], |row| {
+        .query_map(params![], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -221,8 +229,10 @@ fn catalog(
                 row.get::<_, String>(3)?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
-                row.get::<_, i64>(6)?,
+                row.get::<_, String>(6)?,
                 row.get::<_, String>(7)?,
+                row.get::<_, i64>(8)?,
+                row.get::<_, String>(9)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -236,9 +246,13 @@ fn catalog(
             slug: row.3,
             display_name: row.4,
             description: row.5,
-            credit_micros: stored_u64(row.6)?,
+            display_name_i18n: serde_json::from_str(&row.6)
+                .map_err(|error| CloudStoreError::Json(error.to_string()))?,
+            description_i18n: serde_json::from_str(&row.7)
+                .map_err(|error| CloudStoreError::Json(error.to_string()))?,
+            credit_micros: stored_u64(row.8)?,
             offers: offers(connection, &row.1)?,
-            published_at: super::store::parse_time(&row.7)?,
+            published_at: super::store::parse_time(&row.9)?,
         });
     }
     Ok(TopUpCatalog {
@@ -249,7 +263,7 @@ fn catalog(
 }
 
 fn offers(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     version_id: &str,
 ) -> Result<Vec<PlanOffer>, CloudStoreError> {
     let mut statement = connection.prepare(
@@ -282,10 +296,10 @@ fn offers(
     offers
 }
 
-fn revision(connection: &rusqlite::Connection) -> Result<u64, CloudStoreError> {
+fn revision(connection: &crate::db::Connection) -> Result<u64, CloudStoreError> {
     let value = connection.query_row(
         "SELECT revision FROM cloud_config_revision WHERE domain='topups'",
-        [],
+        params![],
         |row| row.get::<_, i64>(0),
     )?;
     stored_u64(value)
@@ -300,6 +314,11 @@ fn validate_product(request: &PublishTopUpProductRequest) -> Result<(), CloudSto
         || request.display_name.trim().is_empty()
         || request.display_name.chars().count() > 100
         || request.description.chars().count() > 500
+        || !super::catalog::validate_localized_texts(
+            &request.display_name_i18n,
+            &request.description_i18n,
+            500,
+        )
         || request.credit_micros == 0
         || request.offers.is_empty()
         || request.offers.iter().any(|offer| {
@@ -334,7 +353,7 @@ mod tests {
     #[test]
     fn top_up_order_grants_permanent_credits_once() {
         let root = TempDir::new().unwrap();
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         let now = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
         store
             .ensure_default_subscription("user-1", "UTC", now)
@@ -346,6 +365,14 @@ mod tests {
                     slug: "credits-100".into(),
                     display_name: "100 credits".into(),
                     description: "Permanent credits".into(),
+                    display_name_i18n: std::collections::BTreeMap::from([
+                        ("zh-CN".into(), "100 积分包".into()),
+                        ("en".into(), "100-credit pack".into()),
+                    ]),
+                    description_i18n: std::collections::BTreeMap::from([
+                        ("zh-CN".into(), "永久积分".into()),
+                        ("en".into(), "Permanent credits".into()),
+                    ]),
                     credit_micros: 100_000_000,
                     offers: vec![PlanOfferInput {
                         region: "GLOBAL".into(),
@@ -358,6 +385,10 @@ mod tests {
                 now,
             )
             .unwrap();
+        assert_eq!(
+            catalog.products[0].display_name_i18n["en"],
+            "100-credit pack"
+        );
         let order = store
             .create_top_up_order(
                 "user-1",

@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
+use crate::db::{params, OptionalExtension, TransactionBehavior};
 use chrono::{DateTime, Utc};
-use rusqlite::{params, OptionalExtension, TransactionBehavior};
 
 use super::store::DEFAULT_PLAN_ID;
 use super::{
@@ -49,17 +49,22 @@ impl CloudStore {
             return Err(CloudStoreError::PlanSlugConflict(request.slug.clone()));
         }
         if request.is_default {
-            transaction.execute("UPDATE cloud_plan SET is_default=0 WHERE is_default=1", [])?;
+            transaction.execute(
+                "UPDATE cloud_plan SET is_default=0 WHERE is_default=1",
+                params![],
+            )?;
         }
         transaction.execute(
             "INSERT INTO cloud_plan(
-                plan_id, slug, display_name, description, tier_rank, is_default, active,
-                created_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7)
+                plan_id, slug, display_name, description, display_name_i18n_json,
+                description_i18n_json, tier_rank, is_default, active, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1, ?9, ?9)
              ON CONFLICT(plan_id) DO UPDATE SET
                 slug=excluded.slug,
                 display_name=excluded.display_name,
                 description=excluded.description,
+                display_name_i18n_json=excluded.display_name_i18n_json,
+                description_i18n_json=excluded.description_i18n_json,
                 tier_rank=excluded.tier_rank,
                 is_default=excluded.is_default,
                 active=1,
@@ -69,6 +74,8 @@ impl CloudStore {
                 request.slug,
                 request.display_name,
                 request.description,
+                localized_json(&request.display_name_i18n)?,
+                localized_json(&request.description_i18n)?,
                 i64::from(request.tier_rank),
                 i64::from(request.is_default),
                 now.to_rfc3339(),
@@ -148,7 +155,7 @@ impl CloudStore {
         }
         transaction.execute(
             "UPDATE cloud_config_revision SET revision=revision+1 WHERE domain='plans'",
-            [],
+            params![],
         )?;
         let result = catalog(&transaction, now)?;
         transaction.commit()?;
@@ -157,14 +164,14 @@ impl CloudStore {
 }
 
 fn catalog(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     now: DateTime<Utc>,
 ) -> Result<PlanCatalog, CloudStoreError> {
     let revision = config_revision(connection, "plans")?;
     let mut statement = connection.prepare(
         "SELECT p.plan_id, v.plan_version_id, v.version, p.slug, p.display_name,
-                p.description, p.tier_rank, p.is_default, v.monthly_credit_micros,
-                v.published_at
+                p.description, p.display_name_i18n_json, p.description_i18n_json,
+                p.tier_rank, p.is_default, v.monthly_credit_micros, v.published_at
          FROM cloud_plan p
          JOIN cloud_plan_version v ON v.plan_id=p.plan_id
          WHERE p.active=1
@@ -172,7 +179,7 @@ fn catalog(
          ORDER BY p.tier_rank ASC, p.plan_id ASC",
     )?;
     let rows = statement
-        .query_map([], |row| {
+        .query_map(params![], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -180,10 +187,12 @@ fn catalog(
                 row.get::<_, String>(3)?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
-                row.get::<_, i64>(6)?,
-                row.get::<_, i64>(7)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
                 row.get::<_, i64>(8)?,
-                row.get::<_, String>(9)?,
+                row.get::<_, i64>(9)?,
+                row.get::<_, i64>(10)?,
+                row.get::<_, String>(11)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -196,6 +205,8 @@ fn catalog(
         slug,
         display_name,
         description,
+        display_name_i18n,
+        description_i18n,
         tier_rank,
         is_default,
         monthly_credit_micros,
@@ -211,6 +222,8 @@ fn catalog(
             slug,
             display_name,
             description,
+            display_name_i18n: parse_localized_json(&display_name_i18n)?,
+            description_i18n: parse_localized_json(&description_i18n)?,
             tier_rank: stored_u32(tier_rank)?,
             is_default: is_default != 0,
             monthly_credit_micros: stored_u64(monthly_credit_micros)?,
@@ -225,7 +238,7 @@ fn catalog(
 }
 
 fn offers(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     plan_version_id: &str,
 ) -> Result<Vec<PlanOffer>, CloudStoreError> {
     let mut statement = connection.prepare(
@@ -259,7 +272,7 @@ fn offers(
 }
 
 fn benefits(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     plan_version_id: &str,
 ) -> Result<Vec<PlanBenefit>, CloudStoreError> {
     let mut statement = connection.prepare(
@@ -294,7 +307,7 @@ fn benefits(
 }
 
 fn config_revision(
-    connection: &rusqlite::Connection,
+    connection: &crate::db::Connection,
     domain: &str,
 ) -> Result<u64, CloudStoreError> {
     stored_u64(connection.query_row(
@@ -330,6 +343,7 @@ fn validate_publish_plan(request: &PublishPlanRequest) -> Result<(), CloudStoreE
         || request.display_name.trim().is_empty()
         || request.display_name.chars().count() > 100
         || request.description.chars().count() > 1000
+        || !validate_localized_texts(&request.display_name_i18n, &request.description_i18n, 1000)
         || request.offers.len() > 24
         || request.benefits.len() > 100
     {
@@ -363,6 +377,33 @@ fn validate_publish_plan(request: &PublishPlanRequest) -> Result<(), CloudStoreE
     Ok(())
 }
 
+pub(super) fn validate_localized_texts(
+    display_names: &BTreeMap<String, String>,
+    descriptions: &BTreeMap<String, String>,
+    description_limit: usize,
+) -> bool {
+    if display_names.is_empty() && descriptions.is_empty() {
+        return true;
+    }
+    let supported = |values: &BTreeMap<String, String>, limit: usize| {
+        values.len() == 2
+            && ["zh-CN", "en"].iter().all(|locale| {
+                values
+                    .get(*locale)
+                    .is_some_and(|value| !value.trim().is_empty() && value.chars().count() <= limit)
+            })
+    };
+    supported(display_names, 100) && supported(descriptions, description_limit)
+}
+
+fn localized_json(values: &BTreeMap<String, String>) -> Result<String, CloudStoreError> {
+    serde_json::to_string(values).map_err(|error| CloudStoreError::Json(error.to_string()))
+}
+
+fn parse_localized_json(value: &str) -> Result<BTreeMap<String, String>, CloudStoreError> {
+    serde_json::from_str(value).map_err(|error| CloudStoreError::Json(error.to_string()))
+}
+
 fn stored_i64(value: u64) -> Result<i64, CloudStoreError> {
     i64::try_from(value).map_err(|_| CloudStoreError::CreditOverflow)
 }
@@ -392,13 +433,21 @@ mod tests {
     #[test]
     fn published_plan_is_versioned_and_revision_checked() {
         let root = TempDir::new().unwrap();
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         let now = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
         let request = PublishPlanRequest {
             plan_id: None,
             slug: "pro".into(),
             display_name: "Pro".into(),
             description: "Pro plan".into(),
+            display_name_i18n: std::collections::BTreeMap::from([
+                ("zh-CN".into(), "专业版".into()),
+                ("en".into(), "Pro".into()),
+            ]),
+            description_i18n: std::collections::BTreeMap::from([
+                ("zh-CN".into(), "专业套餐".into()),
+                ("en".into(), "Pro plan".into()),
+            ]),
             tier_rank: 10,
             is_default: false,
             monthly_credit_micros: 100_000_000,
@@ -426,6 +475,8 @@ mod tests {
             .find(|plan| plan.slug == "pro")
             .unwrap();
         assert_eq!(pro.version, 1);
+        assert_eq!(pro.display_name_i18n["zh-CN"], "专业版");
+        assert_eq!(pro.description_i18n["en"], "Pro plan");
         assert_eq!(pro.benefits[0].resource_id.as_deref(), Some("codey-pro"));
         assert!(matches!(
             store.publish_plan(&request, now),
@@ -436,13 +487,15 @@ mod tests {
     #[test]
     fn default_plan_identity_cannot_be_removed_or_duplicated() {
         let root = TempDir::new().unwrap();
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         let now = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
         let mut request = PublishPlanRequest {
             plan_id: None,
             slug: "other-free".into(),
             display_name: "Other free".into(),
             description: String::new(),
+            display_name_i18n: Default::default(),
+            description_i18n: Default::default(),
             tier_rank: 0,
             is_default: true,
             monthly_credit_micros: 0,

@@ -129,13 +129,6 @@ pre {
   font-family: var(--font-mono);
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-inline: clamp(16px, 4vw, 24px);
-  width: 100%;
-}
-
 /* ---------- 通用 section ---------- */
 
 .section {
@@ -179,47 +172,6 @@ pre {
   margin-top: 16px;
   font-size: clamp(0.95rem, 2.2vw, 1.05rem);
   text-wrap: pretty;
-}
-
-/* ---------- 按钮 ---------- */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: var(--radius-md);
-  font-size: 0.95rem;
-  font-weight: 500;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: transform 0.15s var(--ease-out), background 0.2s, border-color 0.2s, box-shadow 0.2s;
-}
-
-.btn:active {
-  transform: scale(0.98);
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--btn-primary-fg);
-  font-weight: 600;
-}
-
-.btn-primary:hover {
-  background: var(--accent-bright);
-  box-shadow: 0 4px 24px var(--accent-ring);
-}
-
-.btn-ghost {
-  border-color: var(--border-strong);
-  color: var(--fg);
-  background: var(--ghost-bg);
-}
-
-.btn-ghost:hover {
-  border-color: var(--border-hover);
-  background: var(--ghost-bg-hover);
 }
 
 /* ---------- 滚动显现 ---------- */

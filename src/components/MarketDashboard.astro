@@ -3,6 +3,12 @@ import type { Locale } from '../i18n/ui'
 import { dashboardCopy } from '../i18n/dashboard'
 import { marketPath } from '../i18n/utils'
 import MarketUpload from './MarketUpload.astro'
+import Button from './ui/Button.astro'
+import Dialog from './ui/Dialog.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import StateMessage from './ui/StateMessage.astro'
 
 interface Props {
   locale: Locale
@@ -11,87 +17,177 @@ interface Props {
 
 const { locale, initialSection = 'templates' } = Astro.props
 const copy = dashboardCopy(locale)
+const isReview = initialSection === 'review'
 ---
 
 <section
-  class="dashboard-shell"
+  class="dashboard-content"
   data-market-dashboard
   data-copy={JSON.stringify(copy)}
   data-locale={locale}
   data-initial-section={initialSection}
   data-detail-base={marketPath(locale, 'item')}
 >
-  <aside class="dashboard-sidebar">
-    <div class="dashboard-brand">
-      <span class="dashboard-brand-mark">C</span>
-      <div>
-        <strong>{copy.console}</strong>
-        <span data-dashboard-role>{copy.roleUser}</span>
-      </div>
-    </div>
-    <nav aria-label={copy.console}>
-      <button type="button" data-section-target="templates" aria-pressed="true">
-        <span class="dashboard-nav-mark">M</span>
-        {copy.overview}
-      </button>
-      <button type="button" hidden data-admin-only data-section-target="review" aria-pressed="false">
-        <span class="dashboard-nav-mark">R</span>
-        {copy.review}
-        <span class="dashboard-nav-count" hidden data-review-count></span>
-      </button>
-    </nav>
-    <a class="dashboard-market-link" href={marketPath(locale)}>{copy.marketplace}</a>
-  </aside>
-
-  <div class="dashboard-main">
-    <header class="dashboard-header">
-      <div>
-        <h1 data-dashboard-title>{copy.title}</h1>
-        <p data-dashboard-description>{copy.description}</p>
-      </div>
-      <button class="btn btn-primary" type="button" hidden data-authenticated-only data-market-upload-open>{copy.upload}</button>
-    </header>
-
-    <div class="dashboard-access" data-dashboard-access>{copy.loading}</div>
-
-    <section class="dashboard-section" hidden data-dashboard-section="templates">
-      <div class="dashboard-stats" aria-label={copy.status}>
-        <article><span>{copy.total}</span><strong data-stat="total">0</strong></article>
-        <article><span>{copy.pending}</span><strong data-stat="pending">0</strong></article>
-        <article><span>{copy.approved}</span><strong data-stat="approved">0</strong></article>
-        <article><span>{copy.rejected}</span><strong data-stat="rejected">0</strong></article>
-      </div>
-      <div class="dashboard-panel">
-        <div class="dashboard-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{copy.name}</th>
-                <th>{copy.packageVersion}</th>
-                <th>{copy.status}</th>
-                <th>{copy.submittedAt}</th>
-                <th>{copy.reviewNote}</th>
-                <th>{copy.actions}</th>
-              </tr>
-            </thead>
-            <tbody data-template-rows></tbody>
-          </table>
+  <PageHeader
+    class="dashboard-header"
+    eyebrow={isReview ? copy.reviewWorkspace : copy.templateLibrary}
+    eyebrowClass="dashboard-eyebrow"
+    title={isReview ? copy.reviewTitle : copy.title}
+    description={isReview ? copy.reviewDescription : copy.description}
+  >
+    <Fragment slot="actions">{
+      isReview ? (
+        <div class="dashboard-review-tabs" role="tablist" aria-label={copy.reviewTitle}>
+          <button type="button" role="tab" aria-selected="true" class="is-active" data-review-view="history">
+            <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
+            <span>{copy.reviewHistory}</span>
+          </button>
+          <button type="button" role="tab" aria-selected="false" data-review-view="pending">
+            <i class="ph ph-inbox" aria-hidden="true"></i>
+            <span>{copy.pendingApplications}</span>
+            <strong data-review-count>0</strong>
+          </button>
         </div>
-        <div class="dashboard-empty" hidden data-template-state></div>
-      </div>
-    </section>
+      ) : (
+        <Button class="dashboard-upload" variant="primary" hidden data-authenticated-only data-market-upload-open>
+          <i class="ph ph-upload-simple" aria-hidden="true"></i>
+          {copy.upload}
+        </Button>
+      )
+    }</Fragment>
+  </PageHeader>
 
-    <section class="dashboard-section" hidden data-dashboard-section="review">
-      <div class="dashboard-review-list" data-review-list></div>
-      <div class="dashboard-empty" data-review-state>{copy.reviewLoading}</div>
-    </section>
-  </div>
+  <StateMessage as="div" class="dashboard-access" data-dashboard-access>{copy.loading}</StateMessage>
+
+  {
+    !isReview && (
+      <section class="dashboard-section" hidden data-dashboard-section="templates">
+        <div class="dashboard-summary" aria-label={copy.status}>
+          <div class="dashboard-summary-primary">
+            <span>{copy.total}</span>
+            <strong data-stat="total">0</strong>
+          </div>
+          <div><span class="dashboard-dot is-pending"></span><span>{copy.pending}</span><strong data-stat="pending">0</strong></div>
+          <div><span class="dashboard-dot is-approved"></span><span>{copy.approved}</span><strong data-stat="approved">0</strong></div>
+          <div><span class="dashboard-dot is-rejected"></span><span>{copy.rejected}</span><strong data-stat="rejected">0</strong></div>
+        </div>
+
+        <List class="dashboard-panel">
+          <div class="dashboard-panel-head">
+            <div>
+              <h2>{copy.templateList}</h2>
+              <p>{copy.templateListDescription}</p>
+            </div>
+            <span data-template-result-count></span>
+          </div>
+          <div class="dashboard-table-wrap">
+            <table class="dashboard-table dashboard-template-table">
+              <thead>
+                <tr>
+                  <th>{copy.name}</th>
+                  <th>{copy.latestVersion}</th>
+                  <th>{copy.status}</th>
+                  <th>{copy.submittedAt}</th>
+                  <th><span class="sr-only">{copy.actions}</span></th>
+                </tr>
+              </thead>
+              <tbody data-template-rows></tbody>
+            </table>
+          </div>
+          <div slot="empty" class="dashboard-empty" hidden data-template-state></div>
+          <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-template-pagination />
+        </List>
+      </section>
+    )
+  }
+
+  {
+    isReview && (
+      <section class="dashboard-section" hidden data-dashboard-section="review">
+        <div data-review-panel="history">
+          <div class="dashboard-section-heading">
+            <div><h2>{copy.reviewHistory}</h2><p>{copy.reviewHistoryDescription}</p></div>
+            <span data-review-history-count></span>
+          </div>
+          <List class="dashboard-panel">
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table dashboard-review-table">
+                <thead>
+                  <tr>
+                    <th>{copy.name}</th>
+                    <th>{copy.uploader}</th>
+                    <th>{copy.result}</th>
+                    <th>{copy.reviewer}</th>
+                    <th>{copy.reviewedAt}</th>
+                    <th>{copy.reviewNote}</th>
+                  </tr>
+                </thead>
+                <tbody data-review-history-rows></tbody>
+              </table>
+            </div>
+            <div slot="empty" class="dashboard-empty" data-review-history-state>{copy.reviewLoading}</div>
+            <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-review-history-pagination />
+          </List>
+        </div>
+
+        <div hidden data-review-panel="pending">
+          <div class="dashboard-section-heading">
+            <div><h2>{copy.pendingApplications}</h2><p>{copy.pendingApplicationsDescription}</p></div>
+          </div>
+          <List class="dashboard-panel">
+            <div class="dashboard-table-wrap">
+              <table class="dashboard-table dashboard-pending-table">
+                <thead>
+                  <tr>
+                    <th>{copy.name}</th>
+                    <th>{copy.uploader}</th>
+                    <th>{copy.packageVersion}</th>
+                    <th>{copy.submittedAt}</th>
+                    <th>{copy.actions}</th>
+                  </tr>
+                </thead>
+                <tbody data-review-pending-rows></tbody>
+              </table>
+            </div>
+            <div slot="empty" class="dashboard-empty" data-review-pending-state>{copy.reviewLoading}</div>
+            <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-review-pending-pagination />
+          </List>
+        </div>
+
+        <Dialog class="dashboard-review-dialog" data-review-dialog aria-labelledby="dashboard-review-dialog-title">
+          <div class="dashboard-review-dialog-content">
+            <header>
+              <div>
+                <p class="dashboard-eyebrow">{copy.reviewApplication}</p>
+                <h2 id="dashboard-review-dialog-title" data-review-dialog-title></h2>
+                <p data-review-dialog-summary></p>
+              </div>
+              <button type="button" class="dashboard-dialog-close" data-review-close aria-label={copy.close}>
+                <i class="ph ph-x" aria-hidden="true"></i>
+              </button>
+            </header>
+            <dl class="dashboard-review-detail" data-review-detail></dl>
+            <label class="dashboard-review-note">
+              <span>{copy.decisionNote}</span>
+              <textarea maxlength="1000" data-review-note></textarea>
+            </label>
+            <div class="dashboard-review-actions">
+              <Button data-review-decision="reject">{copy.reject}</Button>
+              <Button variant="primary" data-review-decision="approve">{copy.approve}</Button>
+            </div>
+          </div>
+        </Dialog>
+      </section>
+    )
+  }
 </section>
 
-<MarketUpload locale={locale} />
+{!isReview && <MarketUpload locale={locale} />}
 
 <script>
   import { localizedApiError } from '../i18n/api-errors'
+  import { createPagination, pagedItems, type PaginationChange } from '../lib/pagination'
+  import { toast } from '../lib/toast'
 
   type User = {
     userId: string
@@ -110,6 +206,7 @@ const copy = dashboardCopy(locale)
     reviewNote?: string | null
     submittedAt: string
     reviewedAt?: string | null
+    reviewer?: { displayName: string; username: string } | null
     release?: { listingId: string } | null
   }
 
@@ -118,21 +215,39 @@ const copy = dashboardCopy(locale)
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const detailBase = root.dataset.detailBase || '/market/item/'
+    const initialSection = root.dataset.initialSection === 'review' ? 'review' : 'templates'
     const access = root.querySelector<HTMLElement>('[data-dashboard-access]')!
-    const title = root.querySelector<HTMLElement>('[data-dashboard-title]')!
-    const description = root.querySelector<HTMLElement>('[data-dashboard-description]')!
-    const role = root.querySelector<HTMLElement>('[data-dashboard-role]')!
-    const templateRows = root.querySelector<HTMLTableSectionElement>('[data-template-rows]')!
-    const templateState = root.querySelector<HTMLElement>('[data-template-state]')!
-    const reviewList = root.querySelector<HTMLElement>('[data-review-list]')!
-    const reviewState = root.querySelector<HTMLElement>('[data-review-state]')!
-    const reviewCount = root.querySelector<HTMLElement>('[data-review-count]')!
-    const sectionButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-section-target]'))
-    const sections = Array.from(root.querySelectorAll<HTMLElement>('[data-dashboard-section]'))
+    const section = root.querySelector<HTMLElement>(`[data-dashboard-section="${initialSection}"]`)
+    const templateRows = root.querySelector<HTMLTableSectionElement>('[data-template-rows]')
+    const templateState = root.querySelector<HTMLElement>('[data-template-state]')
+    const templateResultCount = root.querySelector<HTMLElement>('[data-template-result-count]')
+    const reviewHistoryRows = root.querySelector<HTMLTableSectionElement>('[data-review-history-rows]')
+    const reviewHistoryState = root.querySelector<HTMLElement>('[data-review-history-state]')
+    const reviewPendingRows = root.querySelector<HTMLTableSectionElement>('[data-review-pending-rows]')
+    const reviewPendingState = root.querySelector<HTMLElement>('[data-review-pending-state]')
+    const reviewCount = root.querySelector<HTMLElement>('[data-review-count]')
+    const reviewHistoryCount = root.querySelector<HTMLElement>('[data-review-history-count]')
+    const reviewDialog = root.querySelector<HTMLDialogElement>('[data-review-dialog]')
+    const reviewNote = root.querySelector<HTMLTextAreaElement>('[data-review-note]')
+    const templatePaginationRoot = root.querySelector<HTMLElement>('[data-template-pagination]')
+    const reviewHistoryPaginationRoot = root.querySelector<HTMLElement>('[data-review-history-pagination]')
+    const reviewPendingPaginationRoot = root.querySelector<HTMLElement>('[data-review-pending-pagination]')
+    const templatePagination = createPagination(templatePaginationRoot)
+    const reviewHistoryPagination = createPagination(reviewHistoryPaginationRoot)
+    const reviewPendingPagination = createPagination(reviewPendingPaginationRoot)
     let currentUser: User | null = null
-    let currentSection: 'templates' | 'review' = root.dataset.initialSection === 'review' ? 'review' : 'templates'
-    let submissionsLoaded = false
-    let reviewLoaded = false
+    let submissionsRequest: Promise<Submission[]> | null = null
+    let reviewRequest: Promise<[Submission[], Submission[]]> | null = null
+    let selectedSubmission: Submission | null = null
+    let templateEntries: Array<{ latest: Submission; versions: number }> = []
+    let reviewHistoryEntries: Submission[] = []
+    let reviewPendingEntries: Submission[] = []
+    let templatePage = 1
+    let templatePageSize = 10
+    let reviewHistoryPage = 1
+    let reviewHistoryPageSize = 10
+    let reviewPendingPage = 1
+    let reviewPendingPageSize = 10
 
     function text(tag: string, value: string, className?: string): HTMLElement {
       const element = document.createElement(tag)
@@ -141,101 +256,170 @@ const copy = dashboardCopy(locale)
       return element
     }
 
-    function formatDate(value: string): string {
-      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    function icon(name: string): HTMLElement {
+      const element = document.createElement('i')
+      element.className = `ph ph-${name}`
+      element.setAttribute('aria-hidden', 'true')
+      return element
+    }
+
+    function retryButton(action: () => void): HTMLButtonElement {
+      const button = text('button', copy.retry, 'btn btn-ghost') as HTMLButtonElement
+      button.type = 'button'
+      button.addEventListener('click', action)
+      return button
+    }
+
+    function formatDate(value: string | null | undefined): string {
+      if (!value) return copy.noReviewNote
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return value
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
     }
 
     function statusLabel(status: SubmissionStatus): string {
       return copy[status]
     }
 
+    function statusBadge(status: SubmissionStatus): HTMLElement {
+      return text('span', statusLabel(status), `dashboard-status is-${status}`)
+    }
+
+    function templateIdentity(submission: Submission): HTMLElement {
+      const cell = document.createElement('div')
+      cell.className = 'dashboard-template-cell'
+      const mark = document.createElement('span')
+      mark.className = 'dashboard-template-mark'
+      mark.append(icon('stack'))
+      const body = document.createElement('div')
+      body.append(
+        text('strong', submission.request.title),
+        text('span', submission.request.summary, 'dashboard-template-summary'),
+        text('code', submission.preview.packageId),
+      )
+      cell.append(mark, body)
+      return cell
+    }
+
     async function errorMessage(response: Response): Promise<string> {
       return localizedApiError(response, locale, copy.loadError)
     }
 
-    function showSection(section: 'templates' | 'review'): void {
-      currentSection = section
-      sectionButtons.forEach((button) => {
-        button.setAttribute('aria-pressed', String(button.dataset.sectionTarget === section))
+    function latestTemplates(submissions: Submission[]): Array<{ latest: Submission; versions: number }> {
+      const grouped = new Map<string, Submission[]>()
+      submissions.forEach((submission) => {
+        const entries = grouped.get(submission.preview.packageId) || []
+        entries.push(submission)
+        grouped.set(submission.preview.packageId, entries)
       })
-      sections.forEach((panel) => {
-        panel.hidden = panel.dataset.dashboardSection !== section
-      })
-      const reviewing = section === 'review'
-      title.textContent = reviewing ? copy.reviewTitle : copy.title
-      description.textContent = reviewing ? copy.reviewDescription : copy.description
-      if (!currentUser) return
-      if (reviewing) {
-        if (currentUser.role === 'admin') void loadReviewQueue()
-      } else {
-        void loadSubmissions()
-      }
+      return Array.from(grouped.values()).map((entries) => ({
+        latest: entries.sort((left, right) => Date.parse(right.submittedAt) - Date.parse(left.submittedAt))[0]!,
+        versions: entries.length,
+      })).sort((left, right) => Date.parse(right.latest.submittedAt) - Date.parse(left.latest.submittedAt))
     }
 
-    function renderStats(submissions: Submission[]): void {
-      const counts: Record<'total' | SubmissionStatus, number> = {
-        total: submissions.length,
-        pending: 0,
-        approved: 0,
-        rejected: 0,
-      }
-      submissions.forEach((submission) => counts[submission.status] += 1)
+    function renderTemplateSummary(templates: Array<{ latest: Submission; versions: number }>): void {
+      const counts: Record<'total' | SubmissionStatus, number> = { total: templates.length, pending: 0, approved: 0, rejected: 0 }
+      templates.forEach(({ latest }) => counts[latest.status] += 1)
       Object.entries(counts).forEach(([name, count]) => {
         const value = root.querySelector<HTMLElement>(`[data-stat="${name}"]`)
         if (value) value.textContent = String(count)
       })
+      if (templateResultCount) templateResultCount.textContent = `${templates.length} ${copy.templateCountSuffix}`
     }
 
-    function renderSubmissionRow(submission: Submission): HTMLTableRowElement {
+    function renderTemplateRow(entry: { latest: Submission; versions: number }): HTMLTableRowElement {
+      const { latest, versions } = entry
       const row = document.createElement('tr')
       const name = document.createElement('td')
-      name.append(text('strong', submission.request.title), text('span', submission.request.summary))
-      const packageVersion = text('td', `${submission.preview.packageId} · ${submission.preview.version}`)
-      packageVersion.className = 'dashboard-mono'
+      name.append(templateIdentity(latest))
+      const version = document.createElement('td')
+      version.append(text('strong', `v${latest.preview.version}`), text('span', `${versions} ${copy.versionCountSuffix}`))
       const status = document.createElement('td')
-      status.append(text('span', statusLabel(submission.status), `dashboard-status is-${submission.status}`))
-      const submitted = text('td', formatDate(submission.submittedAt))
-      const note = text('td', submission.reviewNote || copy.noReviewNote)
+      status.append(statusBadge(latest.status))
+      const submitted = text('td', formatDate(latest.submittedAt))
       const actions = document.createElement('td')
-      if (submission.status === 'approved' && submission.release?.listingId) {
+      actions.className = 'dashboard-actions-cell'
+      if (latest.status === 'approved' && latest.release?.listingId) {
         const link = text('a', copy.view, 'dashboard-row-action') as HTMLAnchorElement
-        link.href = `${detailBase}?id=${encodeURIComponent(submission.release.listingId)}`
+        link.href = `${detailBase}?id=${encodeURIComponent(latest.release.listingId)}`
+        link.append(icon('arrow-up-right'))
         actions.append(link)
       } else {
-        actions.textContent = copy.noReviewNote
+        actions.append(text('span', copy.noReviewNote))
       }
-      row.append(name, packageVersion, status, submitted, note, actions)
+      row.append(name, version, status, submitted, actions)
       return row
     }
 
+    function renderTemplatePage(): void {
+      if (!templateRows || !templateState) return
+      const pageCount = Math.max(1, Math.ceil(templateEntries.length / templatePageSize))
+      templatePage = Math.min(templatePage, pageCount)
+      templateRows.replaceChildren(...pagedItems(templateEntries, templatePage, templatePageSize).map(renderTemplateRow))
+      templateState.textContent = copy.empty
+      templateState.hidden = templateEntries.length > 0
+      templatePagination.set({ page: templatePage, pageSize: templatePageSize, totalItems: templateEntries.length })
+    }
+
     async function loadSubmissions(force = false): Promise<void> {
-      if (!currentUser || (submissionsLoaded && !force)) return
-      templateState.hidden = false
-      templateState.textContent = copy.loading
-      templateRows.replaceChildren()
+      if (!currentUser || !templateRows || !templateState) return
+      if (force) submissionsRequest = null
+      if (!submissionsRequest) {
+        templateState.hidden = false
+        templateState.textContent = copy.loading
+        submissionsRequest = fetch('/api/market/v1/submissions/mine', { headers: { Accept: 'application/json' } })
+          .then(async (response) => {
+            if (!response.ok) throw new Error(await errorMessage(response))
+            return response.json() as Promise<Submission[]>
+          })
+          .catch((error) => {
+            submissionsRequest = null
+            throw error
+          })
+      }
       try {
-        const response = await fetch('/api/market/v1/submissions/mine', { headers: { Accept: 'application/json' } })
-        if (!response.ok) throw new Error(await errorMessage(response))
-        const submissions = (await response.json()) as Submission[]
-        renderStats(submissions)
-        submissions.forEach((submission) => templateRows.append(renderSubmissionRow(submission)))
-        templateState.textContent = copy.empty
-        templateState.hidden = submissions.length > 0
-        submissionsLoaded = true
+        templateEntries = latestTemplates(await submissionsRequest)
+        templatePage = 1
+        renderTemplateSummary(templateEntries)
+        renderTemplatePage()
       } catch {
-        templateState.textContent = copy.loadError
+        toast.error(copy.loadError)
+        templateState.replaceChildren(retryButton(() => void loadSubmissions(true)))
+        templateState.hidden = false
       }
     }
 
-    function reviewCard(submission: Submission): HTMLElement {
-      const card = document.createElement('article')
-      card.className = 'dashboard-review-card'
-      const head = document.createElement('header')
-      const heading = document.createElement('div')
-      heading.append(text('h2', submission.request.title), text('p', submission.request.summary))
-      head.append(heading, text('span', copy.pending, 'dashboard-status is-pending'))
+    function renderReviewHistoryRow(submission: Submission): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      const name = document.createElement('td')
+      name.append(templateIdentity(submission))
+      const uploader = document.createElement('td')
+      uploader.append(text('strong', submission.owner.displayName), text('span', `@${submission.owner.username}`))
+      const result = document.createElement('td')
+      result.append(statusBadge(submission.status))
+      const reviewer = document.createElement('td')
+      if (submission.reviewer) {
+        reviewer.append(text('strong', submission.reviewer.displayName), text('span', `@${submission.reviewer.username}`))
+      } else {
+        reviewer.append(text('span', copy.noReviewNote))
+      }
+      const reviewed = text('td', formatDate(submission.reviewedAt))
+      const note = text('td', submission.reviewNote || copy.noReviewNote)
+      note.className = 'dashboard-review-note-cell'
+      row.append(name, uploader, result, reviewer, reviewed, note)
+      return row
+    }
 
-      const meta = document.createElement('dl')
+    function openReview(submission: Submission): void {
+      if (!reviewDialog || !reviewNote) return
+      selectedSubmission = submission
+      const title = root.querySelector<HTMLElement>('[data-review-dialog-title]')!
+      const summary = root.querySelector<HTMLElement>('[data-review-dialog-summary]')!
+      const detail = root.querySelector<HTMLElement>('[data-review-detail]')!
+      title.textContent = submission.request.title
+      summary.textContent = submission.request.summary
+      detail.replaceChildren()
       const fields = [
         [copy.uploader, `${submission.owner.displayName} (@${submission.owner.username})`],
         [copy.packageVersion, `${submission.preview.packageId} · ${submission.preview.version}`],
@@ -245,170 +429,294 @@ const copy = dashboardCopy(locale)
       fields.forEach(([label, value]) => {
         const item = document.createElement('div')
         item.append(text('dt', label), text('dd', value))
-        meta.append(item)
+        detail.append(item)
       })
-
-      const note = document.createElement('textarea')
-      note.placeholder = copy.decisionNote
-      note.maxLength = 1000
-      note.setAttribute('aria-label', copy.decisionNote)
-      const actions = document.createElement('div')
-      actions.className = 'dashboard-review-actions'
-      const approve = text('button', copy.approve, 'btn btn-primary') as HTMLButtonElement
-      const reject = text('button', copy.reject, 'btn btn-ghost') as HTMLButtonElement
-      approve.type = 'button'
-      reject.type = 'button'
-      actions.append(approve, reject)
-      const message = text('p', '', 'dashboard-review-error')
-      message.hidden = true
-      card.append(head, meta, note, actions, message)
-
-      async function decide(decision: 'approve' | 'reject', button: HTMLButtonElement): Promise<void> {
-        approve.disabled = true
-        reject.disabled = true
-        button.textContent = decision === 'approve' ? copy.approving : copy.rejecting
-        message.hidden = true
-        try {
-          const response = await fetch(`/api/market/v1/admin/submissions/${encodeURIComponent(submission.submissionId)}/${decision}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify({ note: note.value.trim() || null }),
-          })
-          if (!response.ok) throw new Error(await errorMessage(response))
-          card.remove()
-          submissionsLoaded = false
-          const remaining = reviewList.childElementCount
-          reviewCount.textContent = String(remaining)
-          reviewCount.hidden = remaining === 0
-          reviewState.hidden = remaining > 0
-          reviewState.textContent = copy.reviewEmpty
-        } catch (reason) {
-          message.textContent = reason instanceof Error ? reason.message : copy.reviewLoadError
-          message.hidden = false
-          approve.disabled = false
-          reject.disabled = false
-          approve.textContent = copy.approve
-          reject.textContent = copy.reject
-        }
-      }
-
-      approve.addEventListener('click', () => void decide('approve', approve))
-      reject.addEventListener('click', () => void decide('reject', reject))
-      return card
+      reviewNote.value = ''
+      reviewDialog.showModal()
     }
 
-    async function loadReviewQueue(force = false): Promise<void> {
-      if (!currentUser || currentUser.role !== 'admin' || (reviewLoaded && !force)) return
-      reviewState.hidden = false
-      reviewState.textContent = copy.reviewLoading
-      reviewList.replaceChildren()
+    function renderPendingRow(submission: Submission): HTMLTableRowElement {
+      const row = document.createElement('tr')
+      const name = document.createElement('td')
+      name.append(templateIdentity(submission))
+      const uploader = document.createElement('td')
+      uploader.append(text('strong', submission.owner.displayName), text('span', `@${submission.owner.username}`))
+      const version = text('td', `${submission.preview.packageId} · ${submission.preview.version}`)
+      version.className = 'dashboard-mono'
+      const submitted = text('td', formatDate(submission.submittedAt))
+      const actions = document.createElement('td')
+      const review = text('button', copy.reviewAction, 'btn btn-ghost dashboard-review-button') as HTMLButtonElement
+      review.type = 'button'
+      review.prepend(icon('shield-check'))
+      review.addEventListener('click', () => openReview(submission))
+      actions.append(review)
+      row.append(name, uploader, version, submitted, actions)
+      return row
+    }
+
+    function renderReviewData(pending: Submission[], history: Submission[]): void {
+      reviewPendingEntries = pending
+      reviewHistoryEntries = history
+      reviewPendingPage = 1
+      reviewHistoryPage = 1
+      if (reviewCount) reviewCount.textContent = String(pending.length)
+      if (reviewHistoryCount) reviewHistoryCount.textContent = `${history.length} ${copy.reviewCountSuffix}`
+      renderReviewPendingPage()
+      renderReviewHistoryPage()
+    }
+
+    function renderReviewPendingPage(): void {
+      const pageCount = Math.max(1, Math.ceil(reviewPendingEntries.length / reviewPendingPageSize))
+      reviewPendingPage = Math.min(reviewPendingPage, pageCount)
+      reviewPendingRows?.replaceChildren(...pagedItems(reviewPendingEntries, reviewPendingPage, reviewPendingPageSize).map(renderPendingRow))
+      if (reviewPendingState) {
+        reviewPendingState.textContent = copy.reviewEmpty
+        reviewPendingState.hidden = reviewPendingEntries.length > 0
+      }
+      reviewPendingPagination.set({ page: reviewPendingPage, pageSize: reviewPendingPageSize, totalItems: reviewPendingEntries.length })
+    }
+
+    function renderReviewHistoryPage(): void {
+      const pageCount = Math.max(1, Math.ceil(reviewHistoryEntries.length / reviewHistoryPageSize))
+      reviewHistoryPage = Math.min(reviewHistoryPage, pageCount)
+      reviewHistoryRows?.replaceChildren(...pagedItems(reviewHistoryEntries, reviewHistoryPage, reviewHistoryPageSize).map(renderReviewHistoryRow))
+      if (reviewHistoryState) {
+        reviewHistoryState.textContent = copy.reviewHistoryEmpty
+        reviewHistoryState.hidden = reviewHistoryEntries.length > 0
+      }
+      reviewHistoryPagination.set({ page: reviewHistoryPage, pageSize: reviewHistoryPageSize, totalItems: reviewHistoryEntries.length })
+    }
+
+    async function loadReviewData(force = false): Promise<void> {
+      if (!currentUser || currentUser.role !== 'admin' || !reviewPendingRows || !reviewHistoryRows) return
+      if (force) reviewRequest = null
+      if (!reviewRequest) {
+        if (reviewPendingState) {
+          reviewPendingState.hidden = false
+          reviewPendingState.textContent = copy.reviewLoading
+        }
+        if (reviewHistoryState) {
+          reviewHistoryState.hidden = false
+          reviewHistoryState.textContent = copy.reviewHistoryLoading
+        }
+        reviewRequest = Promise.all([
+          fetch('/api/market/v1/admin/submissions', { headers: { Accept: 'application/json' } }),
+          fetch('/api/market/v1/admin/reviews', { headers: { Accept: 'application/json' } }),
+        ]).then(async ([pendingResponse, historyResponse]) => {
+          if (!pendingResponse.ok) throw new Error(await errorMessage(pendingResponse))
+          if (!historyResponse.ok) throw new Error(await errorMessage(historyResponse))
+          return Promise.all([
+            pendingResponse.json() as Promise<Submission[]>,
+            historyResponse.json() as Promise<Submission[]>,
+          ]) as Promise<[Submission[], Submission[]]>
+        }).catch((error) => {
+          reviewRequest = null
+          throw error
+        })
+      }
       try {
-        const response = await fetch('/api/market/v1/admin/submissions', { headers: { Accept: 'application/json' } })
-        if (!response.ok) throw new Error(await errorMessage(response))
-        const submissions = (await response.json()) as Submission[]
-        submissions.forEach((submission) => reviewList.append(reviewCard(submission)))
-        reviewState.textContent = copy.reviewEmpty
-        reviewState.hidden = submissions.length > 0
-        reviewCount.textContent = String(submissions.length)
-        reviewCount.hidden = submissions.length === 0
-        reviewLoaded = true
+        const [pending, history] = await reviewRequest
+        renderReviewData(pending, history)
       } catch {
-        reviewState.textContent = copy.reviewLoadError
+        toast.error(copy.reviewLoadError)
+        if (reviewPendingState) reviewPendingState.replaceChildren(retryButton(() => void loadReviewData(true)))
+        if (reviewHistoryState) reviewHistoryState.replaceChildren(retryButton(() => void loadReviewData(true)))
+      }
+    }
+
+    function selectReviewView(name: 'history' | 'pending'): void {
+      root.querySelectorAll<HTMLButtonElement>('[data-review-view]').forEach((button) => {
+        const active = button.dataset.reviewView === name
+        button.classList.toggle('is-active', active)
+        button.setAttribute('aria-selected', String(active))
+      })
+      root.querySelectorAll<HTMLElement>('[data-review-panel]').forEach((panel) => {
+        panel.hidden = panel.dataset.reviewPanel !== name
+      })
+    }
+
+    async function decide(decision: 'approve' | 'reject'): Promise<void> {
+      if (!selectedSubmission || !reviewNote || !reviewDialog) return
+      const buttons = Array.from(reviewDialog.querySelectorAll<HTMLButtonElement>('[data-review-decision]'))
+      buttons.forEach((button) => button.disabled = true)
+      const active = buttons.find((button) => button.dataset.reviewDecision === decision)
+      if (active) active.textContent = decision === 'approve' ? copy.approving : copy.rejecting
+      try {
+        const response = await fetch(`/api/market/v1/admin/submissions/${encodeURIComponent(selectedSubmission.submissionId)}/${decision}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ note: reviewNote.value.trim() || null }),
+        })
+        if (!response.ok) throw new Error(await errorMessage(response))
+        reviewDialog.close()
+        selectedSubmission = null
+        await loadReviewData(true)
+        toast.success(decision === 'approve' ? copy.approvedSuccess : copy.rejectedSuccess)
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.reviewLoadError)
+      } finally {
+        buttons.forEach((button) => {
+          button.disabled = false
+          button.textContent = button.dataset.reviewDecision === 'approve' ? copy.approve : copy.reject
+        })
       }
     }
 
     function applyUser(user: User | null | undefined): void {
       currentUser = user || null
       access.hidden = Boolean(currentUser)
-      root.querySelectorAll<HTMLElement>('[data-admin-only]').forEach((element) => {
-        element.hidden = currentUser?.role !== 'admin'
-      })
       if (!currentUser) {
         access.textContent = copy.signInRequired
         window.dispatchEvent(new CustomEvent('market-auth-required'))
         return
       }
-      role.textContent = currentUser.role === 'admin' ? copy.roleAdmin : copy.roleUser
-      if (currentSection === 'review' && currentUser.role !== 'admin') {
-        reviewState.textContent = copy.adminRequired
-        reviewState.hidden = false
+      if (section) section.hidden = false
+      if (initialSection === 'review') {
+        if (currentUser.role === 'admin') void loadReviewData()
+        else {
+          if (reviewPendingState) reviewPendingState.textContent = copy.adminRequired
+          if (reviewHistoryState) reviewHistoryState.textContent = copy.adminRequired
+        }
+      } else {
+        void loadSubmissions()
       }
-      showSection(currentSection)
     }
 
-    sectionButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const section = button.dataset.sectionTarget
-        if (section === 'templates' || (section === 'review' && currentUser?.role === 'admin')) showSection(section)
-      })
+    async function loadCurrentUser(): Promise<void> {
+      try {
+        const response = await fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error()
+        const payload = await response.json() as AuthResponse
+        applyUser(payload.user)
+      } catch {
+        toast.error(copy.loadError)
+        access.hidden = false
+        access.replaceChildren(retryButton(() => void loadCurrentUser()))
+      }
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('[data-review-view]').forEach((button) => {
+      button.addEventListener('click', () => selectReviewView(button.dataset.reviewView === 'pending' ? 'pending' : 'history'))
+    })
+    templatePaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => {
+      templatePage = event.detail.page
+      templatePageSize = event.detail.pageSize
+      renderTemplatePage()
+    }) as EventListener)
+    reviewHistoryPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => {
+      reviewHistoryPage = event.detail.page
+      reviewHistoryPageSize = event.detail.pageSize
+      renderReviewHistoryPage()
+    }) as EventListener)
+    reviewPendingPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => {
+      reviewPendingPage = event.detail.page
+      reviewPendingPageSize = event.detail.pageSize
+      renderReviewPendingPage()
+    }) as EventListener)
+    root.querySelector<HTMLElement>('[data-review-close]')?.addEventListener('click', () => reviewDialog?.close())
+    reviewDialog?.addEventListener('click', (event) => {
+      if (event.target === reviewDialog) reviewDialog.close()
+    })
+    root.querySelectorAll<HTMLButtonElement>('[data-review-decision]').forEach((button) => {
+      button.addEventListener('click', () => void decide(button.dataset.reviewDecision === 'approve' ? 'approve' : 'reject'))
     })
     window.addEventListener('market-auth-changed', ((event: CustomEvent<AuthResponse>) => applyUser(event.detail.user)) as EventListener)
     window.addEventListener('market-submission-created', () => {
-      submissionsLoaded = false
-      if (currentSection === 'templates') void loadSubmissions(true)
+      if (initialSection === 'templates') void loadSubmissions(true)
     })
-    fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
-      .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : Promise.reject())
-      .then((payload) => applyUser(payload.user))
-      .catch(() => {
-        access.textContent = copy.loadError
-      })
+    void loadCurrentUser()
   }
 </script>
 
-<style>
-  .dashboard-shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: calc(100vh - 68px); background: var(--bg); }
-  .dashboard-sidebar { position: sticky; top: 68px; display: flex; flex-direction: column; height: calc(100vh - 68px); padding: 24px 18px; border-right: 1px solid var(--border); background: var(--panel-glass); }
-  .dashboard-brand { display: flex; align-items: center; gap: 11px; padding: 0 9px 24px; border-bottom: 1px solid var(--border); }
-  .dashboard-brand-mark { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border-radius: 10px; color: var(--btn-primary-fg); background: var(--accent); font: 700 0.88rem var(--font-mono); }
-  .dashboard-brand div { display: grid; min-width: 0; gap: 3px; }
-  .dashboard-brand strong { overflow: hidden; font-size: 0.86rem; text-overflow: ellipsis; white-space: nowrap; }
-  .dashboard-brand span:last-child { color: var(--fg-faint); font-size: 0.72rem; }
-  .dashboard-sidebar nav { display: grid; gap: 6px; padding-top: 22px; }
-  .dashboard-sidebar nav button { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; color: var(--fg-muted); background: transparent; font: 500 0.84rem var(--font-body); text-align: left; cursor: pointer; }
-  .dashboard-sidebar nav button:hover, .dashboard-sidebar nav button[aria-pressed='true'] { color: var(--fg); background: var(--accent-soft); }
-  .dashboard-nav-mark { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid var(--border); border-radius: 7px; font: 600 0.67rem var(--font-mono); }
-  .dashboard-nav-count { min-width: 20px; padding: 2px 6px; border-radius: 999px; color: var(--accent-bright); background: var(--accent-soft); font: 0.68rem var(--font-mono); text-align: center; }
-  .dashboard-market-link { margin-top: auto; padding: 10px; color: var(--fg-faint); font-size: 0.8rem; }
-  .dashboard-market-link:hover { color: var(--fg); }
-  .dashboard-main { min-width: 0; padding: clamp(28px, 4vw, 52px); }
-  .dashboard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
-  .dashboard-header h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.035em; }
-  .dashboard-header p { margin: 9px 0 0; color: var(--fg-muted); font-size: 0.9rem; }
-  .dashboard-access, .dashboard-empty { padding: 56px 24px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); color: var(--fg-muted); background: var(--panel-glass); text-align: center; }
-  .dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
-  .dashboard-stats article { display: grid; gap: 12px; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-glass); }
-  .dashboard-stats span { color: var(--fg-faint); font-size: 0.76rem; }
-  .dashboard-stats strong { font: 600 1.7rem var(--font-display); }
-  .dashboard-panel { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
+<style is:global>
+  .dashboard-content { min-width: 0; }
+  .dashboard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; margin-bottom: 28px; }
+  .dashboard-header h1 { margin: 5px 0 0; }
+  .dashboard-header > div:first-child > p:last-child { max-width: 680px; margin: 10px 0 0; color: var(--fg-muted); font-size: .9rem; line-height: 1.65; }
+  .dashboard-eyebrow { margin: 0; color: var(--accent-bright); font-size: .7rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+  .dashboard-upload { min-height: 42px; gap: 8px; padding-inline: 17px; }
+  .dashboard-access, .dashboard-empty { padding: 54px 24px; color: var(--fg-muted); text-align: center; }
+  .dashboard-access { border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--panel-glass); }
+  .dashboard-summary { display: flex; align-items: stretch; margin-bottom: 16px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); box-shadow: inset 0 1px 0 var(--panel-inset); }
+  .dashboard-summary > div { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 15px 18px; border-left: 1px solid var(--border); }
+  .dashboard-summary > div:first-child { border-left: 0; }
+  .dashboard-summary-primary { margin-right: auto; }
+  .dashboard-summary span { color: var(--fg-faint); font-size: .75rem; }
+  .dashboard-summary strong { color: var(--fg); font: 600 .88rem var(--font-mono); }
+  .dashboard-summary-primary strong { order: -1; font-size: 1.35rem; }
+  .dashboard-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--fg-faint); }
+  .dashboard-dot.is-pending { background: var(--accent-bright); }
+  .dashboard-dot.is-approved { background: var(--success); }
+  .dashboard-dot.is-rejected { background: var(--danger); }
+  .dashboard-panel { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); box-shadow: inset 0 1px 0 var(--panel-inset); }
+  .dashboard-panel-head, .dashboard-section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+  .dashboard-panel-head { padding: 19px 21px; border-bottom: 1px solid var(--border); }
+  .dashboard-section-heading { margin: 0 0 15px; }
+  .dashboard-panel-head h2, .dashboard-section-heading h2 { margin: 0; font-size: 1rem; }
+  .dashboard-panel-head p, .dashboard-section-heading p { margin: 5px 0 0; color: var(--fg-faint); font-size: .76rem; }
+  .dashboard-panel-head > span, .dashboard-section-heading > span { color: var(--fg-faint); font: .72rem var(--font-mono); white-space: nowrap; }
   .dashboard-table-wrap { overflow-x: auto; }
-  .dashboard-panel table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .dashboard-panel th { padding: 13px 16px; border-bottom: 1px solid var(--border); color: var(--fg-faint); background: var(--chip-bg); font-weight: 500; text-align: left; white-space: nowrap; }
-  .dashboard-panel td { max-width: 260px; padding: 16px; border-bottom: 1px solid var(--border); color: var(--fg-muted); vertical-align: middle; }
-  .dashboard-panel tbody tr:last-child td { border-bottom: 0; }
-  .dashboard-panel td strong, .dashboard-panel td span { display: block; }
-  .dashboard-panel td strong { margin-bottom: 4px; color: var(--fg); font-size: 0.84rem; }
-  .dashboard-panel td span:not(.dashboard-status) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dashboard-mono { font-family: var(--font-mono); font-size: 0.72rem; overflow-wrap: anywhere; }
-  .dashboard-status { display: inline-block !important; padding: 5px 8px; border: 1px solid var(--border); border-radius: 999px; font: 0.68rem var(--font-mono); white-space: nowrap; }
-  .dashboard-status.is-pending { color: var(--accent-bright); background: var(--accent-soft); }
+  .dashboard-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: .79rem; }
+  .dashboard-review-table { min-width: 960px; }
+  .dashboard-table th { padding: 11px 18px; border-bottom: 1px solid var(--border); color: var(--fg-faint); background: var(--chip-bg); font-size: .7rem; font-weight: 600; text-align: left; white-space: nowrap; }
+  .dashboard-table td { padding: 16px 18px; border-bottom: 1px solid var(--border); color: var(--fg-muted); vertical-align: middle; }
+  .dashboard-table tbody tr:last-child td { border-bottom: 0; }
+  .dashboard-table tbody tr:hover { background: var(--ghost-bg); }
+  .dashboard-template-table th:first-child { width: 48%; }
+  .dashboard-review-table th:first-child, .dashboard-pending-table th:first-child { width: 34%; }
+  .dashboard-template-cell { display: flex; min-width: 250px; align-items: center; gap: 12px; }
+  .dashboard-template-mark { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--accent-bright); background: var(--accent-soft); font-size: 1rem; }
+  .dashboard-template-cell > div { display: grid; min-width: 0; gap: 3px; }
+  .dashboard-template-cell strong, .dashboard-table td > strong { color: var(--fg); font-size: .82rem; font-weight: 600; }
+  .dashboard-template-cell span, .dashboard-table td > span:not(.dashboard-status) { display: block; color: var(--fg-faint); font-size: .72rem; }
+  .dashboard-template-summary { max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-template-cell code { overflow: hidden; color: var(--fg-faint); font: .66rem var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-template-table td:nth-child(2) { white-space: nowrap; }
+  .dashboard-template-table td:nth-child(2) strong { display: block; margin-bottom: 4px; }
+  .dashboard-template-table td:nth-child(2) span { color: var(--fg-faint); font-size: .68rem; }
+  .dashboard-status { display: inline-flex; align-items: center; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; font: .67rem var(--font-mono); white-space: nowrap; }
+  .dashboard-status.is-pending { border-color: color-mix(in srgb, var(--accent) 25%, var(--border)); color: var(--accent-bright); background: var(--accent-soft); }
   .dashboard-status.is-approved { color: var(--success); background: color-mix(in srgb, var(--success) 9%, transparent); }
   .dashboard-status.is-rejected { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
-  .dashboard-row-action { color: var(--accent-bright); font-weight: 500; }
-  .dashboard-panel .dashboard-empty { border: 0; border-radius: 0; }
-  .dashboard-review-list { display: grid; gap: 16px; }
-  .dashboard-review-card { padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
-  .dashboard-review-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
-  .dashboard-review-card h2 { font-size: 1.1rem; }
-  .dashboard-review-card header p { margin: 7px 0 0; color: var(--fg-muted); font-size: 0.84rem; }
-  .dashboard-review-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 22px 0; padding: 18px; border-radius: var(--radius-md); background: var(--chip-bg); }
-  .dashboard-review-card dl div { display: grid; gap: 4px; }
-  .dashboard-review-card dt { color: var(--fg-faint); font-size: 0.7rem; }
-  .dashboard-review-card dd { margin: 0; color: var(--fg-muted); font-size: 0.8rem; overflow-wrap: anywhere; }
-  .dashboard-review-card textarea { width: 100%; min-height: 82px; padding: 11px 12px; resize: vertical; }
-  .dashboard-review-actions { display: flex; gap: 10px; margin-top: 13px; }
-  .dashboard-review-error { margin: 12px 0 0; color: var(--danger); font-size: 0.8rem; }
+  .dashboard-actions-cell { text-align: right; }
+  .dashboard-row-action { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-bright); font-size: .75rem; font-weight: 600; }
+  .dashboard-row-action i { font-size: .85rem; }
+  .dashboard-mono { max-width: 250px; font-family: var(--font-mono); font-size: .68rem; overflow-wrap: anywhere; }
+  .dashboard-review-note-cell { max-width: 280px; line-height: 1.55; }
+  .dashboard-review-tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 11px; background: var(--chip-bg); }
+  .dashboard-review-tabs button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 7px 10px; border: 0; border-radius: 8px; color: var(--fg-faint); background: transparent; font: 500 .76rem var(--font-body); cursor: pointer; }
+  .dashboard-review-tabs button:hover, .dashboard-review-tabs button.is-active { color: var(--fg); background: var(--panel-glass); box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
+  .dashboard-review-tabs strong { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 5px; border-radius: 999px; color: var(--btn-primary-fg); background: var(--accent); font: 600 .65rem var(--font-mono); }
+  .dashboard-review-button { min-height: 34px; gap: 6px; padding: 7px 10px; font-size: .72rem; white-space: nowrap; }
+  .dashboard-review-dialog { width: min(720px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 14px; color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / .28); }
+  .dashboard-review-dialog::backdrop { background: rgb(9 12 22 / .68); backdrop-filter: blur(5px); }
+  .dashboard-review-dialog-content { max-height: inherit; padding: 26px; overflow-y: auto; }
+  .dashboard-review-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; }
+  .dashboard-review-dialog h2 { margin: 5px 0 0; font-size: 1.35rem; }
+  .dashboard-review-dialog header p:last-child { margin: 7px 0 0; color: var(--fg-muted); font-size: .82rem; line-height: 1.55; }
+  .dashboard-dialog-close { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 50%; color: var(--fg-muted); background: var(--panel-glass); cursor: pointer; }
+  .dashboard-review-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 22px 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chip-bg); }
+  .dashboard-review-detail div { min-width: 0; padding: 13px 15px; border-top: 1px solid var(--border); }
+  .dashboard-review-detail div:nth-child(-n + 2) { border-top: 0; }
+  .dashboard-review-detail div:nth-child(even) { border-left: 1px solid var(--border); }
+  .dashboard-review-detail dt { color: var(--fg-faint); font-size: .67rem; }
+  .dashboard-review-detail dd { margin: 5px 0 0; color: var(--fg-muted); font: .72rem/1.5 var(--font-mono); overflow-wrap: anywhere; }
+  .dashboard-review-note { display: grid; gap: 8px; color: var(--fg); font-size: .76rem; font-weight: 600; }
+  .dashboard-review-note textarea { min-height: 92px; padding: 11px 12px; resize: vertical; }
+  .dashboard-review-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .dashboard-panel .dashboard-empty { border: 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   [hidden] { display: none !important; }
-  @media (max-width: 900px) { .dashboard-shell { grid-template-columns: 1fr; } .dashboard-sidebar { position: static; display: block; height: auto; padding: 14px 18px; border-right: 0; border-bottom: 1px solid var(--border); } .dashboard-brand { display: none; } .dashboard-sidebar nav { display: flex; padding: 0; } .dashboard-sidebar nav button { width: auto; } .dashboard-market-link { display: inline-block; margin-top: 8px; } .dashboard-main { padding: 28px 18px 56px; } }
-  @media (max-width: 700px) { .dashboard-header { align-items: stretch; flex-direction: column; } .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboard-review-card dl { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) {
+    .dashboard-header { align-items: stretch; flex-direction: column; }
+    .dashboard-upload { justify-content: center; }
+    .dashboard-review-tabs { align-self: stretch; }
+    .dashboard-review-tabs button { flex: 1; justify-content: center; }
+    .dashboard-summary { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .dashboard-summary-primary { grid-column: 1 / -1; margin-right: 0; border-bottom: 1px solid var(--border); }
+    .dashboard-summary > div:nth-child(2) { border-left: 0; }
+    .dashboard-review-detail { grid-template-columns: 1fr; }
+    .dashboard-review-detail div:nth-child(n) { border-top: 1px solid var(--border); border-left: 0; }
+    .dashboard-review-detail div:first-child { border-top: 0; }
+  }
 </style>

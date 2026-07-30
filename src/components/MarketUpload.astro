@@ -1,6 +1,8 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { marketCopy } from '../i18n/market'
+import Button from './ui/Button.astro'
+import Dialog from './ui/Dialog.astro'
 
 interface Props {
   locale: Locale
@@ -11,60 +13,54 @@ const copy = marketCopy(locale)
 const apiBase = '/api/market/v1'
 ---
 
-<dialog
-  class="market-upload-dialog"
+<div
   data-market-upload
   data-api-base={apiBase}
   data-copy={JSON.stringify(copy)}
   data-locale={locale}
-  aria-labelledby="market-upload-title"
 >
-  <div class="market-upload-modal">
-    <header class="market-upload-head">
-      <div>
-        <p class="market-eyebrow">{copy.eyebrow}</p>
-        <h2 id="market-upload-title">{copy.uploadTitle}</h2>
-        <p>{copy.uploadDescription}</p>
+  <input
+    type="file"
+    accept=".codeypkg,application/vnd.codey.package+zip"
+    hidden
+    data-upload-archive
+  />
+
+  <Dialog class="market-upload-dialog" data-upload-dialog aria-labelledby="market-upload-title">
+    <div class="market-upload-modal">
+      <header class="market-upload-head">
+        <div>
+          <p class="market-eyebrow">{copy.eyebrow}</p>
+          <h2 id="market-upload-title">{copy.uploadTitle}</h2>
+          <p>{copy.uploadDescription}</p>
+        </div>
+        <button
+          class="market-dialog-close"
+          type="button"
+          data-upload-close
+          aria-label={locale === 'en' ? 'Close' : '关闭'}>×</button
+        >
+      </header>
+
+      <div class="market-upload-content">
+        <form class="market-form-card" hidden data-upload-publish>
+          <h3>{copy.stepPublish}</h3>
+          <div class="market-package-summary" data-package-summary></div>
+          <p class="market-field-hint market-package-metadata-note">{copy.metadataFromPackage}</p>
+          <div class="market-publication-preview" data-publication-preview></div>
+          <div class="market-form-actions">
+            <Button variant="primary" type="submit" data-publish-button>{copy.publish}</Button>
+            <Button data-replace-archive>{copy.replaceArchive}</Button>
+          </div>
+        </form>
       </div>
-      <button
-        class="market-dialog-close"
-        type="button"
-        data-upload-close
-        aria-label={locale === 'en' ? 'Close' : '关闭'}>×</button
-      >
-    </header>
-
-    <div class="market-upload-content">
-      <form class="market-form-card" data-upload-inspect>
-        <h3>{copy.stepArchive}</h3>
-        <div class="market-field market-file">
-          <label for="market-archive">{copy.archiveLabel}</label>
-          <input id="market-archive" name="archive" type="file" accept=".codeypkg,application/json" required />
-          <p class="market-field-hint">{copy.archiveHint}</p>
-        </div>
-        <div class="market-form-actions">
-          <button class="btn btn-primary" type="submit" data-inspect-button>{copy.inspect}</button>
-        </div>
-        <div class="market-alert" hidden data-inspect-error></div>
-      </form>
-
-      <form class="market-form-card" hidden data-upload-publish>
-        <h3>{copy.stepPublish}</h3>
-        <div class="market-package-summary" data-package-summary></div>
-        <p class="market-field-hint market-package-metadata-note">{copy.metadataFromPackage}</p>
-        <div class="market-publication-preview" data-publication-preview></div>
-        <div class="market-form-actions">
-          <button class="btn btn-primary" type="submit" data-publish-button>{copy.publish}</button>
-          <button class="btn btn-ghost" type="button" data-replace-archive>{copy.replaceArchive}</button>
-        </div>
-        <div class="market-alert" hidden data-publish-message></div>
-      </form>
     </div>
-  </div>
-</dialog>
+  </Dialog>
+</div>
 
 <script>
   import { localizedApiError } from '../i18n/api-errors'
+  import { toast } from '../lib/toast'
 
   type Resource = { displayName: string; resource: Record<string, unknown> }
   type Publication = {
@@ -85,53 +81,55 @@ const apiBase = '/api/market/v1'
   }
   type Submission = { submissionId: string; status: 'pending' }
 
-  const root = document.querySelector<HTMLDialogElement>('[data-market-upload]')
+  const root = document.querySelector<HTMLElement>('[data-market-upload]')
   if (root) {
     const apiBase = root.dataset.apiBase || '/api/market/v1'
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
-    const inspectForm = root.querySelector<HTMLFormElement>('[data-upload-inspect]')!
+    const dialog = root.querySelector<HTMLDialogElement>('[data-upload-dialog]')!
+    const archiveInput = root.querySelector<HTMLInputElement>('[data-upload-archive]')!
     const publishForm = root.querySelector<HTMLFormElement>('[data-upload-publish]')!
-    const inspectButton = root.querySelector<HTMLButtonElement>('[data-inspect-button]')!
     const publishButton = root.querySelector<HTMLButtonElement>('[data-publish-button]')!
-    const inspectError = root.querySelector<HTMLElement>('[data-inspect-error]')!
-    const publishMessage = root.querySelector<HTMLElement>('[data-publish-message]')!
     const packageSummary = root.querySelector<HTMLElement>('[data-package-summary]')!
     const publicationPreview = root.querySelector<HTMLElement>('[data-publication-preview]')!
     let preview: Preview | null = null
-    let requestedOpen = false
+    const uploadTriggers = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-market-upload-open]'))
+    let requestedSelection = false
 
     function openDialog(): void {
-      if (!root.open) root.showModal()
+      if (!dialog.open) dialog.showModal()
     }
 
-    function requestOpen(): void {
-      requestedOpen = true
+    function chooseArchive(): void {
+      archiveInput.value = ''
+      archiveInput.click()
+    }
+
+    function requestArchive(): void {
+      requestedSelection = true
       if (document.documentElement.dataset.marketAuth === 'authenticated') {
-        requestedOpen = false
-        openDialog()
+        requestedSelection = false
+        chooseArchive()
       } else {
         window.dispatchEvent(new CustomEvent('market-auth-required'))
       }
     }
 
-    document.querySelectorAll<HTMLElement>('[data-market-upload-open]').forEach((button) => {
-      button.addEventListener('click', requestOpen)
-    })
+    uploadTriggers.forEach((button) => button.addEventListener('click', requestArchive))
     window.addEventListener('market-auth-changed', ((event: CustomEvent<{ user?: unknown }>) => {
-      if (requestedOpen && event.detail.user) {
-        requestedOpen = false
-        openDialog()
+      if (requestedSelection && event.detail.user) {
+        requestedSelection = false
+        chooseArchive()
       }
-      if (!event.detail.user && root.open) root.close()
+      if (!event.detail.user && dialog.open) dialog.close()
     }) as EventListener)
-    root.querySelector<HTMLElement>('[data-upload-close]')?.addEventListener('click', () => root.close())
-    root.addEventListener('click', (event) => {
-      if (event.target === root) root.close()
+    root.querySelector<HTMLElement>('[data-upload-close]')?.addEventListener('click', () => dialog.close())
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close()
     })
     const pageUrl = new URL(window.location.href)
     if (pageUrl.searchParams.get('upload') === '1') {
-      requestOpen()
+      requestArchive()
       pageUrl.searchParams.delete('upload')
       window.history.replaceState(window.history.state, '', pageUrl)
     }
@@ -140,10 +138,14 @@ const apiBase = '/api/market/v1'
       return localizedApiError(response, locale, copy.unavailable)
     }
 
-    function resetMessage(element: HTMLElement): void {
-      element.hidden = true
-      element.classList.remove('market-success')
-      element.replaceChildren()
+    function setInspecting(inspecting: boolean): void {
+      uploadTriggers.forEach((button) => {
+        if (!button.dataset.uploadContent) button.dataset.uploadContent = button.innerHTML
+        button.disabled = inspecting
+        button.setAttribute('aria-busy', String(inspecting))
+        if (inspecting) button.textContent = copy.inspecting
+        else button.innerHTML = button.dataset.uploadContent
+      })
     }
 
     function renderPreview(value: Preview): void {
@@ -160,7 +162,8 @@ const apiBase = '/api/market/v1'
       })
       renderPublication(value)
       publishForm.hidden = false
-      publishForm.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      publishButton.disabled = false
+      publishButton.textContent = copy.publish
     }
 
     function renderPublication(value: Preview): void {
@@ -207,14 +210,12 @@ const apiBase = '/api/market/v1'
       publicationPreview.append(details)
     }
 
-    inspectForm.addEventListener('submit', async (event) => {
-      event.preventDefault()
-      resetMessage(inspectError)
-      const input = inspectForm.elements.namedItem('archive') as HTMLInputElement
-      const file = input.files?.[0]
+    archiveInput.addEventListener('change', async () => {
+      const file = archiveInput.files?.[0]
       if (!file) return
-      inspectButton.disabled = true
-      inspectButton.textContent = copy.inspecting
+      preview = null
+      publishForm.hidden = true
+      setInspecting(true)
       try {
         const body = new FormData()
         body.set('archive', file, file.name)
@@ -223,21 +224,19 @@ const apiBase = '/api/market/v1'
         if (!response.ok) throw new Error(await errorMessage(response))
         preview = (await response.json()) as Preview
         renderPreview(preview)
+        openDialog()
       } catch (error) {
-        inspectError.textContent = error instanceof Error ? error.message : copy.unavailable
-        inspectError.hidden = false
+        archiveInput.value = ''
+        toast.error(error instanceof Error ? error.message : copy.unavailable)
       } finally {
-        inspectButton.disabled = false
-        inspectButton.textContent = copy.inspect
+        setInspecting(false)
       }
     })
 
     publishForm.addEventListener('submit', async (event) => {
       event.preventDefault()
-      resetMessage(publishMessage)
       if (!preview) {
-        publishMessage.textContent = copy.required
-        publishMessage.hidden = false
+        toast.warning(copy.required)
         return
       }
       publishButton.disabled = true
@@ -250,25 +249,28 @@ const apiBase = '/api/market/v1'
         })
         if (!response.ok) throw new Error(await errorMessage(response))
         await response.json() as Submission
-        publishMessage.classList.add('market-success')
-        publishMessage.textContent = copy.publishedSuccess
-        publishMessage.hidden = false
+        preview = null
         window.dispatchEvent(new CustomEvent('market-submission-created'))
+        dialog.close()
+        publishForm.hidden = true
+        archiveInput.value = ''
+        toast.success(copy.publishedSuccess)
       } catch (error) {
-        publishMessage.textContent = error instanceof Error ? error.message : copy.unavailable
-        publishMessage.hidden = false
+        toast.error(error instanceof Error ? error.message : copy.unavailable)
       } finally {
-        publishButton.disabled = false
+        publishButton.disabled = preview === null
         publishButton.textContent = copy.publish
       }
     })
 
-    root.querySelector<HTMLButtonElement>('[data-replace-archive]')?.addEventListener('click', () => {
-      preview = null
-      publishForm.hidden = true
-      publishForm.reset()
-      inspectForm.reset()
-      inspectForm.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    root.querySelectorAll<HTMLButtonElement>('[data-replace-archive]').forEach((button) => {
+      button.addEventListener('click', () => {
+        preview = null
+        publishButton.disabled = false
+        publishForm.hidden = true
+        dialog.close()
+        chooseArchive()
+      })
     })
   }
 </script>

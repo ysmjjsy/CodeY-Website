@@ -1,0 +1,32 @@
+---
+interface Props {
+  title?: string
+  description?: string
+  eyebrow?: string
+  align?: 'start' | 'center'
+  class?: string
+  eyebrowClass?: string
+  actionsClass?: string
+}
+
+const {
+  title,
+  description,
+  eyebrow,
+  align = 'start',
+  class: className,
+  eyebrowClass,
+  actionsClass,
+} = Astro.props
+const hasActions = Astro.slots.has('actions')
+const hasTitle = Astro.slots.has('title')
+---
+
+<header class:list={['ui-page-header', `ui-page-header--${align}`, className]}>
+  <div class="ui-page-header__copy">
+    {eyebrow && <span class:list={['ui-eyebrow', eyebrowClass]}>{eyebrow}</span>}
+    <h1>{hasTitle ? <slot name="title" /> : title}</h1>
+    {description && <p>{description}</p>}
+  </div>
+  {hasActions && <div class:list={['ui-page-header__actions', actionsClass]}><slot name="actions" /></div>}
+</header>

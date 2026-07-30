@@ -6,8 +6,8 @@ use crate::contracts::{
     MarketplaceListingSummary, MarketplaceReleaseDetail, MarketplaceReleaseSummary,
     MarketplaceUploadPreview, PublishMarketplaceUploadRequest,
 };
+use crate::db::{params, Connection, OptionalExtension, TransactionBehavior};
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use thiserror::Error;
 
 use crate::auth::{
@@ -83,20 +83,21 @@ pub struct MarketplaceSubmission {
     pub review_note: Option<String>,
     pub submitted_at: DateTime<Utc>,
     pub reviewed_at: Option<DateTime<Utc>>,
+    pub reviewer: Option<MarketplaceUser>,
     pub release: Option<MarketplaceReleaseDetail>,
     #[serde(skip)]
     pub artifact_path: PathBuf,
 }
 
 impl MarketplaceStore {
-    pub fn open(root: impl Into<PathBuf>) -> Result<Self, MarketplaceStoreError> {
+    pub fn open(
+        root: impl Into<PathBuf>,
+        database_url: &str,
+    ) -> Result<Self, MarketplaceStoreError> {
         let root = root.into();
         std::fs::create_dir_all(root.join("artifacts"))?;
         std::fs::create_dir_all(root.join("uploads"))?;
-        let connection = Connection::open(root.join("marketplace.sqlite3"))?;
-        connection.busy_timeout(std::time::Duration::from_secs(5))?;
-        connection.pragma_update(None, "journal_mode", "WAL")?;
-        connection.pragma_update(None, "foreign_keys", "ON")?;
+        let connection = crate::db::connect(root.join("marketplace.sqlite3"), database_url)?;
         connection.execute_batch(
             "CREATE TABLE IF NOT EXISTS marketplace_listing (
                 listing_id TEXT PRIMARY KEY,
@@ -128,17 +129,21 @@ impl MarketplaceStore {
             );
             CREATE TABLE IF NOT EXISTS marketplace_user (
                 user_id TEXT PRIMARY KEY,
-                username TEXT NOT NULL COLLATE NOCASE UNIQUE,
-                email TEXT COLLATE NOCASE UNIQUE,
+                username TEXT NOT NULL,
+                email TEXT,
                 display_name TEXT NOT NULL,
                 password_hash TEXT,
                 github_id INTEGER UNIQUE,
-                github_login TEXT COLLATE NOCASE,
+                github_login TEXT,
                 avatar_url TEXT,
                 role TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_user_username_ci
+                ON marketplace_user(LOWER(username));
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_user_email_ci
+                ON marketplace_user(LOWER(email)) WHERE email IS NOT NULL;
             CREATE TABLE IF NOT EXISTS marketplace_session (
                 session_hash TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -163,6 +168,7 @@ impl MarketplaceStore {
                 artifact_path TEXT NOT NULL,
                 status TEXT NOT NULL,
                 reviewer_user_id TEXT,
+                reviewer_json TEXT,
                 review_note TEXT,
                 submitted_at TEXT NOT NULL,
                 reviewed_at TEXT,
@@ -178,19 +184,52 @@ impl MarketplaceStore {
         if !column_exists(&connection, "marketplace_upload", "owner_user_id")? {
             connection.execute(
                 "ALTER TABLE marketplace_upload ADD COLUMN owner_user_id TEXT",
-                [],
+                params![],
             )?;
         }
         if !column_exists(&connection, "marketplace_oauth_state", "return_url")? {
             connection.execute(
                 "ALTER TABLE marketplace_oauth_state ADD COLUMN return_url TEXT",
-                [],
+                params![],
             )?;
         }
-        Ok(Self {
+        if !column_exists(&connection, "marketplace_submission", "reviewer_json")? {
+            connection.execute(
+                "ALTER TABLE marketplace_submission ADD COLUMN reviewer_json TEXT",
+                params![],
+            )?;
+        }
+        let store = Self {
             connection: Arc::new(Mutex::new(connection)),
             root: Arc::new(root),
-        })
+        };
+        store.backfill_submission_reviewers()?;
+        Ok(store)
+    }
+
+    fn backfill_submission_reviewers(&self) -> Result<(), MarketplaceStoreError> {
+        let reviewer_ids = {
+            let connection = self.connection()?;
+            let mut statement = connection.prepare(
+                "SELECT DISTINCT reviewer_user_id FROM marketplace_submission
+                 WHERE reviewer_user_id IS NOT NULL AND reviewer_json IS NULL",
+            )?;
+            let reviewer_ids = statement
+                .query_map(params![], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            reviewer_ids
+        };
+        for reviewer_id in reviewer_ids {
+            let Some(reviewer) = self.user_by_id(&reviewer_id)? else {
+                continue;
+            };
+            self.connection()?.execute(
+                "UPDATE marketplace_submission SET reviewer_json=?1
+                 WHERE reviewer_user_id=?2 AND reviewer_json IS NULL",
+                params![serde_json::to_string(&reviewer.user)?, reviewer_id],
+            )?;
+        }
+        Ok(())
     }
 
     #[must_use]
@@ -457,7 +496,7 @@ impl MarketplaceStore {
             "SELECT detail_json FROM marketplace_listing ORDER BY updated_at DESC, listing_id DESC",
         )?;
         let mut listings = statement
-            .query_map([], |row| row.get::<_, String>(0))?
+            .query_map(params![], |row| row.get::<_, String>(0))?
             .map(|row| {
                 serde_json::from_str::<MarketplaceListingDetail>(&row?)
                     .map(|detail| detail.summary)
@@ -597,6 +636,40 @@ impl MarketplaceStore {
         })
     }
 
+    pub fn upsert_local_admin(
+        &self,
+        username: &str,
+        password_hash: &str,
+    ) -> Result<(), MarketplaceStoreError> {
+        let now = Utc::now().to_rfc3339();
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let user_id = transaction
+            .query_row(
+                "SELECT user_id FROM marketplace_user WHERE LOWER(username)=LOWER(?1)",
+                [username],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(user_id) = user_id {
+            transaction.execute(
+                "UPDATE marketplace_user
+                 SET password_hash=?1, role='admin', updated_at=?2
+                 WHERE user_id=?3",
+                params![password_hash, now, user_id],
+            )?;
+        } else {
+            transaction.execute(
+                "INSERT INTO marketplace_user(
+                    user_id, username, display_name, password_hash, role, created_at, updated_at
+                 ) VALUES (?1, ?2, 'Administrator', ?3, 'admin', ?4, ?4)",
+                params![ulid::Ulid::new().to_string(), username, password_hash, now],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn user_by_identifier(
         &self,
         identifier: &str,
@@ -605,7 +678,7 @@ impl MarketplaceStore {
             "SELECT user_id, username, email, display_name, password_hash, github_id,
                     github_login, avatar_url, role, created_at
              FROM marketplace_user
-             WHERE username=?1 COLLATE NOCASE OR email=?1 COLLATE NOCASE",
+             WHERE LOWER(username)=LOWER(?1) OR LOWER(email)=LOWER(?1)",
             identifier,
         )
     }
@@ -885,6 +958,7 @@ impl MarketplaceStore {
             review_note: None,
             submitted_at,
             reviewed_at: None,
+            reviewer: None,
             release: None,
             artifact_path: artifact_path.to_path_buf(),
         })
@@ -898,7 +972,7 @@ impl MarketplaceStore {
             .connection()?
             .query_row(
                 "SELECT submission_id, owner_json, preview_json, request_json, artifact_path,
-                        status, review_note, submitted_at, reviewed_at, release_json
+                        status, review_note, submitted_at, reviewed_at, release_json, reviewer_json
                  FROM marketplace_submission WHERE submission_id=?1",
                 [submission_id],
                 submission_row,
@@ -911,11 +985,29 @@ impl MarketplaceStore {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
             "SELECT submission_id, owner_json, preview_json, request_json, artifact_path,
-                    status, review_note, submitted_at, reviewed_at, release_json
+                    status, review_note, submitted_at, reviewed_at, release_json, reviewer_json
              FROM marketplace_submission WHERE status='pending' ORDER BY submitted_at ASC",
         )?;
         let submissions = statement
-            .query_map([], submission_row)?
+            .query_map(params![], submission_row)?
+            .map(|row| submission_from_row(row?))
+            .collect();
+        submissions
+    }
+
+    pub fn reviewed_submissions(
+        &self,
+    ) -> Result<Vec<MarketplaceSubmission>, MarketplaceStoreError> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT submission_id, owner_json, preview_json, request_json, artifact_path,
+                    status, review_note, submitted_at, reviewed_at, release_json, reviewer_json
+             FROM marketplace_submission
+             WHERE status IN ('approved', 'rejected')
+             ORDER BY reviewed_at DESC, submitted_at DESC",
+        )?;
+        let submissions = statement
+            .query_map(params![], submission_row)?
             .map(|row| submission_from_row(row?))
             .collect();
         submissions
@@ -928,7 +1020,7 @@ impl MarketplaceStore {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
             "SELECT submission_id, owner_json, preview_json, request_json, artifact_path,
-                    status, review_note, submitted_at, reviewed_at, release_json
+                    status, review_note, submitted_at, reviewed_at, release_json, reviewer_json
              FROM marketplace_submission WHERE owner_user_id=?1 ORDER BY submitted_at DESC",
         )?;
         let submissions = statement
@@ -941,7 +1033,7 @@ impl MarketplaceStore {
     pub fn finish_submission(
         &self,
         submission_id: &str,
-        reviewer_user_id: &str,
+        reviewer: &MarketplaceUser,
         status: MarketplaceSubmissionStatus,
         review_note: Option<&str>,
         release: Option<&MarketplaceReleaseDetail>,
@@ -951,11 +1043,13 @@ impl MarketplaceStore {
         }
         let updated = self.connection()?.execute(
             "UPDATE marketplace_submission SET
-                status=?1, reviewer_user_id=?2, review_note=?3, reviewed_at=?4, release_json=?5
-             WHERE submission_id=?6 AND status='pending'",
+                status=?1, reviewer_user_id=?2, reviewer_json=?3, review_note=?4,
+                reviewed_at=?5, release_json=?6
+             WHERE submission_id=?7 AND status='pending'",
             params![
                 status.as_str(),
-                reviewer_user_id,
+                reviewer.user_id,
+                serde_json::to_string(reviewer)?,
                 review_note.map(str::trim).filter(|value| !value.is_empty()),
                 Utc::now().to_rfc3339(),
                 release.map(serde_json::to_string).transpose()?,
@@ -989,7 +1083,7 @@ type StoredUserRow = (
     String,
 );
 
-fn stored_user_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredUserRow> {
+fn stored_user_row(row: &crate::db::Row<'_>) -> crate::db::Result<StoredUserRow> {
     Ok((
         row.get(0)?,
         row.get(1)?,
@@ -1037,9 +1131,10 @@ type SubmissionRow = (
     String,
     Option<String>,
     Option<String>,
+    Option<String>,
 );
 
-fn submission_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SubmissionRow> {
+fn submission_row(row: &crate::db::Row<'_>) -> crate::db::Result<SubmissionRow> {
     Ok((
         row.get(0)?,
         row.get(1)?,
@@ -1051,6 +1146,7 @@ fn submission_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SubmissionRow> {
         row.get(7)?,
         row.get(8)?,
         row.get(9)?,
+        row.get(10)?,
     ))
 }
 
@@ -1066,6 +1162,7 @@ fn submission_from_row(row: SubmissionRow) -> Result<MarketplaceSubmission, Mark
         submitted_at: parse_timestamp(&row.7)?,
         reviewed_at: row.8.as_deref().map(parse_timestamp).transpose()?,
         release: row.9.as_deref().map(serde_json::from_str).transpose()?,
+        reviewer: row.10.as_deref().map(serde_json::from_str).transpose()?,
     })
 }
 
@@ -1075,6 +1172,7 @@ fn parse_timestamp(value: &str) -> Result<DateTime<Utc>, MarketplaceStoreError> 
         .map_err(|error| MarketplaceStoreError::InvalidTimestamp(error.to_string()))
 }
 
+#[cfg(test)]
 fn column_exists(
     connection: &Connection,
     table: &str,
@@ -1082,9 +1180,27 @@ fn column_exists(
 ) -> Result<bool, MarketplaceStoreError> {
     let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
     let names = statement
-        .query_map([], |row| row.get::<_, String>(1))?
+        .query_map(params![], |row| row.get::<_, String>(1))?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(names.iter().any(|name| name == column))
+}
+
+#[cfg(not(test))]
+fn column_exists(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+) -> Result<bool, MarketplaceStoreError> {
+    connection
+        .query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema=current_schema() AND table_name=?1 AND column_name=?2
+            )",
+            params![table, column],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(MarketplaceStoreError::from)
 }
 
 fn json_row<T: serde::de::DeserializeOwned>(
@@ -1157,7 +1273,7 @@ pub enum MarketplaceStoreError {
     #[error("marketplace store lock was poisoned")]
     LockPoisoned,
     #[error(transparent)]
-    Sqlite(#[from] rusqlite::Error),
+    Database(#[from] crate::db::Error),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
@@ -1169,10 +1285,10 @@ pub enum MarketplaceStoreError {
 #[cfg(test)]
 mod tests {
     use crate::contracts::{
-        MarketplaceCompatibility, MarketplacePrimaryResource, MarketplaceResourceSummary,
+        AgentComponentKind, MarketplaceCompatibility, MarketplacePrimaryResource,
+        MarketplaceResourceSummary,
     };
     use chrono::{Duration, Utc};
-    use codey_package_format::AgentComponentKind;
 
     use super::*;
 
@@ -1184,6 +1300,7 @@ mod tests {
                 revision: ulid::Ulid::new().to_string(),
             },
             display_name: "Repository analyst".into(),
+            files: vec!["SKILL.md".into()],
         };
         MarketplaceUploadPreview {
             upload_id: ulid::Ulid::new().to_string(),
@@ -1229,9 +1346,42 @@ mod tests {
     }
 
     #[test]
+    fn configured_admin_is_created_and_its_password_is_refreshed() {
+        let root = tempfile::tempdir().unwrap();
+        let store = MarketplaceStore::open(root.path(), "").unwrap();
+        let initial_password = crate::auth::hash_password("initial-admin-password").unwrap();
+        store
+            .upsert_local_admin("admin", &initial_password)
+            .unwrap();
+
+        let initial = store.user_by_identifier("admin").unwrap().unwrap();
+        assert!(initial.user.is_admin());
+        assert!(crate::auth::verify_password(
+            "initial-admin-password",
+            initial.password_hash.as_deref().unwrap()
+        ));
+
+        let replacement_password =
+            crate::auth::hash_password("replacement-admin-password").unwrap();
+        store
+            .upsert_local_admin("admin", &replacement_password)
+            .unwrap();
+        let replacement = store.user_by_identifier("admin").unwrap().unwrap();
+        assert!(replacement.user.is_admin());
+        assert!(crate::auth::verify_password(
+            "replacement-admin-password",
+            replacement.password_hash.as_deref().unwrap()
+        ));
+        assert!(!crate::auth::verify_password(
+            "initial-admin-password",
+            replacement.password_hash.as_deref().unwrap()
+        ));
+    }
+
+    #[test]
     fn publish_keeps_versions_immutable_and_selects_latest_semver() {
         let root = tempfile::tempdir().unwrap();
-        let store = MarketplaceStore::open(root.path()).unwrap();
+        let store = MarketplaceStore::open(root.path(), "").unwrap();
         let v2 = preview("com.codey.repository-analyst", "2.0.0", "hash-v2");
         let v1 = preview("com.codey.repository-analyst", "1.0.0", "hash-v1");
         let first = store
@@ -1276,7 +1426,7 @@ mod tests {
     #[test]
     fn catalog_filters_and_download_count_are_persistent() {
         let root = tempfile::tempdir().unwrap();
-        let store = MarketplaceStore::open(root.path()).unwrap();
+        let store = MarketplaceStore::open(root.path(), "").unwrap();
         let value = preview("com.codey.repository-analyst", "1.0.0", "hash-v1");
         let release = store
             .publish(
@@ -1312,7 +1462,7 @@ mod tests {
         store.record_download(&release.listing_id).unwrap();
         drop(store);
 
-        let reopened = MarketplaceStore::open(root.path()).unwrap();
+        let reopened = MarketplaceStore::open(root.path(), "").unwrap();
         let detail = reopened.listing(&release.listing_id).unwrap().unwrap();
         assert_eq!(detail.summary.download_count, 1);
         assert_eq!(
@@ -1328,7 +1478,7 @@ mod tests {
     #[test]
     fn rejected_submission_never_enters_catalog() {
         let root = tempfile::tempdir().unwrap();
-        let store = MarketplaceStore::open(root.path()).unwrap();
+        let store = MarketplaceStore::open(root.path(), "").unwrap();
         let password = crate::auth::hash_password("correct-horse-battery-staple").unwrap();
         let owner = store
             .create_local_user(
@@ -1360,7 +1510,7 @@ mod tests {
         let rejected = store
             .finish_submission(
                 &submission.submission_id,
-                &reviewer.user_id,
+                &reviewer,
                 MarketplaceSubmissionStatus::Rejected,
                 Some("Unsafe permissions"),
                 None,

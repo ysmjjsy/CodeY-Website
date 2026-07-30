@@ -1,0 +1,21 @@
+---
+interface Props {
+  title: string
+  description?: string
+  eyebrow?: string
+  class?: string
+  eyebrowClass?: string
+}
+
+const { title, description, eyebrow, class: className, eyebrowClass } = Astro.props
+const hasActions = Astro.slots.has('actions')
+---
+
+<header class:list={['ui-section-header', className]}>
+  <div>
+    {eyebrow && <span class:list={['ui-eyebrow', eyebrowClass]}>{eyebrow}</span>}
+    <h2>{title}</h2>
+    {description && <p>{description}</p>}
+  </div>
+  {hasActions && <div class="ui-section-header__actions"><slot name="actions" /></div>}
+</header>

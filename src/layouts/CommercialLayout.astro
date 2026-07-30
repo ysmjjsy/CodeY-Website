@@ -1,0 +1,25 @@
+---
+import '@phosphor-icons/web/regular'
+import SiteFooter from '../components/SiteFooter.astro'
+import SiteNav from '../components/SiteNav.astro'
+import type { Locale } from '../i18n/ui'
+import LandingLayout from './LandingLayout.astro'
+import '../styles/commercial.css'
+
+interface Props {
+  title: string
+  description: string
+  locale: Locale
+  alternateHref: string
+}
+
+const { title, description, locale, alternateHref } = Astro.props
+---
+
+<LandingLayout title={title} description={description} locale={locale} alternateHref={alternateHref}>
+  <SiteNav locale={locale} alternateHref={alternateHref} />
+  <main class="commercial-main">
+    <slot />
+  </main>
+  <SiteFooter locale={locale} />
+</LandingLayout>

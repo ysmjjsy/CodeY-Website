@@ -1,11 +1,31 @@
 use chrono::{DateTime, Utc};
-use codey_package_format::{AgentComponentKind, ExecutionTargetKind, MAX_PACKAGE_ARCHIVE_BYTES};
+use codey_package_format::MAX_PACKAGE_ARCHIVE_BYTES;
 use serde::{Deserialize, Serialize};
 
 pub const MARKETPLACE_SCHEMA_VERSION: u16 = 1;
 pub const MAX_PACKAGE_BYTES: usize = MAX_PACKAGE_ARCHIVE_BYTES;
 pub const PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION: u16 = 1;
-pub const PACKAGE_MARKETPLACE_MANIFEST_PATH: &str = "marketplace/manifest.json";
+pub const PACKAGE_MARKETPLACE_MANIFEST_PATH: &str = "marketplace/listing.json";
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentComponentKind {
+    Prompt,
+    Mcp,
+    Skill,
+    Plugin,
+    Hook,
+    Asset,
+    BuiltinToolCapability,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionTargetKind {
+    Agent,
+    Team,
+    Workflow,
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -15,6 +35,10 @@ pub enum MarketplaceListingKind {
     WorkflowTemplate,
     Skill,
     Mcp,
+    Plugin,
+    Hook,
+    Prompt,
+    Asset,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,6 +96,22 @@ impl MarketplacePrimaryResource {
                 kind: AgentComponentKind::Mcp,
                 ..
             } => Some(MarketplaceListingKind::Mcp),
+            Self::Component {
+                kind: AgentComponentKind::Plugin,
+                ..
+            } => Some(MarketplaceListingKind::Plugin),
+            Self::Component {
+                kind: AgentComponentKind::Hook,
+                ..
+            } => Some(MarketplaceListingKind::Hook),
+            Self::Component {
+                kind: AgentComponentKind::Prompt,
+                ..
+            } => Some(MarketplaceListingKind::Prompt),
+            Self::Component {
+                kind: AgentComponentKind::Asset,
+                ..
+            } => Some(MarketplaceListingKind::Asset),
             _ => None,
         }
     }
@@ -82,6 +122,8 @@ impl MarketplacePrimaryResource {
 pub struct MarketplaceResourceSummary {
     pub resource: MarketplacePrimaryResource,
     pub display_name: String,
+    #[serde(default)]
+    pub files: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -213,8 +255,7 @@ pub struct MarketplaceUploadPreview {
 
 #[cfg(test)]
 mod tests {
-    use super::{MarketplaceListingKind, MarketplacePrimaryResource};
-    use codey_package_format::ExecutionTargetKind;
+    use super::{ExecutionTargetKind, MarketplaceListingKind, MarketplacePrimaryResource};
 
     #[test]
     fn workflow_resources_are_publishable_workflow_templates() {

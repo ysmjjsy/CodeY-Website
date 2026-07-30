@@ -30,12 +30,17 @@ export function marketPath(locale: Locale, slug = ''): string {
   return clean ? `${base}/${clean}/` : `${base}/`
 }
 
-export function accountPath(locale: Locale): string {
-  return locale === 'en' ? '/en/account/' : '/account/'
+export function modelsPath(locale: Locale): string {
+  return locale === 'en' ? '/en/models/' : '/models/'
 }
 
-export function cloudAdminPath(locale: Locale): string {
-  return locale === 'en' ? '/en/admin/cloud/' : '/admin/cloud/'
+export function pricingPath(locale: Locale): string {
+  return locale === 'en' ? '/en/pricing/' : '/pricing/'
+}
+
+export function consolePath(locale: Locale, section: 'credits' | 'templates' | 'reviews' | 'models' | 'plans' | 'topups' = 'credits'): string {
+  const base = locale === 'en' ? '/en/console' : '/console'
+  return section === 'credits' ? `${base}/` : `${base}/${section}/`
 }
 
 /** Counterpart landing path when switching language. */

@@ -30,7 +30,7 @@ pnpm start     # 同源提供官网、Market API 和 discovery
 
 模板市场后端位于本仓库的 `server/market-server`，不依赖 CodeY 桌面端仓库。
 `.codeypkg` 格式依赖固定版本的公开 `CodeY-Package-Format` 仓库。运行数据默认保存在官网仓库的
-`.codey-market/`。
+`.codey-market/`，账号、会话、市场和 Cloud 业务数据存放在 PostgreSQL。
 
 账号支持用户名或邮箱加密码，以及 GitHub OAuth。GitHub 登录需要在服务端配置：
 
@@ -38,22 +38,27 @@ pnpm start     # 同源提供官网、Market API 和 discovery
 CODEY_MARKET_GITHUB_CLIENT_ID=...
 CODEY_MARKET_GITHUB_CLIENT_SECRET=...
 CODEY_MARKET_ADMIN_GITHUB_LOGINS=github-login-1,github-login-2
+CODEY_MARKET_ADMIN_USERNAME=admin
+CODEY_MARKET_ADMIN_PASSWORD=change-me
+CODEY_DATABASE_URL=postgresql://goya:change-me@39.105.2.5:15432/codey
 ```
+
+本地管理员会在服务启动时自动创建。修改账号或密码配置后，重启服务即可生效。
 
 本地开发可复制 `.env.example` 为 `.env.local`。`pnpm dev` 和 `pnpm start`
 会自动加载该文件，进程中已有的环境变量优先。`.env.local` 已被 Git 忽略，
-不得提交 GitHub Client Secret。
+不得提交数据库密码、管理员密码或 GitHub Client Secret。
 
 OAuth App 的回调地址为
 `<官网地址>/api/market/v1/auth/github/callback`。这些变量只传给 Market Server，不会进入前端构建产物。
 
-登录后可从账号菜单进入 `/market/dashboard/` 管理自己的模板。配置在
-`CODEY_MARKET_ADMIN_GITHUB_LOGINS` 中的 GitHub 账号会显示模板审核菜单。
+登录后可从账号菜单进入 `/console/`。普通用户可以管理套餐、积分和自己的模板；
+配置在 `CODEY_MARKET_ADMIN_GITHUB_LOGINS` 中的 GitHub 账号还可以审核模板并管理模型与套餐。
 
 ## 云账号、套餐与官方模型
 
-官网账号同时用于模板市场、套餐购买和 Desktop 登录。用户页位于 `/account/`，
-云管理端位于 `/admin/cloud/`。Desktop 通过系统浏览器执行 OAuth 2.0 Authorization
+官网账号同时用于模板市场、套餐购买和 Desktop 登录。用户与管理员功能统一位于
+`/console/`。Desktop 通过系统浏览器执行 OAuth 2.0 Authorization
 Code + PKCE 登录，并从 `/.well-known/codey-cloud.json` 发现 Cloud API。
 
 管理员可以在云管理端：
@@ -87,8 +92,8 @@ CODEY_CLOUD_DEFAULT_TIMEZONE=Asia/Shanghai
 公开 HTTPS 官网。`CODEY_CLOUD_ENABLE_TEST_PAYMENTS` 只用于本地集成测试，生产环境
 必须保持 `false`。
 
-当前服务复用既有 `marketplace.sqlite3`，Cloud 表由启动迁移幂等创建。部署前应备份
-`.codey-market/`，并确保单实例写入；横向扩容前需把 CloudStore 迁移到共享数据库。
+服务启动时会在 `CODEY_DATABASE_URL` 指向的 PostgreSQL 数据库中幂等创建表和索引。
+`.codey-market/` 只保存待审核和已发布的模板文件。部署时应同时备份 PostgreSQL 和该目录。
 
 支付代码包含下单、签名校验、金额/币种/商户身份核对、重复回调幂等处理。真实支付
 仍需使用各商户 sandbox 和生产凭据分别验收，尤其是回调可达性、证书轮换和账单对账。
@@ -98,9 +103,7 @@ CODEY_CLOUD_DEFAULT_TIMEZONE=Asia/Shanghai
 | 路径 | 用途 |
 | --- | --- |
 | `src/pages/index.astro` | 官网首页 |
-| `src/pages/market/dashboard.astro` | 用户模板管理与管理员审核后台 |
-| `src/pages/account.astro` | 套餐、积分、续费与购买页 |
-| `src/pages/admin/cloud.astro` | 套餐、积分包和官方模型管理端 |
+| `src/pages/console/` | 套餐、模板、审核和模型管理控制台 |
 | `src/components/` | 首页各区块组件 |
 | `src/layouts/LandingLayout.astro` | 首页布局与滚动显现脚本 |
 | `src/styles/landing.css` | 首页设计 Token 与通用样式 |

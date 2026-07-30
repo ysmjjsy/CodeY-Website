@@ -2,6 +2,9 @@
 import type { Locale } from '../i18n/ui'
 import { marketCopy } from '../i18n/market'
 import { marketPath } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Panel from './ui/Panel.astro'
+import StateMessage from './ui/StateMessage.astro'
 
 interface Props {
   locale: Locale
@@ -20,7 +23,7 @@ const apiBase = '/api/market/v1'
   data-copy={JSON.stringify(copy)}
 >
   <a class="market-back" href={marketPath(locale)}><span aria-hidden="true">←</span>{copy.back}</a>
-  <div class="market-state" data-detail-state>{copy.loading}</div>
+  <StateMessage as="div" class="market-state" data-detail-state>{copy.loading}</StateMessage>
 
   <article hidden data-detail-content>
     <header class="market-detail-hero">
@@ -41,9 +44,9 @@ const apiBase = '/api/market/v1'
           <div class="market-tags" data-detail-tags></div>
         </div>
       </div>
-      <a class="btn btn-primary market-detail-download" data-detail-download>
+      <Button as="a" class="market-detail-download" variant="primary" data-detail-download>
         <span aria-hidden="true">↓</span>{copy.download}
-      </a>
+      </Button>
     </header>
 
     <nav class="market-detail-tabs" role="tablist" aria-label={copy.detailNavigation}>
@@ -90,18 +93,18 @@ const apiBase = '/api/market/v1'
       </main>
 
       <aside class="market-detail-sidebar">
-        <section class="market-detail-side-card market-install-card">
+        <Panel as="section" class="market-detail-side-card market-install-card">
           <p class="market-side-kicker">{copy.getTemplate}</p>
           <h2>{copy.downloadTemplate}</h2>
           <label for="market-version">{copy.selectVersion}</label>
           <select id="market-version" class="market-select" data-detail-versions></select>
-          <a class="btn btn-primary" data-detail-download-side>
+          <Button as="a" variant="primary" data-detail-download-side>
             <span aria-hidden="true">↓</span>{copy.download}
-          </a>
+          </Button>
           <p class="market-install-note">{copy.downloadHint}</p>
-        </section>
+        </Panel>
 
-        <section class="market-detail-side-card">
+        <Panel as="section" class="market-detail-side-card">
           <h2><span aria-hidden="true">◇</span>{copy.templateInfo}</h2>
           <dl class="market-facts">
             <div><dt>{copy.packageId}</dt><dd data-fact-package></dd></div>
@@ -113,20 +116,22 @@ const apiBase = '/api/market/v1'
             <div><dt>{copy.published}</dt><dd data-fact-published></dd></div>
             <div><dt>{copy.downloads}</dt><dd data-fact-downloads></dd></div>
           </dl>
-        </section>
+        </Panel>
       </aside>
     </div>
   </article>
 </section>
 
 <script>
+  import { toast } from '../lib/toast'
+
   type ReleaseSummary = {
     releaseId: string
     version: string
     publishedAt: string
     compatibility: { codeyVersionRange: string; platforms: string[]; architectures: string[] }
   }
-  type Resource = { displayName: string; resource: { type: string } }
+  type Resource = { displayName: string; resource: { type: string }; files?: string[] }
   type Listing = {
     listingId: string
     packageId: string
@@ -208,6 +213,49 @@ const apiBase = '/api/market/v1'
         const label = document.createElement('span')
         label.textContent = value
         item.append(mark, label)
+        element.append(item)
+      })
+    }
+
+    function renderResources(resources: Resource[]): void {
+      const element = root.querySelector<HTMLElement>('[data-detail-resources]')!
+      element.replaceChildren()
+      if (!resources.length) {
+        fillList('[data-detail-resources]', [], copy.noResources, 'market-resource-item')
+        return
+      }
+      resources.forEach((resource) => {
+        const item = document.createElement('li')
+        item.className = 'market-resource-item'
+        const mark = document.createElement('span')
+        mark.textContent = '✓'
+        mark.setAttribute('aria-hidden', 'true')
+        const body = document.createElement('div')
+        body.className = 'market-resource-body'
+        const name = document.createElement('strong')
+        name.textContent = resource.displayName
+        const files = resource.files || []
+        const meta = document.createElement('span')
+        meta.textContent = files.length
+          ? `${files.length} ${files.length === 1 ? copy.fileCountSingle : copy.fileCountSuffix}`
+          : copy.externalResource
+        body.append(name, meta)
+        if (files.length) {
+          const details = document.createElement('details')
+          const summary = document.createElement('summary')
+          summary.textContent = copy.showFiles
+          const list = document.createElement('ul')
+          files.forEach((path) => {
+            const file = document.createElement('li')
+            const code = document.createElement('code')
+            code.textContent = path
+            file.append(code)
+            list.append(file)
+          })
+          details.append(summary, list)
+          body.append(details)
+        }
+        item.append(mark, body)
         element.append(item)
       })
     }
@@ -335,7 +383,7 @@ const apiBase = '/api/market/v1'
         tags.append(item)
       })
       renderMarkdown(detail.readmeMarkdown, summary)
-      fillList('[data-detail-resources]', detail.resources.map((resource) => resource.displayName), copy.noResources, 'market-resource-item')
+      renderResources(detail.resources)
       fillList('[data-detail-permissions]', detail.requestedPermissions, copy.noPermissions, 'market-permission-item')
       setText('[data-resource-count]', ` ${detail.resources.length}`)
       setText('[data-fact-package]', detail.packageId)
@@ -402,7 +450,13 @@ const apiBase = '/api/market/v1'
         state.hidden = true
         content.hidden = false
       } catch {
-        state.textContent = copy.unavailable
+        toast.error(copy.unavailable)
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void load()
+        state.replaceChildren(retry)
       }
     }
 

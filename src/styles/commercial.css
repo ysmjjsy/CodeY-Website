@@ -1,0 +1,168 @@
+.commercial-main {
+  min-height: 78vh;
+  padding-top: 68px;
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    radial-gradient(circle at 50% -10%, var(--accent-glow), transparent 32rem),
+    var(--bg);
+  background-size: 44px 44px, 44px 44px, auto, auto;
+}
+
+.commercial-page {
+  padding-block: clamp(68px, 8vw, 108px);
+}
+
+.commercial-hero {
+  max-width: 760px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.commercial-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  color: var(--accent-bright);
+  font: 600 .72rem/1 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.commercial-eyebrow::before {
+  width: 20px;
+  height: 1px;
+  content: '';
+  background: var(--accent);
+}
+
+.commercial-hero h1 {
+  font-size: clamp(2.25rem, 6vw, 4.3rem);
+  line-height: 1.05;
+  letter-spacing: -.055em;
+}
+
+.commercial-hero p {
+  max-width: 660px;
+  margin: 20px auto 0;
+  color: var(--fg-muted);
+  font-size: clamp(.95rem, 1.5vw, 1.08rem);
+  line-height: 1.8;
+}
+
+.catalog-state {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  min-height: 140px;
+  margin: 48px 0 0;
+  place-content: center;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.catalog-state[hidden],
+[data-content][hidden],
+[data-model-grid][hidden] {
+  display: none;
+}
+
+.catalog-state .btn {
+  min-height: 38px;
+  padding: 8px 15px;
+}
+
+.commercial-section {
+  margin-top: clamp(70px, 9vw, 110px);
+}
+
+.commercial-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 25px;
+}
+
+.commercial-section-head > div {
+  max-width: 680px;
+}
+
+.commercial-section-head h2 {
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  letter-spacing: -.035em;
+}
+
+.commercial-section-head p {
+  margin: 9px 0 0;
+  color: var(--fg-muted);
+  font-size: .88rem;
+}
+
+.commercial-panel {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 22px 70px rgb(0 0 0 / .12);
+  backdrop-filter: blur(16px);
+}
+
+.commerce-dialog {
+  width: min(540px, calc(100vw - 28px));
+  max-width: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  color: var(--fg);
+  background: var(--bg);
+  box-shadow: 0 28px 90px rgb(0 0 0 / .42);
+}
+
+.commerce-dialog::backdrop {
+  background: rgb(4 6 12 / .72);
+  backdrop-filter: blur(7px);
+}
+
+.commerce-dialog-card {
+  padding: 28px;
+}
+
+.commerce-dialog-card h2 {
+  font-size: 1.35rem;
+}
+
+.commerce-dialog-card > p {
+  margin: 8px 0 22px;
+  color: var(--fg-muted);
+  font-size: .84rem;
+}
+
+.commerce-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.commerce-dialog-actions .btn {
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 15px;
+}
+
+@media (max-width: 680px) {
+  .commercial-page {
+    padding-block: 48px 72px;
+  }
+
+  .commercial-section-head {
+    display: block;
+  }
+
+  .commerce-dialog-card {
+    padding: 22px;
+  }
+}

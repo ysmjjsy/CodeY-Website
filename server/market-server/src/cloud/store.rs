@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use crate::db::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
 use chrono::{DateTime, Duration, Utc};
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
 use thiserror::Error;
 
 use super::contracts::{
@@ -28,13 +28,10 @@ impl std::fmt::Debug for CloudStore {
 }
 
 impl CloudStore {
-    pub fn open(root: impl Into<PathBuf>) -> Result<Self, CloudStoreError> {
+    pub fn open(root: impl Into<PathBuf>, database_url: &str) -> Result<Self, CloudStoreError> {
         let root = root.into();
         std::fs::create_dir_all(&root)?;
-        let connection = Connection::open(root.join("marketplace.sqlite3"))?;
-        connection.busy_timeout(std::time::Duration::from_secs(5))?;
-        connection.pragma_update(None, "journal_mode", "WAL")?;
-        connection.pragma_update(None, "foreign_keys", "ON")?;
+        let connection = crate::db::connect(root.join("marketplace.sqlite3"), database_url)?;
         migrate(&connection)?;
         seed_default_plan(&connection)?;
         Ok(Self {
@@ -770,6 +767,8 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
             slug TEXT NOT NULL UNIQUE,
             display_name TEXT NOT NULL,
             description TEXT NOT NULL,
+            display_name_i18n_json TEXT NOT NULL DEFAULT '{}',
+            description_i18n_json TEXT NOT NULL DEFAULT '{}',
             tier_rank INTEGER NOT NULL,
             is_default INTEGER NOT NULL CHECK(is_default IN (0, 1)),
             active INTEGER NOT NULL CHECK(active IN (0, 1)),
@@ -825,6 +824,8 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
             slug TEXT NOT NULL UNIQUE,
             display_name TEXT NOT NULL,
             description TEXT NOT NULL,
+            display_name_i18n_json TEXT NOT NULL DEFAULT '{}',
+            description_i18n_json TEXT NOT NULL DEFAULT '{}',
             active INTEGER NOT NULL CHECK(active IN (0, 1)),
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -853,6 +854,7 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
         );
         CREATE TABLE IF NOT EXISTS cloud_upstream_provider (
             provider_id TEXT PRIMARY KEY,
+            provider_preset_id TEXT NOT NULL DEFAULT 'custom',
             slug TEXT NOT NULL UNIQUE,
             display_name TEXT NOT NULL,
             provider_kind TEXT NOT NULL CHECK(provider_kind IN (
@@ -860,6 +862,9 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
             )),
             base_url TEXT NOT NULL,
             api_key_ciphertext TEXT NOT NULL,
+            available_models_json TEXT NOT NULL DEFAULT '[]',
+            models_refreshed_at TEXT,
+            last_test_latency_ms INTEGER CHECK(last_test_latency_ms>=0),
             active INTEGER NOT NULL CHECK(active IN (0, 1)),
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -871,9 +876,12 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
             upstream_provider_id TEXT NOT NULL,
             upstream_model_id TEXT NOT NULL,
             protocol TEXT NOT NULL CHECK(protocol IN (
-                'chat_completions', 'responses', 'messages', 'generate_content'
+                'chat_completions', 'responses', 'messages', 'generate_content',
+                'image_generation', 'image_edit', 'video_generation',
+                'speech_synthesis', 'music_generation'
             )),
             capability_json TEXT NOT NULL,
+            last_test_latency_ms INTEGER CHECK(last_test_latency_ms>=0),
             active INTEGER NOT NULL CHECK(active IN (0, 1)),
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
@@ -1107,7 +1115,7 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
             "ALTER TABLE cloud_model_invocation ADD COLUMN
                 reconciliation_required INTEGER NOT NULL DEFAULT 0
                 CHECK(reconciliation_required IN (0, 1))",
-            [],
+            params![],
         )?;
     }
     for (column, definition) in [
@@ -1122,13 +1130,95 @@ fn migrate(connection: &Connection) -> Result<(), CloudStoreError> {
         if !cloud_column_exists(connection, "cloud_subscription_period", column)? {
             connection.execute(
                 &format!("ALTER TABLE cloud_subscription_period ADD COLUMN {column} {definition}"),
-                [],
+                params![],
             )?;
         }
     }
+    for (table, column) in [
+        ("cloud_plan", "display_name_i18n_json"),
+        ("cloud_plan", "description_i18n_json"),
+        ("cloud_top_up_product", "display_name_i18n_json"),
+        ("cloud_top_up_product", "description_i18n_json"),
+    ] {
+        if !cloud_column_exists(connection, table, column)? {
+            connection.execute(
+                &format!("ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT '{{}}'"),
+                params![],
+            )?;
+        }
+    }
+    if !cloud_column_exists(connection, "cloud_upstream_provider", "provider_preset_id")? {
+        connection.execute(
+            "ALTER TABLE cloud_upstream_provider ADD COLUMN
+                provider_preset_id TEXT NOT NULL DEFAULT 'custom'",
+            params![],
+        )?;
+    }
+    if !cloud_column_exists(
+        connection,
+        "cloud_upstream_provider",
+        "available_models_json",
+    )? {
+        connection.execute(
+            "ALTER TABLE cloud_upstream_provider ADD COLUMN
+                available_models_json TEXT NOT NULL DEFAULT '[]'",
+            params![],
+        )?;
+    }
+    if !cloud_column_exists(connection, "cloud_upstream_provider", "models_refreshed_at")? {
+        connection.execute(
+            "ALTER TABLE cloud_upstream_provider ADD COLUMN models_refreshed_at TEXT",
+            params![],
+        )?;
+    }
+    for table in ["cloud_upstream_provider", "cloud_official_model"] {
+        if !cloud_column_exists(connection, table, "last_test_latency_ms")? {
+            connection.execute(
+                &format!(
+                    "ALTER TABLE {table} ADD COLUMN last_test_latency_ms INTEGER CHECK(last_test_latency_ms>=0)"
+                ),
+                params![],
+            )?;
+        }
+    }
+    ensure_cloud_model_protocol_constraint(connection)?;
     Ok(())
 }
 
+#[cfg(test)]
+fn ensure_cloud_model_protocol_constraint(_connection: &Connection) -> Result<(), CloudStoreError> {
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn ensure_cloud_model_protocol_constraint(connection: &Connection) -> Result<(), CloudStoreError> {
+    let supports_media = connection
+        .query_row(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint
+             WHERE conrelid='cloud_official_model'::regclass
+               AND conname='cloud_official_model_protocol_check'",
+            params![],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .is_some_and(|definition| definition.contains("image_generation"));
+    if supports_media {
+        return Ok(());
+    }
+    connection.execute_batch(
+        "ALTER TABLE cloud_official_model
+            DROP CONSTRAINT IF EXISTS cloud_official_model_protocol_check;
+         ALTER TABLE cloud_official_model
+            ADD CONSTRAINT cloud_official_model_protocol_check CHECK(protocol IN (
+                'chat_completions', 'responses', 'messages', 'generate_content',
+                'image_generation', 'image_edit', 'video_generation',
+                'speech_synthesis', 'music_generation'
+            ));",
+    )?;
+    Ok(())
+}
+
+#[cfg(test)]
 fn cloud_column_exists(
     connection: &Connection,
     table: &str,
@@ -1136,9 +1226,27 @@ fn cloud_column_exists(
 ) -> Result<bool, CloudStoreError> {
     let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
     let names = statement
-        .query_map([], |row| row.get::<_, String>(1))?
+        .query_map(params![], |row| row.get::<_, String>(1))?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(names.iter().any(|name| name == column))
+}
+
+#[cfg(not(test))]
+fn cloud_column_exists(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+) -> Result<bool, CloudStoreError> {
+    connection
+        .query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema=current_schema() AND table_name=?1 AND column_name=?2
+            )",
+            params![table, column],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(CloudStoreError::from)
 }
 
 struct OAuthTokenIssue<'a> {
@@ -1201,11 +1309,27 @@ fn seed_default_plan(connection: &Connection) -> Result<(), CloudStoreError> {
     let now = Utc::now().to_rfc3339();
     connection.execute(
         "INSERT INTO cloud_plan(
-            plan_id, slug, display_name, description, tier_rank, is_default, active,
-            created_at, updated_at
-         ) VALUES (?1, 'free', 'Free', 'Default CodeY plan', 0, 1, 1, ?2, ?2)
+            plan_id, slug, display_name, description, display_name_i18n_json,
+            description_i18n_json, tier_rank, is_default, active, created_at, updated_at
+         ) VALUES (?1, 'free', 'Free', 'Default CodeY plan', ?2, ?3, 0, 1, 1, ?4, ?4)
          ON CONFLICT(plan_id) DO NOTHING",
-        params![DEFAULT_PLAN_ID, now],
+        params![
+            DEFAULT_PLAN_ID,
+            r#"{"en":"Free","zh-CN":"免费版"}"#,
+            r#"{"en":"Default CodeY plan","zh-CN":"CodeY 默认套餐"}"#,
+            now,
+        ],
+    )?;
+    connection.execute(
+        "UPDATE cloud_plan SET
+            display_name_i18n_json=CASE WHEN display_name_i18n_json='{}' THEN ?2 ELSE display_name_i18n_json END,
+            description_i18n_json=CASE WHEN description_i18n_json='{}' THEN ?3 ELSE description_i18n_json END
+         WHERE plan_id=?1",
+        params![
+            DEFAULT_PLAN_ID,
+            r#"{"en":"Free","zh-CN":"免费版"}"#,
+            r#"{"en":"Default CodeY plan","zh-CN":"CodeY 默认套餐"}"#,
+        ],
     )?;
     connection.execute(
         "INSERT INTO cloud_plan_version(
@@ -1217,17 +1341,17 @@ fn seed_default_plan(connection: &Connection) -> Result<(), CloudStoreError> {
     connection.execute(
         "INSERT INTO cloud_config_revision(domain, revision) VALUES ('plans', 0)
          ON CONFLICT(domain) DO NOTHING",
-        [],
+        params![],
     )?;
     connection.execute(
         "INSERT INTO cloud_config_revision(domain, revision) VALUES ('topups', 0)
          ON CONFLICT(domain) DO NOTHING",
-        [],
+        params![],
     )?;
     connection.execute(
         "INSERT INTO cloud_config_revision(domain, revision) VALUES ('models', 0)
          ON CONFLICT(domain) DO NOTHING",
-        [],
+        params![],
     )?;
     Ok(())
 }
@@ -1550,7 +1674,7 @@ fn default_plan(transaction: &Transaction<'_>) -> Result<(String, String, u64), 
          JOIN cloud_plan_version v ON v.plan_id=p.plan_id
          WHERE p.is_default=1 AND p.active=1
          ORDER BY v.version DESC LIMIT 1",
-        [],
+        params![],
         |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -1588,7 +1712,7 @@ fn reservation_by_id(
 fn reservation_query(
     connection: &Connection,
     predicate: &str,
-    parameters: impl rusqlite::Params,
+    parameters: impl crate::db::Params,
 ) -> Result<Option<CreditReservation>, CloudStoreError> {
     connection
         .query_row(
@@ -1649,7 +1773,7 @@ use chrono::Datelike as _;
 #[derive(Debug, Error)]
 pub enum CloudStoreError {
     #[error("cloud database failed: {0}")]
-    Sql(#[from] rusqlite::Error),
+    Sql(#[from] crate::db::Error),
     #[error("cloud storage failed: {0}")]
     Io(#[from] std::io::Error),
     #[error("cloud database lock is poisoned")]
@@ -1783,7 +1907,7 @@ mod tests {
 
     fn store() -> (TempDir, CloudStore) {
         let root = TempDir::new().unwrap();
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         (root, store)
     }
 
@@ -1827,7 +1951,7 @@ mod tests {
             .unwrap();
         drop(connection);
 
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         let connection = store.connection().unwrap();
         for column in [
             "billing_provider",

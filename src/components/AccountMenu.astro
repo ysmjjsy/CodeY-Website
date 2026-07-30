@@ -1,7 +1,10 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { authCopy } from '../i18n/auth'
-import { accountPath, cloudAdminPath, marketPath } from '../i18n/utils'
+import { consolePath } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Dialog from './ui/Dialog.astro'
+import Field from './ui/Field.astro'
 
 interface Props {
   locale: Locale
@@ -19,15 +22,12 @@ const copy = authCopy(locale)
       <span data-account-name></span>
     </summary>
     <div class="account-popover">
-      <a href={accountPath(locale)}>{copy.cloudAccount}</a>
-      <a href={marketPath(locale, 'dashboard')}>{copy.dashboard}</a>
-      <a href={marketPath(locale, 'admin')} hidden data-admin-link>{copy.admin}</a>
-      <a href={cloudAdminPath(locale)} hidden data-admin-link>{copy.cloudAdmin}</a>
+      <a href={consolePath(locale)}>{copy.dashboard}</a>
       <button type="button" data-auth-logout>{copy.logout}</button>
     </div>
   </details>
 
-  <dialog class="auth-dialog" data-auth-dialog aria-labelledby="auth-dialog-title">
+  <Dialog class="auth-dialog" data-auth-dialog aria-labelledby="auth-dialog-title">
     <div class="auth-dialog-card">
       <button class="auth-close" type="button" data-auth-close aria-label={copy.close}>×</button>
 
@@ -38,12 +38,10 @@ const copy = authCopy(locale)
           <p>{copy.loginDescription}</p>
         </header>
         <form class="auth-form" data-login-form>
-          <label>
-            <span>{copy.identifier}</span>
+          <Field label={copy.identifier}>
             <input name="identifier" autocomplete="username" required maxlength="254" placeholder={copy.identifierPlaceholder} />
-          </label>
-          <label>
-            <span>{copy.password}</span>
+          </Field>
+          <Field label={copy.password}>
             <span class="auth-password-field">
               <input name="password" type="password" autocomplete="current-password" required maxlength="128" placeholder={copy.passwordPlaceholder} />
               <button type="button" data-password-toggle aria-label={copy.showPassword} data-label-show={copy.showPassword} data-label-hide={copy.hidePassword}>
@@ -53,9 +51,8 @@ const copy = authCopy(locale)
                 </svg>
               </button>
             </span>
-          </label>
-          <button class="btn btn-primary" type="submit" data-login-submit>{copy.loginSubmit}</button>
-          <p class="auth-error" hidden data-login-error></p>
+          </Field>
+          <Button variant="primary" type="submit" data-login-submit>{copy.loginSubmit}</Button>
         </form>
         <div data-auth-providers>
           <div class="auth-divider"><span>{copy.divider}</span></div>
@@ -80,19 +77,18 @@ const copy = authCopy(locale)
           <p>{copy.registerDescription}</p>
         </header>
         <form class="auth-form" data-register-form>
-          <label><span>{copy.username}</span><input name="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" /></label>
-          <label><span>{copy.email}</span><input name="email" type="email" autocomplete="email" required maxlength="254" /></label>
-          <label><span>{copy.displayName}</span><input name="displayName" autocomplete="name" required maxlength="80" /></label>
-          <label><span>{copy.password}</span><input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" /><small>{copy.passwordHint}</small></label>
-          <button class="btn btn-primary" type="submit" data-register-submit>{copy.registerSubmit}</button>
-          <p class="auth-error" hidden data-register-error></p>
+          <Field label={copy.username}><input name="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" /></Field>
+          <Field label={copy.email}><input name="email" type="email" autocomplete="email" required maxlength="254" /></Field>
+          <Field label={copy.displayName}><input name="displayName" autocomplete="name" required maxlength="80" /></Field>
+          <Field label={copy.password} hint={copy.passwordHint}><input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" /></Field>
+          <Button variant="primary" type="submit" data-register-submit>{copy.registerSubmit}</Button>
         </form>
         <p class="auth-switch">{copy.hasAccount} <button type="button" data-show-login>{copy.loginAction}</button></p>
       </section>
     </div>
-  </dialog>
+  </Dialog>
 
-  <dialog class="logout-dialog" data-logout-dialog aria-labelledby="logout-dialog-title">
+  <Dialog class="logout-dialog" data-logout-dialog aria-labelledby="logout-dialog-title">
     <div class="logout-dialog-card">
       <span class="logout-dialog-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -102,17 +98,17 @@ const copy = authCopy(locale)
       </span>
       <h2 id="logout-dialog-title">{copy.logoutTitle}</h2>
       <p>{copy.logoutDescription}</p>
-      <p class="logout-dialog-error" hidden data-logout-error></p>
       <div class="logout-dialog-actions">
-        <button class="btn btn-ghost" type="button" data-logout-cancel>{copy.logoutCancel}</button>
-        <button class="btn btn-primary" type="button" data-logout-confirm>{copy.logoutConfirm}</button>
+        <Button data-logout-cancel>{copy.logoutCancel}</Button>
+        <Button variant="primary" data-logout-confirm>{copy.logoutConfirm}</Button>
       </div>
     </div>
-  </dialog>
+  </Dialog>
 </div>
 
 <script>
   import { localizedApiError } from '../i18n/api-errors'
+  import { toast } from '../lib/toast'
 
   type User = {
     userId: string
@@ -132,14 +128,12 @@ const copy = authCopy(locale)
     const profile = root.querySelector<HTMLDetailsElement>('[data-account-profile]')!
     const accountName = root.querySelector<HTMLElement>('[data-account-name]')!
     const avatar = root.querySelector<HTMLElement>('[data-account-avatar]')!
-    const adminLinks = root.querySelectorAll<HTMLElement>('[data-admin-link]')
     const loginSection = root.querySelector<HTMLElement>('[data-auth-login]')!
     const registerSection = root.querySelector<HTMLElement>('[data-auth-register]')!
     const loginForm = root.querySelector<HTMLFormElement>('[data-login-form]')!
     const registerForm = root.querySelector<HTMLFormElement>('[data-register-form]')!
     const logoutDialog = root.querySelector<HTMLDialogElement>('[data-logout-dialog]')!
     const logoutConfirm = root.querySelector<HTMLButtonElement>('[data-logout-confirm]')!
-    const logoutError = root.querySelector<HTMLElement>('[data-logout-error]')!
 
     function desktopContinuation(): string | null {
       const value = new URLSearchParams(window.location.search).get('continue')
@@ -188,7 +182,6 @@ const copy = authCopy(locale)
           const avatarUrl = new URL(user.avatarUrl, window.location.origin)
           if (avatarUrl.protocol === 'https:') avatar.style.backgroundImage = `url("${avatarUrl.href}")`
         }
-        adminLinks.forEach((link) => { link.hidden = user.role !== 'admin' })
       }
       root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden = !payload.githubEnabled
       window.dispatchEvent(new CustomEvent('market-auth-changed', { detail: payload }))
@@ -198,8 +191,7 @@ const copy = authCopy(locale)
       return localizedApiError(response, locale, copy.unavailable)
     }
 
-    async function submit(form: HTMLFormElement, endpoint: string, button: HTMLButtonElement, busy: string, error: HTMLElement): Promise<void> {
-      error.hidden = true
+    async function submit(form: HTMLFormElement, endpoint: string, button: HTMLButtonElement, busy: string): Promise<void> {
       const original = button.textContent || ''
       button.disabled = true
       button.textContent = busy
@@ -218,8 +210,7 @@ const copy = authCopy(locale)
         const continuation = desktopContinuation()
         if (continuation) window.location.assign(continuation)
       } catch (reason) {
-        error.textContent = reason instanceof Error ? reason.message : copy.unavailable
-        error.hidden = false
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
       } finally {
         button.disabled = false
         button.textContent = original
@@ -246,15 +237,14 @@ const copy = authCopy(locale)
     })
     loginForm.addEventListener('submit', (event) => {
       event.preventDefault()
-      void submit(loginForm, 'login', root.querySelector('[data-login-submit]')!, copy.loggingIn, root.querySelector('[data-login-error]')!)
+      void submit(loginForm, 'login', root.querySelector('[data-login-submit]')!, copy.loggingIn)
     })
     registerForm.addEventListener('submit', (event) => {
       event.preventDefault()
-      void submit(registerForm, 'register', root.querySelector('[data-register-submit]')!, copy.registering, root.querySelector('[data-register-error]')!)
+      void submit(registerForm, 'register', root.querySelector('[data-register-submit]')!, copy.registering)
     })
     root.querySelector('[data-auth-logout]')?.addEventListener('click', () => {
       profile.open = false
-      logoutError.hidden = true
       if (!logoutDialog.open) logoutDialog.showModal()
     })
     root.querySelector('[data-logout-cancel]')?.addEventListener('click', () => logoutDialog.close())
@@ -265,15 +255,13 @@ const copy = authCopy(locale)
       const original = logoutConfirm.textContent || ''
       logoutConfirm.disabled = true
       logoutConfirm.textContent = copy.loggingOut
-      logoutError.hidden = true
       try {
         const response = await fetch('/api/market/v1/auth/logout', { method: 'POST' })
         if (!response.ok) throw new Error()
         logoutDialog.close()
         updateAuth({ user: null, githubEnabled: !root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden })
       } catch {
-        logoutError.textContent = copy.logoutError
-        logoutError.hidden = false
+        toast.error(copy.logoutError)
       } finally {
         logoutConfirm.disabled = false
         logoutConfirm.textContent = original
@@ -331,7 +319,6 @@ const copy = authCopy(locale)
   .auth-provider > span { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--fg); background: var(--panel-glass); transition: transform 0.15s, border-color 0.15s, background 0.15s; }
   .auth-provider:hover > span { transform: translateY(-2px); border-color: var(--border-hover); background: var(--ghost-bg-hover); }
   .auth-provider small { font: inherit; }
-  .auth-error { margin: -5px 0 0; color: var(--danger); font-size: 0.78rem; text-align: center; }
   .auth-switch { margin: 22px 0 0; color: var(--fg-muted); font-size: 0.8rem; text-align: center; }
   .auth-switch button { padding: 0; border: 0; color: var(--accent-bright); background: transparent; font: inherit; cursor: pointer; }
   .logout-dialog { width: min(400px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; border: 1px solid var(--border-strong); border-radius: 18px; color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / 0.3); }
@@ -339,7 +326,6 @@ const copy = authCopy(locale)
   .logout-dialog-icon { display: grid; width: 48px; height: 48px; margin: 0 auto 17px; place-items: center; border-radius: 14px; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
   .logout-dialog h2 { font-size: 1.3rem; letter-spacing: -0.025em; }
   .logout-dialog p { margin: 9px auto 0; color: var(--fg-muted); font-size: 0.82rem; line-height: 1.65; }
-  .logout-dialog .logout-dialog-error { color: var(--danger); }
   .logout-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
   .logout-dialog-actions .btn { min-height: 42px; border-radius: 9px; }
   @media (max-width: 960px) { .account-profile [data-account-name] { display: none; } }

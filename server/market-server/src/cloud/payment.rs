@@ -82,9 +82,9 @@ impl CloudPaymentConfig {
         web_base_url: &str,
     ) -> Result<Self, PaymentError> {
         let success_url = environment_value("CODEY_CLOUD_PAYMENT_SUCCESS_URL")
-            .unwrap_or_else(|| format!("{web_base_url}/account/?payment=success"));
+            .unwrap_or_else(|| format!("{web_base_url}/console/?payment=success"));
         let cancel_url = environment_value("CODEY_CLOUD_PAYMENT_CANCEL_URL")
-            .unwrap_or_else(|| format!("{web_base_url}/account/?payment=cancelled"));
+            .unwrap_or_else(|| format!("{web_base_url}/console/?payment=cancelled"));
         let stripe = optional_group(
             &["CODEY_STRIPE_SECRET_KEY", "CODEY_STRIPE_WEBHOOK_SECRET"],
             || {

@@ -1,0 +1,25 @@
+---
+interface Props {
+  as?: 'div' | 'section'
+  class?: string
+  viewportClass?: string
+  [key: string]: unknown
+}
+
+const {
+  as: Element = 'div',
+  class: className,
+  viewportClass,
+  ...attributes
+} = Astro.props
+const hasHeader = Astro.slots.has('header')
+const hasEmpty = Astro.slots.has('empty')
+const hasFooter = Astro.slots.has('footer')
+---
+
+<Element class:list={['ui-list', className]} {...attributes}>
+  {hasHeader && <div class="ui-list__header"><slot name="header" /></div>}
+  <div class:list={['ui-list__viewport', viewportClass]}><slot /></div>
+  {hasEmpty && <div class="ui-list__empty"><slot name="empty" /></div>}
+  {hasFooter && <div class="ui-list__footer"><slot name="footer" /></div>}
+</Element>

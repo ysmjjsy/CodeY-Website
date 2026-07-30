@@ -1,0 +1,92 @@
+---
+import type { Locale } from '../i18n/ui'
+import { consoleCopy } from '../i18n/console'
+import { consolePath } from '../i18n/utils'
+import '../styles/console.css'
+
+type ConsoleSection = 'credits' | 'templates' | 'reviews' | 'models' | 'plans' | 'topups'
+
+interface Props {
+  locale: Locale
+  activeSection: ConsoleSection
+}
+
+const { locale, activeSection } = Astro.props
+const copy = consoleCopy(locale)
+const navigation = [
+  { section: 'credits', label: copy.credits, icon: 'wallet' },
+  { section: 'templates', label: copy.templates, icon: 'stack' },
+  { section: 'reviews', label: copy.reviews, icon: 'shield-check', admin: true },
+  { section: 'models', label: copy.models, icon: 'brain', admin: true },
+  { section: 'plans', label: copy.plans, icon: 'credit-card', admin: true },
+  { section: 'topups', label: copy.topups, icon: 'coins', admin: true },
+] as const
+---
+
+<section class="console-shell" data-console-shell data-copy={JSON.stringify(copy)}>
+  <aside class="console-sidebar">
+    <div class="console-brand">
+      <span class="console-brand-mark" aria-hidden="true">C</span>
+      <div>
+        <strong>{copy.title}</strong>
+        <span data-console-role>{copy.roleGuest}</span>
+      </div>
+    </div>
+
+    <nav aria-label={copy.title}>
+      <p class="console-nav-group">{copy.personal}</p>
+      {
+        navigation.slice(0, 2).map((item) => (
+          <a href={consolePath(locale, item.section)} aria-current={activeSection === item.section ? 'page' : undefined}>
+            <i class={`ph ph-${item.icon}`} aria-hidden="true"></i>
+            <span>{item.label}</span>
+          </a>
+        ))
+      }
+
+      <div class="console-admin-navigation" hidden data-console-admin>
+        <p class="console-nav-group">{copy.administration}</p>
+        {
+          navigation.slice(2).map((item) => (
+            <a href={consolePath(locale, item.section)} aria-current={activeSection === item.section ? 'page' : undefined}>
+              <i class={`ph ph-${item.icon}`} aria-hidden="true"></i>
+              <span>{item.label}</span>
+            </a>
+          ))
+        }
+      </div>
+    </nav>
+
+  </aside>
+
+  <div class="console-main">
+    <div class="console-main-inner">
+      <slot />
+    </div>
+  </div>
+</section>
+
+<script>
+  type User = { role: 'user' | 'admin' }
+  type AuthResponse = { user?: User | null }
+
+  const shell = document.querySelector<HTMLElement>('[data-console-shell]')
+  if (shell) {
+    const copy = JSON.parse(shell.dataset.copy || '{}') as Record<string, string>
+    const role = shell.querySelector<HTMLElement>('[data-console-role]')!
+    const adminNavigation = shell.querySelector<HTMLElement>('[data-console-admin]')!
+
+    function applyUser(user: User | null | undefined): void {
+      role.textContent = user?.role === 'admin' ? copy.roleAdmin : user ? copy.roleUser : copy.roleGuest
+      adminNavigation.hidden = user?.role !== 'admin'
+    }
+
+    window.addEventListener('market-auth-changed', ((event: CustomEvent<AuthResponse>) => {
+      applyUser(event.detail.user)
+    }) as EventListener)
+    fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
+      .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : Promise.reject())
+      .then((payload) => applyUser(payload.user))
+      .catch(() => applyUser(null))
+  }
+</script>

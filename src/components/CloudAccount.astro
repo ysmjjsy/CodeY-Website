@@ -1,6 +1,13 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { cloudCopy } from '../i18n/cloud'
+import Button from './ui/Button.astro'
+import Dialog from './ui/Dialog.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import Panel from './ui/Panel.astro'
+import StateMessage from './ui/StateMessage.astro'
 
 interface Props {
   locale: Locale
@@ -11,26 +18,22 @@ const copy = cloudCopy(locale)
 ---
 
 <section class="cloud-shell" data-cloud-account data-locale={locale} data-copy={JSON.stringify(copy)}>
-  <header class="cloud-head">
-    <p class="eyebrow">CodeY Cloud</p>
-    <h1>{copy.accountTitle}</h1>
-    <p>{copy.accountDescription}</p>
-  </header>
+  <PageHeader class="cloud-head" title={copy.accountTitle} description={copy.accountDescription} />
 
-  <p class="cloud-state" data-state>{copy.loading}</p>
+  <StateMessage class="cloud-state" data-state>{copy.loading}</StateMessage>
 
   <div hidden data-content>
     <section class="summary-grid" aria-label={copy.credits}>
-      <article class="summary-card summary-card-primary">
+      <Panel as="article" class="summary-card summary-card-primary">
         <span>{copy.credits}</span>
         <strong data-available-credit>0</strong>
-      </article>
-      <article class="summary-card"><span>{copy.expiring}</span><strong data-expiring-credit>0</strong></article>
-      <article class="summary-card"><span>{copy.permanent}</span><strong data-permanent-credit>0</strong></article>
-      <article class="summary-card"><span>{copy.reserved}</span><strong data-reserved-credit>0</strong></article>
+      </Panel>
+      <Panel as="article" class="summary-card"><span>{copy.expiring}</span><strong data-expiring-credit>0</strong></Panel>
+      <Panel as="article" class="summary-card"><span>{copy.permanent}</span><strong data-permanent-credit>0</strong></Panel>
+      <Panel as="article" class="summary-card"><span>{copy.reserved}</span><strong data-reserved-credit>0</strong></Panel>
     </section>
 
-    <section class="current-plan">
+    <Panel as="section" class="current-plan">
       <div>
         <span>{copy.currentPlan}</span>
         <strong data-current-plan>—</strong>
@@ -43,30 +46,39 @@ const copy = cloudCopy(locale)
         <span>{copy.scheduled}</span>
         <strong data-scheduled-plan>—</strong>
       </div>
-    </section>
+    </Panel>
 
     <section class="catalog-section">
       <div class="section-title"><h2>{copy.plans}</h2></div>
-      <div class="catalog-grid" data-plans></div>
+      <List class="account-catalog-list">
+        <div class="catalog-grid" data-plans></div>
+        <Pagination slot="footer" locale={locale} pageSize={6} pageSizeOptions={[6, 12, 24]} data-plan-pagination />
+      </List>
     </section>
 
     <section class="catalog-section">
       <div class="section-title"><h2>{copy.topUps}</h2></div>
-      <div class="catalog-grid" data-topups></div>
+      <List class="account-catalog-list">
+        <div class="catalog-grid" data-topups></div>
+        <Pagination slot="footer" locale={locale} pageSize={6} pageSizeOptions={[6, 12, 24]} data-topup-pagination />
+      </List>
     </section>
   </div>
 
-  <dialog class="payment-dialog" data-payment-dialog>
+  <Dialog class="payment-dialog" data-payment-dialog>
     <button type="button" class="dialog-close" data-payment-close aria-label="Close">×</button>
     <h2>{copy.paymentPending}</h2>
     <img hidden data-payment-qr alt={copy.scanPayment} />
-    <a class="btn btn-primary" data-payment-link target="_blank" rel="noopener">{copy.openPayment}</a>
-    <button class="btn btn-ghost" type="button" data-payment-copy>{copy.copyPayment}</button>
+    <Button as="a" variant="primary" data-payment-link target="_blank" rel="noopener">{copy.openPayment}</Button>
+    <Button data-payment-copy>{copy.copyPayment}</Button>
     <code data-payment-code></code>
-  </dialog>
+  </Dialog>
 </section>
 
 <script>
+  import { createPagination, pagedItems, type PaginationChange } from '../lib/pagination'
+  import { toast } from '../lib/toast'
+
   type Offer = { offerId: string; region: string; currency: string; paymentProvider: string; amountMinor: number }
   type Plan = { planId: string; displayName: string; description: string; tierRank: number; isDefault: boolean; monthlyCreditMicros: number; offers: Offer[] }
   type TopUp = { productId: string; displayName: string; description: string; creditMicros: number; offers: Offer[] }
@@ -104,10 +116,19 @@ const copy = cloudCopy(locale)
     const state = root.querySelector<HTMLElement>('[data-state]')!
     const content = root.querySelector<HTMLElement>('[data-content]')!
     const dialog = root.querySelector<HTMLDialogElement>('[data-payment-dialog]')!
+    const planPaginationRoot = root.querySelector<HTMLElement>('[data-plan-pagination]')
+    const topupPaginationRoot = root.querySelector<HTMLElement>('[data-topup-pagination]')
+    const planPagination = createPagination(planPaginationRoot)
+    const topupPagination = createPagination(topupPaginationRoot)
     let account: Account
     let plans: Plan[] = []
+    let topups: TopUp[] = []
     let paymentAvailability: PaymentAvailability = { providers: [] }
     let polling: number | undefined
+    let planPage = 1
+    let planPageSize = 6
+    let topupPage = 1
+    let topupPageSize = 6
 
     const points = (creditMicros: number): string =>
       new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(creditMicros / 1_000_000)
@@ -127,8 +148,8 @@ const copy = cloudCopy(locale)
         throw new Error(copy.signIn)
       }
       if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { message?: string } | null
-        throw new Error(payload?.message || copy.unavailable)
+        const payload = await response.json().catch(() => null) as { message?: string; error?: { message?: string } } | null
+        throw new Error(payload?.error?.message || payload?.message || copy.unavailable)
       }
       return response.json() as Promise<T>
     }
@@ -141,7 +162,7 @@ const copy = cloudCopy(locale)
       element.addEventListener('click', async () => {
         const original = element.textContent
         element.disabled = true
-        try { await action() } catch (reason) { state.textContent = reason instanceof Error ? reason.message : copy.unavailable; state.hidden = false }
+        try { await action() } catch (reason) { toast.error(reason instanceof Error ? reason.message : copy.unavailable) }
         finally { element.disabled = false; element.textContent = original }
       })
       return element
@@ -185,7 +206,11 @@ const copy = cloudCopy(locale)
       code.textContent = checkout.action.code_url
       image.src = checkout.action.image_data_url
       image.hidden = false
-      root.querySelector<HTMLButtonElement>('[data-payment-copy]')!.onclick = () => navigator.clipboard.writeText(checkout.action.code_url)
+      root.querySelector<HTMLButtonElement>('[data-payment-copy]')!.onclick = () => {
+        void navigator.clipboard.writeText(checkout.action.code_url)
+          .then(() => toast.success(copy.paymentLinkCopied))
+          .catch(() => toast.error(copy.copyFailed))
+      }
       dialog.showModal()
       polling = window.setInterval(async () => {
         try {
@@ -204,6 +229,7 @@ const copy = cloudCopy(locale)
           body: JSON.stringify({ planId: plan.planId, expectedPeriodId: account.subscription.currentPeriodId }),
         })
         await load()
+        toast.success(copy.scheduledDone)
         return
       }
       await beginCheckout('/orders/plans', offer.offerId)
@@ -235,6 +261,17 @@ const copy = cloudCopy(locale)
       return card
     }
 
+    function renderCatalogs(): void {
+      const planRoot = root.querySelector<HTMLElement>('[data-plans]')!
+      const topupRoot = root.querySelector<HTMLElement>('[data-topups]')!
+      planPage = Math.min(planPage, Math.max(1, Math.ceil(plans.length / planPageSize)))
+      topupPage = Math.min(topupPage, Math.max(1, Math.ceil(topups.length / topupPageSize)))
+      planRoot.replaceChildren(...pagedItems(plans, planPage, planPageSize).map(renderPlan))
+      topupRoot.replaceChildren(...pagedItems(topups, topupPage, topupPageSize).map(renderTopUp))
+      planPagination.set({ page: planPage, pageSize: planPageSize, totalItems: plans.length })
+      topupPagination.set({ page: topupPage, pageSize: topupPageSize, totalItems: topups.length })
+    }
+
     function escapeHtml(value: string): string {
       const span = document.createElement('span'); span.textContent = value; return span.innerHTML
     }
@@ -248,6 +285,7 @@ const copy = cloudCopy(locale)
         ])
         account = me
         plans = planCatalog.plans
+        topups = topUpCatalog.products
         paymentAvailability = availability
         const planById = new Map(plans.map((plan) => [plan.planId, plan]))
         root.querySelector('[data-available-credit]')!.textContent = points(me.wallet.availableCreditMicros)
@@ -260,33 +298,37 @@ const copy = cloudCopy(locale)
         const scheduledWrap = root.querySelector<HTMLElement>('[data-scheduled-wrap]')!
         scheduledWrap.hidden = !me.subscription.scheduledPlanId
         root.querySelector('[data-scheduled-plan]')!.textContent = planById.get(me.subscription.scheduledPlanId || '')?.displayName || me.subscription.scheduledPlanId || '—'
-        const planRoot = root.querySelector<HTMLElement>('[data-plans]')!
-        const topupRoot = root.querySelector<HTMLElement>('[data-topups]')!
-        planRoot.replaceChildren(...plans.map(renderPlan))
-        topupRoot.replaceChildren(...topUpCatalog.products.map(renderTopUp))
+        renderCatalogs()
         content.hidden = false
         state.hidden = true
       } catch (reason) {
         content.hidden = true
-        state.textContent = reason instanceof Error ? reason.message : copy.unavailable
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void load()
+        state.replaceChildren(retry)
       }
     }
 
     root.querySelector('[data-payment-close]')?.addEventListener('click', () => dialog.close())
+    planPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { planPage = event.detail.page; planPageSize = event.detail.pageSize; renderCatalogs() }) as EventListener)
+    topupPaginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => { topupPage = event.detail.page; topupPageSize = event.detail.pageSize; renderCatalogs() }) as EventListener)
     dialog.addEventListener('close', () => { if (polling) window.clearInterval(polling) })
     window.addEventListener('market-auth-changed', () => void load())
     void load()
   }
 </script>
 
-<style>
-  .cloud-shell { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 132px 0 96px; }
+<style is:global>
+  .cloud-shell { width: 100%; }
   .cloud-head { max-width: 720px; }
-  .eyebrow { margin: 0 0 12px; color: var(--accent-bright); font: 600 0.76rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
-  .cloud-head h1 { font-size: clamp(2.2rem, 6vw, 4.3rem); letter-spacing: -.055em; }
-  .cloud-head > p:last-child { margin: 16px 0 0; color: var(--fg-muted); font-size: 1.05rem; }
-  .cloud-state { margin: 48px 0; color: var(--fg-muted); }
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 46px; }
+  .cloud-head h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -.035em; }
+  .cloud-head > p:last-child { margin: 9px 0 0; color: var(--fg-muted); font-size: .9rem; }
+  .cloud-state { margin: 32px 0; color: var(--fg-muted); }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 30px; }
   .summary-card, .current-plan, .catalog-card { border: 1px solid var(--border); border-radius: 16px; background: var(--panel-glass); }
   .summary-card { display: grid; gap: 9px; padding: 21px; }
   .summary-card span, .current-plan span { color: var(--fg-muted); font-size: .78rem; }
@@ -298,6 +340,7 @@ const copy = cloudCopy(locale)
   .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .section-title h2 { font-size: 1.45rem; }
   .catalog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .account-catalog-list > .ui-list__footer { margin-top: 14px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); }
   .catalog-card { position: relative; display: grid; align-content: start; gap: 24px; min-height: 280px; padding: 24px; }
   .catalog-card.is-current { border-color: var(--accent); }
   .catalog-card h3 { font-size: 1.16rem; }
@@ -318,5 +361,5 @@ const copy = cloudCopy(locale)
   .payment-dialog code { display: block; max-height: 90px; margin-top: 16px; overflow: auto; color: var(--fg-faint); font-size: .68rem; overflow-wrap: anywhere; }
   .dialog-close { position: absolute; top: 13px; right: 13px; width: 32px; height: 32px; border: 0; border-radius: 50%; color: var(--fg-muted); background: var(--ghost-bg); cursor: pointer; }
   @media (max-width: 900px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } .catalog-grid { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px) { .cloud-shell { width: min(100% - 24px, 1180px); padding-top: 108px; } .summary-grid, .catalog-grid { grid-template-columns: 1fr; } .current-plan { display: grid; gap: 18px; } }
+  @media (max-width: 600px) { .summary-grid, .catalog-grid { grid-template-columns: 1fr; } .current-plan { display: grid; gap: 18px; } }
 </style>

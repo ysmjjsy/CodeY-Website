@@ -1,0 +1,412 @@
+---
+import type { Locale } from '../i18n/ui'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy =
+  locale === 'en'
+    ? {
+        region: 'Notifications',
+        close: 'Dismiss notification',
+        success: 'Success',
+        error: 'Something went wrong',
+        warning: 'Attention',
+        info: 'Notice',
+      }
+    : {
+        region: '消息通知',
+        close: '关闭通知',
+        success: '操作成功',
+        error: '操作失败',
+        warning: '请注意',
+        info: '提示',
+      }
+---
+
+<div
+  class="codey-toast-viewport"
+  data-toast-root
+  data-copy={JSON.stringify(copy)}
+  popover="manual"
+  role="region"
+  aria-label={copy.region}
+>
+  <ol class="codey-toast-list" data-toast-list></ol>
+
+  <template data-toast-template>
+    <li class="codey-toast" data-toast-item aria-atomic="true">
+      <span class="codey-toast-icon" data-toast-icon aria-hidden="true"></span>
+      <div class="codey-toast-content">
+        <strong class="codey-toast-title" data-toast-title></strong>
+        <p class="codey-toast-message" data-toast-message></p>
+      </div>
+      <button class="codey-toast-close" type="button" data-toast-close>
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+          <path d="m5.5 5.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+        </svg>
+      </button>
+      <span class="codey-toast-progress" data-toast-progress aria-hidden="true"></span>
+    </li>
+  </template>
+</div>
+
+<style is:global>
+  .codey-toast-viewport {
+    position: fixed;
+    z-index: 100;
+    top: calc(80px + env(safe-area-inset-top, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    width: min(380px, calc(100vw - 32px));
+    inset-block-end: auto;
+    left: auto;
+    max-width: none;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    pointer-events: none;
+  }
+
+  .codey-toast-viewport::backdrop {
+    display: none;
+  }
+
+  .codey-toast-viewport[data-popover-fallback] {
+    display: block;
+  }
+
+  .codey-toast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .codey-toast {
+    --toast-tone: var(--accent);
+    position: relative;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 32px;
+    gap: 11px;
+    align-items: start;
+    min-height: 72px;
+    padding: 15px 12px 15px 14px;
+    overflow: hidden;
+    color: var(--fg);
+    background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 18px 48px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 var(--panel-inset);
+    backdrop-filter: blur(18px) saturate(150%);
+    pointer-events: auto;
+    animation: codey-toast-in 0.32s var(--ease-out) both;
+  }
+
+  .codey-toast::before {
+    content: '';
+    position: absolute;
+    inset: 12px auto 12px 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--toast-tone);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--toast-tone) 42%, transparent);
+  }
+
+  .codey-toast[data-variant='success'] {
+    --toast-tone: var(--success);
+  }
+
+  .codey-toast[data-variant='error'] {
+    --toast-tone: var(--danger);
+  }
+
+  .codey-toast[data-variant='warning'] {
+    --toast-tone: var(--amber);
+  }
+
+  .codey-toast[data-variant='info'] {
+    --toast-tone: var(--accent);
+  }
+
+  .codey-toast.is-closing {
+    animation: codey-toast-out 0.18s ease-in forwards;
+  }
+
+  .codey-toast-icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    margin-top: 1px;
+    border: 1px solid color-mix(in srgb, var(--toast-tone) 34%, transparent);
+    border-radius: 9px;
+    color: var(--toast-tone);
+    background: color-mix(in srgb, var(--toast-tone) 11%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .codey-toast-content {
+    min-width: 0;
+    padding-top: 1px;
+  }
+
+  .codey-toast-title {
+    display: block;
+    margin-bottom: 3px;
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+
+  .codey-toast-message {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+  }
+
+  .codey-toast-close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin-top: -1px;
+    padding: 0;
+    color: var(--fg-faint);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s;
+  }
+
+  .codey-toast-close:hover {
+    color: var(--fg);
+    background: var(--ghost-bg-hover);
+  }
+
+  .codey-toast-close:focus-visible {
+    outline: 2px solid var(--accent-ring);
+    outline-offset: 1px;
+  }
+
+  .codey-toast-progress {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 2px;
+    background: var(--toast-tone);
+    opacity: 0.72;
+    transform-origin: left;
+    animation: codey-toast-countdown var(--toast-duration, 4500ms) linear forwards;
+  }
+
+  .codey-toast:is(:hover, :focus-within) .codey-toast-progress {
+    animation-play-state: paused;
+  }
+
+  @keyframes codey-toast-in {
+    from {
+      opacity: 0;
+      transform: translate3d(24px, -4px, 0) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes codey-toast-out {
+    to {
+      opacity: 0;
+      transform: translate3d(18px, 0, 0) scale(0.98);
+    }
+  }
+
+  @keyframes codey-toast-countdown {
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .codey-toast-viewport {
+      top: calc(76px + env(safe-area-inset-top, 0px));
+      right: max(12px, env(safe-area-inset-right, 0px));
+      width: calc(100vw - 24px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .codey-toast,
+    .codey-toast.is-closing {
+      animation: none;
+    }
+
+    .codey-toast-progress {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  import { TOAST_EVENT, type ToastDetail, type ToastVariant } from '../lib/toast'
+
+  const root = document.querySelector<HTMLElement>('[data-toast-root]')
+  const list = root?.querySelector<HTMLOListElement>('[data-toast-list]')
+  const template = root?.querySelector<HTMLTemplateElement>('[data-toast-template]')
+  const copy = JSON.parse(root?.dataset.copy || '{}') as Record<string, string>
+  const icons: Record<ToastVariant, string> = {
+    success: '✓',
+    error: '×',
+    warning: '!',
+    info: 'i',
+  }
+
+  type TimerState = {
+    timeout: number
+    remaining: number
+    startedAt: number
+    pauseReasons: Set<'hover' | 'focus'>
+  }
+
+  const timers = new WeakMap<HTMLElement, TimerState>()
+
+  function raiseViewport(): void {
+    if (!root) return
+    try {
+      if (root.matches(':popover-open')) root.hidePopover()
+      const dialogs = document.querySelectorAll<HTMLDialogElement>('dialog[open]')
+      const host = dialogs[dialogs.length - 1] || document.body
+      if (root.parentElement !== host) host.append(root)
+      root.showPopover()
+    } catch {
+      root.dataset.popoverFallback = ''
+    }
+  }
+
+  function hideViewportIfEmpty(): void {
+    if (!root || list?.childElementCount) return
+    try {
+      if (root.matches(':popover-open')) root.hidePopover()
+    } catch {
+      // No-op when Popover is unavailable.
+    }
+  }
+
+  function closeToast(element: HTMLElement): void {
+    if (element.classList.contains('is-closing')) return
+    const state = timers.get(element)
+    if (state) window.clearTimeout(state.timeout)
+    element.classList.add('is-closing')
+    window.setTimeout(() => {
+      element.remove()
+      hideViewportIfEmpty()
+    }, 180)
+  }
+
+  function resumeTimer(element: HTMLElement): void {
+    const state = timers.get(element)
+    if (!state || state.remaining <= 0 || state.pauseReasons.size > 0) return
+    state.startedAt = performance.now()
+    state.timeout = window.setTimeout(() => closeToast(element), state.remaining)
+  }
+
+  function pauseTimer(element: HTMLElement, reason: 'hover' | 'focus'): void {
+    const state = timers.get(element)
+    if (!state || state.pauseReasons.has(reason)) return
+    if (state.pauseReasons.size === 0) {
+      window.clearTimeout(state.timeout)
+      state.remaining = Math.max(0, state.remaining - (performance.now() - state.startedAt))
+    }
+    state.pauseReasons.add(reason)
+  }
+
+  function unpauseTimer(element: HTMLElement, reason: 'hover' | 'focus'): void {
+    const state = timers.get(element)
+    if (!state) return
+    state.pauseReasons.delete(reason)
+    resumeTimer(element)
+  }
+
+  function createToast(detail: ToastDetail | undefined): void {
+    if (!list || !template || typeof detail?.message !== 'string' || !detail.message.trim()) return
+
+    const variant: ToastVariant =
+      detail.variant === 'success' ||
+      detail.variant === 'error' ||
+      detail.variant === 'warning' ||
+      detail.variant === 'info'
+        ? detail.variant
+        : 'info'
+    const fragment = template.content.cloneNode(true) as DocumentFragment
+    const element = fragment.querySelector<HTMLElement>('[data-toast-item]')
+    if (!element) return
+
+    const duration =
+      typeof detail.duration === 'number' && Number.isFinite(detail.duration)
+        ? Math.min(60_000, Math.max(0, detail.duration))
+        : 4500
+    const title = (typeof detail.title === 'string' && detail.title.trim()) || copy[variant]
+
+    element.dataset.variant = variant
+    element.setAttribute('role', variant === 'error' ? 'alert' : 'status')
+    element.style.setProperty('--toast-duration', `${duration}ms`)
+    element.querySelector<HTMLElement>('[data-toast-icon]')!.textContent = icons[variant]
+    element.querySelector<HTMLElement>('[data-toast-title]')!.textContent = title
+    element.querySelector<HTMLElement>('[data-toast-message]')!.textContent = detail.message.trim()
+
+    const close = element.querySelector<HTMLButtonElement>('[data-toast-close]')!
+    close.setAttribute('aria-label', copy.close)
+    close.addEventListener('click', () => closeToast(element))
+
+    element.addEventListener('mouseenter', () => pauseTimer(element, 'hover'))
+    element.addEventListener('mouseleave', () => unpauseTimer(element, 'hover'))
+    element.addEventListener('focusin', () => pauseTimer(element, 'focus'))
+    element.addEventListener('focusout', (event) => {
+      if (!element.contains(event.relatedTarget as Node | null)) unpauseTimer(element, 'focus')
+    })
+
+    list.append(fragment)
+    raiseViewport()
+
+    if (duration > 0) {
+      timers.set(element, {
+        timeout: 0,
+        remaining: duration,
+        startedAt: performance.now(),
+        pauseReasons: new Set(),
+      })
+      resumeTimer(element)
+    } else {
+      element.querySelector<HTMLElement>('[data-toast-progress]')?.remove()
+    }
+
+    const visible = list.querySelectorAll<HTMLElement>('[data-toast-item]:not(.is-closing)')
+    if (visible.length > 4) closeToast(visible[0])
+  }
+
+  window.addEventListener(
+    TOAST_EVENT,
+    ((event: CustomEvent<ToastDetail>) => createToast(event.detail)) as EventListener,
+  )
+  document.addEventListener('close', () => {
+    if (list?.childElementCount) window.setTimeout(raiseViewport, 0)
+  }, true)
+</script>

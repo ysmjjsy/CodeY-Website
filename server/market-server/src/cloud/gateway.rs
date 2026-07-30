@@ -1,18 +1,20 @@
+use crate::db::{params, OptionalExtension, TransactionBehavior};
 use axum::body::{Body, Bytes};
 use axum::http::{HeaderMap, HeaderValue, Response, StatusCode};
 use chrono::{DateTime, Duration, Utc};
 use futures_util::StreamExt as _;
-use rusqlite::{params, OptionalExtension, TransactionBehavior};
 use serde_json::{json, Value};
 use std::io;
+use std::time::Instant;
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::models::GatewayModelConfig;
 use super::{
-    CloudSecretCipher, CloudStore, CloudStoreError, CreditReservationStatus, ModelPricing,
-    OfficialModelProtocol, UpstreamProviderKind,
+    discover_upstream_models, provider_credential_required, CloudSecretCipher, CloudStore,
+    CloudStoreError, CreditReservationStatus, ModelPricing, OfficialModelProtocol,
+    OfficialModelTestResult, TestOfficialModelRequest, UpstreamProviderKind,
 };
 
 const RESERVATION_TTL_MINUTES: i64 = 30;
@@ -39,6 +41,177 @@ impl GatewayManager {
         Self { cipher, http }
     }
 
+    pub async fn test_model(
+        &self,
+        store: &CloudStore,
+        test: &TestOfficialModelRequest,
+        now: DateTime<Utc>,
+    ) -> Result<OfficialModelTestResult, GatewayError> {
+        let catalog = store.admin_model_catalog(now)?;
+        let provider = catalog
+            .providers
+            .iter()
+            .find(|provider| provider.provider_id == test.upstream_provider_id)
+            .cloned()
+            .ok_or(CloudStoreError::UpstreamProviderNotFound)?;
+        if !provider.active {
+            return Err(GatewayError::InvalidRequest(
+                "upstream provider is disabled".into(),
+            ));
+        }
+        if test.model_id.is_none()
+            && !provider
+                .available_models
+                .iter()
+                .any(|model| model.upstream_model_id == test.upstream_model_id)
+        {
+            return Err(GatewayError::InvalidRequest(
+                "upstream model is not in the provider catalog".into(),
+            ));
+        }
+        if !(matches!(
+            (test.protocol, provider.provider_kind),
+            (
+                OfficialModelProtocol::ChatCompletions | OfficialModelProtocol::Responses,
+                UpstreamProviderKind::OpenaiCompatible
+            ) | (
+                OfficialModelProtocol::Messages,
+                UpstreamProviderKind::Anthropic
+            ) | (
+                OfficialModelProtocol::GenerateContent,
+                UpstreamProviderKind::Gemini
+            )
+        ) || (test.protocol.is_media_service() && provider.provider_preset_id == "minimax"))
+        {
+            return Err(GatewayError::ProtocolMismatch);
+        }
+        if let Some(model_id) = test.model_id.as_deref() {
+            let model = catalog
+                .models
+                .iter()
+                .find(|model| model.model_id == model_id)
+                .ok_or(CloudStoreError::OfficialModelNotFound)?;
+            if model.upstream_provider_id != test.upstream_provider_id
+                || model.upstream_model_id != test.upstream_model_id
+                || model.protocol != test.protocol
+            {
+                return Err(GatewayError::InvalidRequest(
+                    "saved model configuration does not match the test request".into(),
+                ));
+            }
+        }
+        let (ciphertext, api_key) = if provider_credential_required(&provider.provider_preset_id) {
+            let cipher = self
+                .cipher
+                .as_ref()
+                .ok_or(GatewayError::GatewayNotConfigured)?;
+            let ciphertext = store
+                .upstream_provider_api_key_ciphertext(&provider.provider_id)?
+                .ok_or(CloudStoreError::UpstreamCredentialRequired)?;
+            let api_key = cipher.decrypt(&ciphertext)?;
+            (ciphertext, api_key)
+        } else {
+            (String::new(), String::new())
+        };
+        if test.protocol.is_media_service() {
+            let started = Instant::now();
+            let (models, _) = discover_upstream_models(
+                &self.http,
+                &provider.provider_preset_id,
+                provider.provider_kind,
+                &provider.base_url,
+                &api_key,
+            )
+            .await?;
+            if !models.iter().any(|model| {
+                model.upstream_model_id == test.upstream_model_id && model.protocol == test.protocol
+            }) {
+                return Err(GatewayError::InvalidRequest(
+                    "upstream service model is not in the provider catalog".into(),
+                ));
+            }
+            let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            if let Some(model_id) = test.model_id.as_deref() {
+                store.record_model_test_latency(model_id, latency_ms)?;
+            }
+            return Ok(OfficialModelTestResult { latency_ms });
+        }
+        let model = GatewayModelConfig {
+            model_id: "admin-model-test".into(),
+            upstream_model_id: test.upstream_model_id.clone(),
+            protocol: test.protocol,
+            provider_preset_id: provider.provider_preset_id.clone(),
+            provider_kind: provider.provider_kind,
+            base_url: provider.base_url,
+            api_key_ciphertext: ciphertext,
+            pricing: ModelPricing {
+                pricing_id: "admin-model-test".into(),
+                version: 1,
+                input_credit_micros_per_million: 0,
+                output_credit_micros_per_million: 0,
+                cache_read_credit_micros_per_million: 0,
+                cache_write_credit_micros_per_million: 0,
+                fixed_credit_micros_per_request: 0,
+                published_at: now,
+            },
+            capability: json!({}),
+        };
+        let body = match test.protocol {
+            OfficialModelProtocol::Responses => json!({
+                "model": test.upstream_model_id,
+                "input": "Reply with OK.",
+                "max_output_tokens": 16,
+                "stream": false
+            }),
+            OfficialModelProtocol::ChatCompletions | OfficialModelProtocol::Messages => json!({
+                "model": test.upstream_model_id,
+                "messages": [{"role": "user", "content": "Reply with OK."}],
+                "max_tokens": 16,
+                "stream": false
+            }),
+            OfficialModelProtocol::GenerateContent => json!({
+                "contents": [{"role": "user", "parts": [{"text": "Reply with OK."}]}],
+                "generationConfig": {"maxOutputTokens": 16}
+            }),
+            OfficialModelProtocol::ImageGeneration
+            | OfficialModelProtocol::ImageEdit
+            | OfficialModelProtocol::VideoGeneration
+            | OfficialModelProtocol::SpeechSynthesis
+            | OfficialModelProtocol::MusicGeneration => {
+                unreachable!("media tests return before invocation")
+            }
+        };
+        let mut request = self
+            .http
+            .post(upstream_url(&model, false)?)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .timeout(std::time::Duration::from_secs(30))
+            .json(&body);
+        if provider_credential_required(&provider.provider_preset_id) {
+            request = match provider.provider_kind {
+                UpstreamProviderKind::OpenaiCompatible => request.bearer_auth(api_key),
+                UpstreamProviderKind::Anthropic => request
+                    .header("x-api-key", api_key)
+                    .header("anthropic-version", "2023-06-01"),
+                UpstreamProviderKind::Gemini => request.header("x-goog-api-key", api_key),
+            };
+        }
+        let started = Instant::now();
+        let response = request.send().await?;
+        let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let message = response.text().await.unwrap_or_default();
+            let message = message.chars().take(500).collect::<String>();
+            return Err(GatewayError::UpstreamRejected { status, message });
+        }
+        if let Some(model_id) = test.model_id.as_deref() {
+            store.record_model_test_latency(model_id, latency_ms)?;
+        }
+        Ok(OfficialModelTestResult { latency_ms })
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn invoke(
         &self,
@@ -62,11 +235,15 @@ impl GatewayManager {
         if model.protocol != expected_protocol {
             return Err(GatewayError::ProtocolMismatch);
         }
-        let cipher = self
-            .cipher
-            .as_ref()
-            .ok_or(GatewayError::GatewayNotConfigured)?;
-        let api_key = cipher.decrypt(&model.api_key_ciphertext)?;
+        let api_key = if provider_credential_required(&model.provider_preset_id) {
+            let cipher = self
+                .cipher
+                .as_ref()
+                .ok_or(GatewayError::GatewayNotConfigured)?;
+            cipher.decrypt(&model.api_key_ciphertext)?
+        } else {
+            String::new()
+        };
         let stream = stream_override.unwrap_or_else(|| {
             request_streaming(expected_protocol, &request_json, public_model_from_path)
         });
@@ -89,26 +266,28 @@ impl GatewayManager {
                 },
             )
             .body(request_bytes);
-        request = match model.provider_kind {
-            UpstreamProviderKind::OpenaiCompatible => request.bearer_auth(api_key),
-            UpstreamProviderKind::Anthropic => {
-                let version = incoming_headers
-                    .get("anthropic-version")
-                    .and_then(|value| value.to_str().ok())
-                    .unwrap_or("2023-06-01");
-                let mut request = request
-                    .header("x-api-key", api_key)
-                    .header("anthropic-version", version);
-                if let Some(beta) = incoming_headers
-                    .get("anthropic-beta")
-                    .and_then(|value| value.to_str().ok())
-                {
-                    request = request.header("anthropic-beta", beta);
+        if provider_credential_required(&model.provider_preset_id) {
+            request = match model.provider_kind {
+                UpstreamProviderKind::OpenaiCompatible => request.bearer_auth(api_key),
+                UpstreamProviderKind::Anthropic => {
+                    let version = incoming_headers
+                        .get("anthropic-version")
+                        .and_then(|value| value.to_str().ok())
+                        .unwrap_or("2023-06-01");
+                    let mut request = request
+                        .header("x-api-key", api_key)
+                        .header("anthropic-version", version);
+                    if let Some(beta) = incoming_headers
+                        .get("anthropic-beta")
+                        .and_then(|value| value.to_str().ok())
+                    {
+                        request = request.header("anthropic-beta", beta);
+                    }
+                    request
                 }
-                request
-            }
-            UpstreamProviderKind::Gemini => request.header("x-goog-api-key", api_key),
-        };
+                UpstreamProviderKind::Gemini => request.header("x-goog-api-key", api_key),
+            };
+        }
         let upstream = match request.send().await {
             Ok(response) => response,
             Err(error) => {
@@ -143,10 +322,6 @@ impl GatewayManager {
             store.fail_model_invocation(&invocation, "upstream", Utc::now())?;
             return response_with_body(status, content_type.as_deref(), bytes);
         }
-        store.mark_model_invocation_streaming(
-            &invocation.invocation_id,
-            upstream_request_id.as_deref(),
-        )?;
         if !stream {
             let bytes = match upstream.bytes().await {
                 Ok(bytes) => bytes,
@@ -170,8 +345,14 @@ impl GatewayManager {
                     return Err(GatewayError::Json(error));
                 }
             };
+            let response_request_id = value
+                .get("task_id")
+                .and_then(Value::as_str)
+                .or(upstream_request_id.as_deref());
+            store
+                .mark_model_invocation_streaming(&invocation.invocation_id, response_request_id)?;
             let usage = Usage::from_json(&value);
-            if !usage.observed {
+            if !usage.observed && !model.protocol.is_media_service() {
                 store.mark_model_invocation_reconciliation_required(
                     &invocation,
                     "usage_missing",
@@ -193,6 +374,11 @@ impl GatewayManager {
             store.complete_model_invocation(&invocation, usage, actual, Utc::now())?;
             return response_with_body(status, content_type.as_deref(), bytes);
         }
+
+        store.mark_model_invocation_streaming(
+            &invocation.invocation_id,
+            upstream_request_id.as_deref(),
+        )?;
 
         let (sender, receiver) = mpsc::channel::<Result<Bytes, io::Error>>(16);
         let store = store.clone();
@@ -265,6 +451,70 @@ impl GatewayManager {
             .header("cache-control", "no-cache")
             .body(Body::from_stream(stream))
             .map_err(|error| GatewayError::Response(error.to_string()))
+    }
+
+    pub async fn query_video_task(
+        &self,
+        store: &CloudStore,
+        user_id: &str,
+        task_id: &str,
+        now: DateTime<Utc>,
+    ) -> Result<Response<Body>, GatewayError> {
+        validate_request_id(task_id)?;
+        let model = store.gateway_video_task_model(user_id, task_id, now)?;
+        let cipher = self
+            .cipher
+            .as_ref()
+            .ok_or(GatewayError::GatewayNotConfigured)?;
+        let api_key = cipher.decrypt(&model.api_key_ciphertext)?;
+        let mut query_url = url::Url::parse(&upstream_operation_url(
+            &model.base_url,
+            "/v1/query/video_generation",
+        )?)
+        .map_err(|_| GatewayError::InvalidUpstreamUrl)?;
+        query_url.query_pairs_mut().append_pair("task_id", task_id);
+        let response = self
+            .http
+            .get(query_url)
+            .bearer_auth(&api_key)
+            .header("Accept", "application/json")
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await?;
+        let status = response.status();
+        let mut value: Value = serde_json::from_slice(&response.bytes().await?)?;
+        if status.is_success() && value.get("status").and_then(Value::as_str) == Some("Success") {
+            if let Some(file_id) = value.get("file_id").and_then(Value::as_str) {
+                let mut file_url = url::Url::parse(&upstream_operation_url(
+                    &model.base_url,
+                    "/v1/files/retrieve",
+                )?)
+                .map_err(|_| GatewayError::InvalidUpstreamUrl)?;
+                file_url.query_pairs_mut().append_pair("file_id", file_id);
+                let file = self
+                    .http
+                    .get(file_url)
+                    .bearer_auth(&api_key)
+                    .header("Accept", "application/json")
+                    .timeout(std::time::Duration::from_secs(30))
+                    .send()
+                    .await?;
+                if file.status().is_success() {
+                    let file_value: Value = serde_json::from_slice(&file.bytes().await?)?;
+                    if let Some(download_url) = file_value
+                        .pointer("/file/download_url")
+                        .and_then(Value::as_str)
+                    {
+                        value["download_url"] = Value::String(download_url.to_owned());
+                    }
+                }
+            }
+        }
+        response_with_body(
+            status,
+            Some("application/json"),
+            Bytes::from(serde_json::to_vec(&value)?),
+        )
     }
 }
 
@@ -599,6 +849,9 @@ fn request_streaming(
     body: &Value,
     model_from_path: Option<&str>,
 ) -> bool {
+    if protocol.is_media_service() {
+        return false;
+    }
     if protocol == OfficialModelProtocol::GenerateContent {
         return model_from_path.is_some();
     }
@@ -620,8 +873,38 @@ fn upstream_url(model: &GatewayModelConfig, stream: bool) -> Result<String, Gate
                 format!("/v1beta/models/{encoded}:generateContent")
             }
         }
+        OfficialModelProtocol::ImageGeneration | OfficialModelProtocol::ImageEdit => {
+            "/v1/image_generation".into()
+        }
+        OfficialModelProtocol::VideoGeneration => "/v1/video_generation".into(),
+        OfficialModelProtocol::SpeechSynthesis => "/v1/t2a_v2".into(),
+        OfficialModelProtocol::MusicGeneration => "/v1/music_generation".into(),
     };
-    let url = format!("{base}{path}");
+    upstream_operation_url(base, &path)
+}
+
+fn upstream_operation_url(base: &str, path: &str) -> Result<String, GatewayError> {
+    let base = base.trim_end_matches('/');
+    let base_has_version = url::Url::parse(base)
+        .ok()
+        .and_then(|url| {
+            url.path()
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .map(str::to_owned)
+        })
+        .and_then(|segment| segment.strip_prefix('v').map(str::to_owned))
+        .and_then(|version| version.chars().next())
+        .is_some_and(|character| character.is_ascii_digit());
+    let url = ["/v1beta", "/v1"]
+        .into_iter()
+        .find_map(|version| {
+            ((base.ends_with(version) || base_has_version)
+                && path.starts_with(&format!("{version}/")))
+            .then(|| format!("{base}{}", &path[version.len()..]))
+        })
+        .unwrap_or_else(|| format!("{base}{path}"));
     url::Url::parse(&url).map_err(|_| GatewayError::InvalidUpstreamUrl)?;
     Ok(url)
 }
@@ -631,6 +914,9 @@ fn estimate_credits(
     body: &Value,
     encoded_bytes: usize,
 ) -> Result<u64, GatewayError> {
+    if model.protocol.is_media_service() {
+        return Ok(model.pricing.fixed_credit_micros_per_request.max(1));
+    }
     let input_tokens = u64::try_from(encoded_bytes).map_err(|_| GatewayError::CreditOverflow)?;
     let configured_max = body
         .get("max_output_tokens")
@@ -774,10 +1060,14 @@ pub enum GatewayError {
     UsageUnavailable,
     #[error("gateway transport failed: {0}")]
     Transport(#[from] reqwest::Error),
+    #[error("upstream model test returned HTTP {status}: {message}")]
+    UpstreamRejected { status: u16, message: String },
     #[error("gateway JSON failed: {0}")]
     Json(#[from] serde_json::Error),
     #[error("gateway response failed: {0}")]
     Response(String),
+    #[error(transparent)]
+    Discovery(#[from] super::UpstreamDiscoveryError),
     #[error(transparent)]
     Store(#[from] CloudStoreError),
 }
@@ -792,7 +1082,8 @@ mod tests {
     use super::*;
     use crate::cloud::{
         CloudSecretCipher, ModelPricingInput, PlanBenefitInput, PublishOfficialModelRequest,
-        PublishPlanRequest, UpsertUpstreamProviderRequest,
+        PublishPlanRequest, TestOfficialModelRequest, UpsertUpstreamProviderRequest,
+        UpstreamAvailableModel,
     };
 
     fn pricing() -> ModelPricing {
@@ -806,6 +1097,42 @@ mod tests {
             fixed_credit_micros_per_request: 5,
             published_at: Utc::now(),
         }
+    }
+
+    #[test]
+    fn upstream_urls_do_not_duplicate_existing_api_versions() {
+        let mut model = GatewayModelConfig {
+            model_id: "test".into(),
+            upstream_model_id: "upstream".into(),
+            protocol: OfficialModelProtocol::Responses,
+            provider_preset_id: "doubao".into(),
+            provider_kind: UpstreamProviderKind::OpenaiCompatible,
+            base_url: "https://ark.cn-beijing.volces.com/api/v3".into(),
+            api_key_ciphertext: String::new(),
+            pricing: pricing(),
+            capability: json!({}),
+        };
+        assert_eq!(
+            upstream_url(&model, false).unwrap(),
+            "https://ark.cn-beijing.volces.com/api/v3/responses"
+        );
+        model.protocol = OfficialModelProtocol::ChatCompletions;
+        model.base_url = "https://open.bigmodel.cn/api/paas/v4".into();
+        assert_eq!(
+            upstream_url(&model, false).unwrap(),
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        );
+        model.protocol = OfficialModelProtocol::ImageGeneration;
+        model.base_url = "https://api.minimaxi.com".into();
+        assert_eq!(
+            upstream_url(&model, false).unwrap(),
+            "https://api.minimaxi.com/v1/image_generation"
+        );
+        model.protocol = OfficialModelProtocol::VideoGeneration;
+        assert_eq!(
+            upstream_url(&model, false).unwrap(),
+            "https://api.minimaxi.com/v1/video_generation"
+        );
     }
 
     #[test]
@@ -858,6 +1185,124 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn admin_model_test_calls_unsaved_upstream_model_without_billing() {
+        let captured = Arc::new(Mutex::new(None::<(String, Value)>));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let upstream = Router::new()
+            .route(
+                "/v1/responses",
+                post(
+                    |State(captured): State<Arc<Mutex<Option<(String, Value)>>>>,
+                     headers: HeaderMap,
+                     Json(body): Json<Value>| async move {
+                        let authorization = headers
+                            .get("authorization")
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_owned();
+                        *captured.lock().unwrap() = Some((authorization, body));
+                        Json(json!({"id": "resp_test", "output": []}))
+                    },
+                ),
+            )
+            .with_state(Arc::clone(&captured));
+        let server = tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap() });
+
+        let root = TempDir::new().unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
+        let cipher = CloudSecretCipher::for_test();
+        let now = Utc::now();
+        let catalog = store
+            .upsert_upstream_provider(
+                &UpsertUpstreamProviderRequest {
+                    provider_id: None,
+                    provider_preset_id: None,
+                    slug: "local-openai".into(),
+                    display_name: "Local upstream".into(),
+                    provider_kind: UpstreamProviderKind::OpenaiCompatible,
+                    base_url: format!("http://{address}"),
+                    api_key: Some("upstream-secret".into()),
+                    available_models: Some(vec![UpstreamAvailableModel {
+                        upstream_model_id: "upstream-gpt".into(),
+                        display_name: "Upstream GPT".into(),
+                        protocol: OfficialModelProtocol::Responses,
+                        input_modalities: vec!["text".into()],
+                        output_modalities: vec!["text".into()],
+                        asynchronous: false,
+                    }]),
+                    last_test_latency_ms: None,
+                    active: true,
+                    expected_revision: 0,
+                },
+                Some(&cipher),
+                now,
+            )
+            .unwrap();
+        let manager = GatewayManager::new(Some(cipher), reqwest::Client::new());
+        manager
+            .test_model(
+                &store,
+                &TestOfficialModelRequest {
+                    model_id: None,
+                    upstream_provider_id: catalog.providers[0].provider_id.clone(),
+                    upstream_model_id: "upstream-gpt".into(),
+                    protocol: OfficialModelProtocol::Responses,
+                },
+                now,
+            )
+            .await
+            .unwrap();
+
+        let captured = captured.lock().unwrap().clone().unwrap();
+        assert_eq!(captured.0, "Bearer upstream-secret");
+        assert_eq!(captured.1["model"], "upstream-gpt");
+        assert_eq!(captured.1["stream"], false);
+
+        let catalog = store
+            .publish_official_model(
+                &PublishOfficialModelRequest {
+                    model_id: None,
+                    public_model_id: "official-test".into(),
+                    display_name: "Official test".into(),
+                    upstream_provider_id: catalog.providers[0].provider_id.clone(),
+                    upstream_model_id: "upstream-gpt".into(),
+                    protocol: OfficialModelProtocol::Responses,
+                    capability: json!({"maxOutputTokens": 16}),
+                    pricing: ModelPricingInput {
+                        input_credit_micros_per_million: 1,
+                        output_credit_micros_per_million: 1,
+                        cache_read_credit_micros_per_million: 0,
+                        cache_write_credit_micros_per_million: 0,
+                        fixed_credit_micros_per_request: 0,
+                    },
+                    active: true,
+                    expected_revision: catalog.revision,
+                },
+                now,
+            )
+            .unwrap();
+        manager
+            .test_model(
+                &store,
+                &TestOfficialModelRequest {
+                    model_id: Some(catalog.models[0].model_id.clone()),
+                    upstream_provider_id: catalog.providers[0].provider_id.clone(),
+                    upstream_model_id: "upstream-gpt".into(),
+                    protocol: OfficialModelProtocol::Responses,
+                },
+                now,
+            )
+            .await
+            .unwrap();
+        assert!(store.admin_model_catalog(now).unwrap().models[0]
+            .last_test_latency_ms
+            .is_some());
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn gateway_rewrites_model_keeps_upstream_secret_server_side_and_settles_usage() {
         let captured = Arc::new(Mutex::new(None::<(String, Value)>));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -888,22 +1333,25 @@ mod tests {
         let server = tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap() });
 
         let root = TempDir::new().unwrap();
-        let store = CloudStore::open(root.path()).unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
         let cipher = CloudSecretCipher::for_test();
         let now = Utc::now();
         let admin = store
             .upsert_upstream_provider(
                 &UpsertUpstreamProviderRequest {
                     provider_id: None,
+                    provider_preset_id: None,
                     slug: "local-openai".into(),
                     display_name: "Local upstream".into(),
                     provider_kind: UpstreamProviderKind::OpenaiCompatible,
                     base_url: format!("http://{address}"),
                     api_key: Some("upstream-secret".into()),
+                    available_models: None,
+                    last_test_latency_ms: None,
                     active: true,
                     expected_revision: 0,
                 },
-                &cipher,
+                Some(&cipher),
                 now,
             )
             .unwrap();
@@ -938,6 +1386,8 @@ mod tests {
                     slug: "free".into(),
                     display_name: "Official".into(),
                     description: "Official".into(),
+                    display_name_i18n: Default::default(),
+                    description_i18n: Default::default(),
                     tier_rank: 1,
                     is_default: true,
                     monthly_credit_micros: 100_000_000,

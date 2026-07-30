@@ -1,6 +1,8 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { docsPath, t } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Container from './ui/Container.astro'
 
 interface Props {
   locale: Locale
@@ -11,7 +13,7 @@ const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
 ---
 
 <section class="section" id="get-started">
-  <div class="container">
+  <Container>
     <div class="start-panel reveal">
       <div class="start-copy">
         <p class="section-tag">{t(locale, 'start.tag')}</p>
@@ -33,7 +35,7 @@ const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
           <span>Rust 1.96+</span>
           <span>Tauri 2</span>
         </div>
-        <a class="btn btn-primary" href={docsPath(locale, 'getting-started')}>{t(locale, 'start.cta')}</a>
+        <Button variant="primary" href={docsPath(locale, 'getting-started')}>{t(locale, 'start.cta')}</Button>
       </div>
       <div class="start-terminal" aria-label={t(locale, 'start.term')}>
         <div class="term-bar">
@@ -49,7 +51,7 @@ const descParts = t(locale, 'start.desc').split(/(`[^`]+`)/g)
 <span class="term-comment">{t(locale, 'start.comment')}</span></code></pre>
       </div>
     </div>
-  </div>
+  </Container>
 </section>
 
 <style>

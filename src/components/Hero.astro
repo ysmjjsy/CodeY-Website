@@ -1,6 +1,8 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { docsPath, t } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Container from './ui/Container.astro'
 
 interface Props {
   locale: Locale
@@ -11,7 +13,7 @@ const { locale } = Astro.props
 
 <section class="hero">
   <div class="hero-bg" aria-hidden="true"></div>
-  <div class="container hero-grid">
+  <Container class="hero-grid">
     <div class="hero-copy">
       <p class="hero-badge">
         <span class="badge-dot"></span>
@@ -23,9 +25,8 @@ const { locale } = Astro.props
       </h1>
       <p class="hero-sub">{t(locale, 'hero.sub')}</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href={docsPath(locale, 'getting-started')}>{t(locale, 'hero.cta')}</a>
-        <a
-          class="btn btn-ghost"
+        <Button variant="primary" href={docsPath(locale, 'getting-started')}>{t(locale, 'hero.cta')}</Button>
+        <Button
           href="https://github.com/ysmjjsy/CodeY"
           target="_blank"
           rel="noopener"
@@ -36,7 +37,7 @@ const { locale } = Astro.props
             ></path>
           </svg>
           GitHub
-        </a>
+        </Button>
       </div>
       <p class="hero-meta">{t(locale, 'hero.meta')}</p>
     </div>
@@ -121,7 +122,7 @@ const { locale } = Astro.props
       <div class="hero-glow hero-glow-cyan"></div>
       <div class="hero-glow hero-glow-amber"></div>
     </div>
-  </div>
+  </Container>
 </section>
 
 <style>

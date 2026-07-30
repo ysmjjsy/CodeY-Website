@@ -27,6 +27,8 @@ CodeY 官网统一入口 127.0.0.1:4321
   ├── 官网静态文件
   ├── /.well-known/codey-market.json
   └── /api/market/v1/* → Market Server 127.0.0.1:8787
+                              │
+                              └── PostgreSQL 39.105.2.5:15432/codey
 ```
 
 官网和模板市场 API 使用同一个公开域名。前端通过相对路径访问 API，不需要配置
@@ -129,10 +131,13 @@ CODEY_WEBSITE_ORIGIN=https://codey.example.com
 
 CODEY_MARKET_UPSTREAM=http://127.0.0.1:8787
 CODEY_MARKET_DATA_ROOT=/var/lib/codey-market
+CODEY_DATABASE_URL=postgresql://goya:change-me@39.105.2.5:15432/codey
 
 CODEY_MARKET_GITHUB_CLIENT_ID=
 CODEY_MARKET_GITHUB_CLIENT_SECRET=
 CODEY_MARKET_ADMIN_GITHUB_LOGINS=
+CODEY_MARKET_ADMIN_USERNAME=admin
+CODEY_MARKET_ADMIN_PASSWORD=change-me
 ```
 
 如果暂时不启用 GitHub 登录，保持三个 GitHub 配置为空。
@@ -158,7 +163,7 @@ sudo chown root:codey /etc/codey/website.env
 sudo chmod 640 /etc/codey/website.env
 ```
 
-不要把 GitHub Client Secret 写入 Git 仓库。
+不要把数据库密码、GitHub Client Secret 和生产管理员密码写入 Git 仓库。
 
 ## 7. 配置 systemd
 
@@ -261,6 +266,8 @@ sudo systemctl restart codey-website
 ```
 
 `CODEY_MARKET_ADMIN_GITHUB_LOGINS` 中的 GitHub 用户登录后会获得管理员权限。
+本地管理员由 `CODEY_MARKET_ADMIN_USERNAME` 和 `CODEY_MARKET_ADMIN_PASSWORD` 配置，
+服务重启时会自动创建账号或更新密码。
 
 ## 10. 部署验证
 
@@ -286,7 +293,7 @@ curl --fail --show-error https://codey.example.com/api/market/v1/listings
 3. 退出后使用邮箱和密码登录
 4. 完成 GitHub OAuth 登录
 5. 普通用户上传模板
-6. 从账号菜单进入模板管理后台，检查自己的提交状态
+6. 从账号菜单进入控制台，检查套餐、积分和自己的模板状态
 7. 管理员账号进入模板审核菜单并完成审核
 8. 审核通过的模板出现在公开市场
 
@@ -317,23 +324,24 @@ sudo journalctl -u codey-website --since "10 minutes ago"
 
 ## 12. 数据备份
 
-模板市场运行数据位于：
+账号、会话、模板市场和 Cloud 业务数据位于 PostgreSQL 的 `codey` 数据库。
+待审核和已发布的模板文件位于：
 
 ```text
 /var/lib/codey-market
 ```
 
-其中包括：
-
-- SQLite 账号和审核数据
-- 登录会话
-- 待审核模板
-- 已发布模板文件
-
-为保证 SQLite 和文件状态一致，备份前停止服务：
+为取得数据库与模板文件的一致快照，备份前停止服务：
 
 ```bash
 sudo systemctl stop codey-website
+PGPASSWORD='数据库密码' pg_dump \
+  --host=39.105.2.5 \
+  --port=15432 \
+  --username=goya \
+  --format=custom \
+  --file=/var/backups/codey.dump \
+  codey
 sudo tar -C /var/lib -czf /var/backups/codey-market.tar.gz codey-market
 sudo systemctl start codey-website
 ```

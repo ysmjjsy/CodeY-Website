@@ -1,0 +1,15 @@
+---
+import ConsoleShell from '../../components/ConsoleShell.astro'
+import MarketDashboard from '../../components/MarketDashboard.astro'
+import { dashboardCopy } from '../../i18n/dashboard'
+import MarketLayout from '../../layouts/MarketLayout.astro'
+
+const locale = 'zh-CN' as const
+const copy = dashboardCopy(locale)
+---
+
+<MarketLayout title={`${copy.reviewTitle} · CodeY`} description={copy.reviewDescription} locale={locale} alternateHref="/en/console/reviews/">
+  <ConsoleShell locale={locale} activeSection="reviews">
+    <MarketDashboard locale={locale} initialSection="review" />
+  </ConsoleShell>
+</MarketLayout>

@@ -2,7 +2,9 @@
 import '@fontsource-variable/space-grotesk'
 import '@fontsource-variable/jetbrains-mono'
 import '../styles/landing.css'
+import '../styles/ui.css'
 import type { Locale } from '../i18n/ui'
+import Toast from '../components/Toast.astro'
 
 interface Props {
   title: string
@@ -87,6 +89,7 @@ const alternateHref =
   </head>
   <body>
     <slot />
+    <Toast locale={locale} />
     <script>
       const revealItems = document.querySelectorAll('.reveal')
       const observer = new IntersectionObserver(

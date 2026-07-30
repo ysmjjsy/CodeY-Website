@@ -84,6 +84,10 @@ pub struct PublishPlanRequest {
     pub slug: String,
     pub display_name: String,
     pub description: String,
+    #[serde(default)]
+    pub display_name_i18n: BTreeMap<String, String>,
+    #[serde(default)]
+    pub description_i18n: BTreeMap<String, String>,
     pub tier_rank: u32,
     #[serde(default)]
     pub is_default: bool,
@@ -124,6 +128,8 @@ pub struct PlanSummary {
     pub slug: String,
     pub display_name: String,
     pub description: String,
+    pub display_name_i18n: BTreeMap<String, String>,
+    pub description_i18n: BTreeMap<String, String>,
     pub tier_rank: u32,
     pub is_default: bool,
     pub monthly_credit_micros: u64,
@@ -147,6 +153,10 @@ pub struct PublishTopUpProductRequest {
     pub slug: String,
     pub display_name: String,
     pub description: String,
+    #[serde(default)]
+    pub display_name_i18n: BTreeMap<String, String>,
+    #[serde(default)]
+    pub description_i18n: BTreeMap<String, String>,
     pub credit_micros: u64,
     #[serde(default)]
     pub offers: Vec<PlanOfferInput>,
@@ -162,6 +172,8 @@ pub struct TopUpProductSummary {
     pub slug: String,
     pub display_name: String,
     pub description: String,
+    pub display_name_i18n: BTreeMap<String, String>,
+    pub description_i18n: BTreeMap<String, String>,
     pub credit_micros: u64,
     pub offers: Vec<PlanOffer>,
     pub published_at: DateTime<Utc>,
@@ -332,13 +344,18 @@ impl UpstreamProviderKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OfficialModelProtocol {
     ChatCompletions,
     Responses,
     Messages,
     GenerateContent,
+    ImageGeneration,
+    ImageEdit,
+    VideoGeneration,
+    SpeechSynthesis,
+    MusicGeneration,
 }
 
 impl OfficialModelProtocol {
@@ -348,6 +365,11 @@ impl OfficialModelProtocol {
             Self::Responses => "responses",
             Self::Messages => "messages",
             Self::GenerateContent => "generate_content",
+            Self::ImageGeneration => "image_generation",
+            Self::ImageEdit => "image_edit",
+            Self::VideoGeneration => "video_generation",
+            Self::SpeechSynthesis => "speech_synthesis",
+            Self::MusicGeneration => "music_generation",
         }
     }
 
@@ -357,8 +379,24 @@ impl OfficialModelProtocol {
             "responses" => Some(Self::Responses),
             "messages" => Some(Self::Messages),
             "generate_content" => Some(Self::GenerateContent),
+            "image_generation" => Some(Self::ImageGeneration),
+            "image_edit" => Some(Self::ImageEdit),
+            "video_generation" => Some(Self::VideoGeneration),
+            "speech_synthesis" => Some(Self::SpeechSynthesis),
+            "music_generation" => Some(Self::MusicGeneration),
             _ => None,
         }
+    }
+
+    pub const fn is_media_service(self) -> bool {
+        matches!(
+            self,
+            Self::ImageGeneration
+                | Self::ImageEdit
+                | Self::VideoGeneration
+                | Self::SpeechSynthesis
+                | Self::MusicGeneration
+        )
     }
 }
 
@@ -366,25 +404,101 @@ impl OfficialModelProtocol {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpsertUpstreamProviderRequest {
     pub provider_id: Option<String>,
+    #[serde(default)]
+    pub provider_preset_id: Option<String>,
     pub slug: String,
     pub display_name: String,
     pub provider_kind: UpstreamProviderKind,
     pub base_url: String,
     pub api_key: Option<String>,
     #[serde(default)]
+    pub available_models: Option<Vec<UpstreamAvailableModel>>,
+    #[serde(default)]
+    pub last_test_latency_ms: Option<u64>,
+    #[serde(default)]
     pub active: bool,
     pub expected_revision: u64,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscoverUpstreamModelsRequest {
+    pub provider_id: Option<String>,
+    #[serde(default)]
+    pub provider_preset_id: Option<String>,
+    pub provider_kind: UpstreamProviderKind,
+    pub base_url: String,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpstreamAvailableModel {
+    pub upstream_model_id: String,
+    pub display_name: String,
+    #[serde(default = "default_available_model_protocol")]
+    pub protocol: OfficialModelProtocol,
+    #[serde(default = "default_text_modalities")]
+    pub input_modalities: Vec<String>,
+    #[serde(default = "default_text_modalities")]
+    pub output_modalities: Vec<String>,
+    #[serde(default)]
+    pub asynchronous: bool,
+}
+
+const fn default_available_model_protocol() -> OfficialModelProtocol {
+    OfficialModelProtocol::ChatCompletions
+}
+
+fn default_text_modalities() -> Vec<String> {
+    vec!["text".to_owned()]
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpstreamModelDiscovery {
+    pub models: Vec<UpstreamAvailableModel>,
+    pub fetched_at: DateTime<Utc>,
+    pub latency_ms: u64,
+    pub source: UpstreamModelDiscoverySource,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpstreamModelDiscoverySource {
+    Upstream,
+    ProviderPreset,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TestOfficialModelRequest {
+    #[serde(default)]
+    pub model_id: Option<String>,
+    pub upstream_provider_id: String,
+    pub upstream_model_id: String,
+    pub protocol: OfficialModelProtocol,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfficialModelTestResult {
+    pub latency_ms: u64,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpstreamProviderSummary {
     pub provider_id: String,
+    pub provider_preset_id: String,
     pub slug: String,
     pub display_name: String,
     pub provider_kind: UpstreamProviderKind,
     pub base_url: String,
     pub credential_configured: bool,
+    pub available_models: Vec<UpstreamAvailableModel>,
+    pub models_refreshed_at: Option<DateTime<Utc>>,
+    pub last_test_latency_ms: Option<u64>,
     pub active: bool,
     pub updated_at: DateTime<Utc>,
 }
@@ -445,6 +559,27 @@ pub struct OfficialModelSummary {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PublicOfficialModelSummary {
+    pub model_id: String,
+    pub public_model_id: String,
+    pub display_name: String,
+    pub provider_display_name: String,
+    pub provider_kind: UpstreamProviderKind,
+    pub protocol: OfficialModelProtocol,
+    pub capability: Value,
+    pub pricing: ModelPricing,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicOfficialModelCatalog {
+    pub revision: u64,
+    pub models: Vec<PublicOfficialModelSummary>,
+    pub generated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AdminOfficialModelSummary {
     pub model_id: String,
     pub public_model_id: String,
@@ -454,6 +589,7 @@ pub struct AdminOfficialModelSummary {
     pub protocol: OfficialModelProtocol,
     pub capability: Value,
     pub pricing: ModelPricing,
+    pub last_test_latency_ms: Option<u64>,
     pub active: bool,
 }
 

@@ -1,0 +1,16 @@
+---
+interface Props {
+  label: string
+  hint?: string
+  class?: string
+  [key: string]: unknown
+}
+
+const { label, hint, class: className, ...attributes } = Astro.props
+---
+
+<label class:list={['ui-field', className]} {...attributes}>
+  <span>{label}</span>
+  <slot />
+  {hint && <small>{hint}</small>}
+</label>

@@ -1,0 +1,35 @@
+---
+type Variant = 'primary' | 'ghost'
+type Size = 'sm' | 'md'
+
+interface Props {
+  as?: 'a' | 'button'
+  variant?: Variant
+  size?: Size
+  href?: string
+  type?: 'button' | 'submit' | 'reset'
+  class?: string
+  [key: string]: unknown
+}
+
+const {
+  as,
+  variant = 'ghost',
+  size = 'md',
+  href,
+  type = 'button',
+  class: className,
+  slot: _slot,
+  ...attributes
+} = Astro.props
+const Element = as ?? (href ? 'a' : 'button')
+---
+
+<Element
+  class:list={['btn', `btn-${variant}`, size === 'sm' && 'btn-sm', className]}
+  href={Element === 'a' ? href : undefined}
+  type={Element === 'button' ? type : undefined}
+  {...attributes}
+>
+  <slot />
+</Element>

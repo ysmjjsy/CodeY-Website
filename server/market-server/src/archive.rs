@@ -1,21 +1,23 @@
 use std::collections::BTreeMap;
 
-use base64::Engine as _;
 use codey_package_format::{
-    parse_archive, AgentComponentKind, AgentPackageArchive, ExecutionTargetKind,
-    PackageComponentSource, PackageDefinitionKind, PackageFormatError,
+    parse_archive, CodeyPackageArchive, PackageFormatError, PackageResourceEntry,
+    PackageResourceKind,
 };
 use thiserror::Error;
 
 use crate::contracts::{
-    MarketplaceCompatibility, MarketplacePrimaryResource, MarketplaceResourceSummary,
-    MarketplaceUploadPreview, PackageMarketplaceMetadataDocument, PublishMarketplaceUploadRequest,
-    PACKAGE_MARKETPLACE_MANIFEST_PATH, PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
+    AgentComponentKind, ExecutionTargetKind, MarketplaceCompatibility, MarketplacePrimaryResource,
+    MarketplaceResourceSummary, MarketplaceUploadPreview, PackageMarketplaceMetadataDocument,
+    PublishMarketplaceUploadRequest, PACKAGE_MARKETPLACE_MANIFEST_PATH,
+    PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
 };
+
+const PACKAGE_RESOURCE_DESCRIPTOR_PATH: &str = "codey/resource.json";
 
 #[derive(Debug, Clone)]
 pub struct InspectedArchive {
-    pub archive: AgentPackageArchive,
+    pub archive: CodeyPackageArchive,
     pub preview: MarketplaceUploadPreview,
 }
 
@@ -28,20 +30,20 @@ pub fn inspect_archive(
     let archive_length =
         u64::try_from(bytes.len()).map_err(|_| ArchiveInspectionError::TooLarge)?;
     let archive_hash = blake3::hash(bytes).to_hex().to_string();
-    let files = decoded_files(&archive)?;
-    let (resources, available_primary_resources) = marketplace_resources(&archive, &files)?;
+    let (resources, available_primary_resources) = marketplace_resources(&archive)?;
     if available_primary_resources.is_empty() {
         return Err(ArchiveInspectionError::NoMarketplaceResource);
     }
     let manifest = &archive.package.manifest;
-    let publication = marketplace_publication(&files, &available_primary_resources)?;
+    let publication = marketplace_publication(&archive.files, &available_primary_resources)?;
+    let package_content_hash = archive.package.content_root()?;
     let preview = MarketplaceUploadPreview {
         upload_id,
         expires_at,
         package_id: manifest.package_id.to_string(),
         version: manifest.version.clone(),
-        package_revision_id: manifest.package_revision_id.clone(),
-        package_content_hash: manifest.package_content_hash.clone(),
+        package_revision_id: package_revision_id(&package_content_hash),
+        package_content_hash,
         archive_hash,
         archive_length,
         publisher_id: manifest.publisher.publisher_id.clone(),
@@ -59,7 +61,7 @@ pub fn inspect_archive(
         },
         available_primary_resources,
         resources,
-        requested_permissions: manifest.requested_permissions.iter().cloned().collect(),
+        requested_permissions: derived_permissions(&archive),
         publication,
         manifest: serde_json::to_value(manifest)?,
     };
@@ -148,24 +150,8 @@ fn normalized_tags(tags: &[String]) -> Vec<String> {
     tags
 }
 
-fn decoded_files(
-    archive: &AgentPackageArchive,
-) -> Result<BTreeMap<String, Vec<u8>>, ArchiveInspectionError> {
-    archive
-        .files
-        .iter()
-        .map(|file| {
-            let bytes = base64::engine::general_purpose::STANDARD
-                .decode(&file.content_base64)
-                .map_err(|_| ArchiveInspectionError::Encoding)?;
-            Ok((file.relative_path.clone(), bytes))
-        })
-        .collect()
-}
-
 fn marketplace_resources(
-    archive: &AgentPackageArchive,
-    files: &BTreeMap<String, Vec<u8>>,
+    archive: &CodeyPackageArchive,
 ) -> Result<
     (
         Vec<MarketplaceResourceSummary>,
@@ -173,118 +159,215 @@ fn marketplace_resources(
     ),
     ArchiveInspectionError,
 > {
-    let manifest = &archive.package.manifest;
     let mut resources = Vec::new();
     let mut available_primary_resources = Vec::new();
-    for entry in &manifest.definitions {
-        let produces = match entry.kind {
-            PackageDefinitionKind::Agent => ExecutionTargetKind::Agent,
-            PackageDefinitionKind::Team => ExecutionTargetKind::Team,
-            PackageDefinitionKind::Workflow => ExecutionTargetKind::Workflow,
-        };
-        let envelope = definition_envelope(files, &entry.relative_path)?;
-        let resource = MarketplaceResourceSummary {
-            resource: MarketplacePrimaryResource::Definition {
-                produces,
-                definition_id: entry.definition_id.clone(),
-                revision: entry.revision.clone(),
-            },
-            display_name: definition_display_name(&envelope)
-                .unwrap_or_else(|| entry.definition_id.clone()),
+    for entry in &archive.package.manifest.resources {
+        let resource = match entry.kind {
+            PackageResourceKind::Agent
+            | PackageResourceKind::Team
+            | PackageResourceKind::Workflow => definition_resource(archive, entry)?,
+            PackageResourceKind::Template => template_resource(archive, entry)?,
+            PackageResourceKind::Skill
+            | PackageResourceKind::Mcp
+            | PackageResourceKind::Plugin
+            | PackageResourceKind::Hook
+            | PackageResourceKind::Prompt
+            | PackageResourceKind::Asset => component_resource(archive, entry)?,
         };
         available_primary_resources.push(resource.clone());
         resources.push(resource);
     }
-    for entry in &manifest.templates {
-        let envelope = definition_envelope(files, &entry.relative_path)?;
-        let produces = envelope
-            .get("spec")
-            .and_then(|spec| spec.get("produces"))
-            .cloned()
-            .ok_or(ArchiveInspectionError::TemplateMetadata)
-            .and_then(|value| {
-                serde_json::from_value::<ExecutionTargetKind>(value)
-                    .map_err(|_| ArchiveInspectionError::TemplateMetadata)
-            })?;
-        let resource = MarketplaceResourceSummary {
-            resource: MarketplacePrimaryResource::Template {
-                produces,
-                template_id: entry.template_id.clone(),
-                revision: entry.revision.clone(),
-            },
-            display_name: definition_display_name(&envelope)
-                .unwrap_or_else(|| entry.template_id.clone()),
-        };
-        available_primary_resources.push(resource.clone());
-        resources.push(resource);
-    }
-    for entry in &manifest.components {
-        if !matches!(
-            entry.kind,
-            AgentComponentKind::Skill | AgentComponentKind::Mcp
-        ) {
-            continue;
-        }
-        let resource = MarketplaceResourceSummary {
-            resource: MarketplacePrimaryResource::Component {
-                kind: entry.kind,
-                component_id: entry.component_id.clone(),
-                revision: entry.revision.clone(),
-            },
-            display_name: entry.logical_name.clone(),
-        };
-        if matches!(&entry.source, PackageComponentSource::Embedded { .. }) {
-            available_primary_resources.push(resource.clone());
-        }
-        resources.push(resource);
-    }
-    resources.sort_by(|left, right| {
-        left.display_name
-            .cmp(&right.display_name)
-            .then_with(|| format!("{:?}", left.resource).cmp(&format!("{:?}", right.resource)))
-    });
-    available_primary_resources.sort_by(|left, right| {
-        left.display_name
-            .cmp(&right.display_name)
-            .then_with(|| format!("{:?}", left.resource).cmp(&format!("{:?}", right.resource)))
-    });
+    resources.sort_by(resource_order);
+    available_primary_resources.sort_by(resource_order);
     Ok((resources, available_primary_resources))
 }
 
-fn definition_envelope(
-    files: &BTreeMap<String, Vec<u8>>,
-    path: &str,
-) -> Result<serde_json::Value, ArchiveInspectionError> {
-    let bytes = files
-        .get(path)
-        .ok_or_else(|| ArchiveInspectionError::MissingFile(path.to_owned()))?;
-    serde_json::from_slice(bytes).map_err(ArchiveInspectionError::from)
+fn definition_resource(
+    archive: &CodeyPackageArchive,
+    entry: &PackageResourceEntry,
+) -> Result<MarketplaceResourceSummary, ArchiveInspectionError> {
+    let path = format!("{}/definition.json", entry.root);
+    let document = json_file(archive, &path)?;
+    let produces = match entry.kind {
+        PackageResourceKind::Agent => ExecutionTargetKind::Agent,
+        PackageResourceKind::Team => ExecutionTargetKind::Team,
+        PackageResourceKind::Workflow => ExecutionTargetKind::Workflow,
+        _ => return Err(ArchiveInspectionError::ResourceMetadata),
+    };
+    let definition_id = required_string(&document, "definitionId")?;
+    let revision = required_string(&document, "revision")?;
+    Ok(MarketplaceResourceSummary {
+        resource: MarketplacePrimaryResource::Definition {
+            produces,
+            definition_id: definition_id.clone(),
+            revision,
+        },
+        display_name: definition_display_name(&document).unwrap_or(definition_id),
+        files: resource_files(archive, entry),
+    })
 }
 
-fn definition_display_name(envelope: &serde_json::Value) -> Option<String> {
-    envelope
+fn template_resource(
+    archive: &CodeyPackageArchive,
+    entry: &PackageResourceEntry,
+) -> Result<MarketplaceResourceSummary, ArchiveInspectionError> {
+    let path = format!("{}/template.json", entry.root);
+    let document = json_file(archive, &path)?;
+    let produces = document
+        .get("spec")
+        .and_then(|spec| spec.get("produces"))
+        .cloned()
+        .ok_or(ArchiveInspectionError::TemplateMetadata)
+        .and_then(|value| {
+            serde_json::from_value::<ExecutionTargetKind>(value)
+                .map_err(|_| ArchiveInspectionError::TemplateMetadata)
+        })?;
+    let template_id = required_string(&document, "definitionId")?;
+    let revision = required_string(&document, "revision")?;
+    Ok(MarketplaceResourceSummary {
+        resource: MarketplacePrimaryResource::Template {
+            produces,
+            template_id: template_id.clone(),
+            revision,
+        },
+        display_name: definition_display_name(&document).unwrap_or(template_id),
+        files: resource_files(archive, entry),
+    })
+}
+
+fn component_resource(
+    archive: &CodeyPackageArchive,
+    entry: &PackageResourceEntry,
+) -> Result<MarketplaceResourceSummary, ArchiveInspectionError> {
+    let path = format!("{}/{PACKAGE_RESOURCE_DESCRIPTOR_PATH}", entry.root);
+    let document = json_file(archive, &path)?;
+    let kind = serde_json::from_value::<AgentComponentKind>(
+        document
+            .get("kind")
+            .cloned()
+            .ok_or(ArchiveInspectionError::ResourceMetadata)?,
+    )
+    .map_err(|_| ArchiveInspectionError::ResourceMetadata)?;
+    if kind == AgentComponentKind::BuiltinToolCapability {
+        return Err(ArchiveInspectionError::ResourceMetadata);
+    }
+    Ok(MarketplaceResourceSummary {
+        resource: MarketplacePrimaryResource::Component {
+            kind,
+            component_id: required_string(&document, "componentId")?,
+            revision: required_string(&document, "revision")?,
+        },
+        display_name: required_string(&document, "logicalName")?,
+        files: resource_files(archive, entry),
+    })
+}
+
+fn resource_files(archive: &CodeyPackageArchive, entry: &PackageResourceEntry) -> Vec<String> {
+    let prefix = format!("{}/", entry.root);
+    let descriptor = format!("{prefix}{PACKAGE_RESOURCE_DESCRIPTOR_PATH}");
+    archive
+        .files
+        .keys()
+        .filter(|path| path.starts_with(&prefix) && *path != &descriptor)
+        .filter_map(|path| path.strip_prefix(&prefix).map(str::to_owned))
+        .collect()
+}
+
+fn json_file(
+    archive: &CodeyPackageArchive,
+    path: &str,
+) -> Result<serde_json::Value, ArchiveInspectionError> {
+    serde_json::from_slice(
+        archive
+            .files
+            .get(path)
+            .ok_or_else(|| ArchiveInspectionError::MissingFile(path.into()))?,
+    )
+    .map_err(ArchiveInspectionError::from)
+}
+
+fn required_string(
+    document: &serde_json::Value,
+    field: &str,
+) -> Result<String, ArchiveInspectionError> {
+    document
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .ok_or(ArchiveInspectionError::ResourceMetadata)
+}
+
+fn definition_display_name(document: &serde_json::Value) -> Option<String> {
+    document
         .get("spec")
         .and_then(|spec| spec.get("displayName"))
         .and_then(serde_json::Value::as_str)
         .map(str::to_owned)
 }
 
+fn derived_permissions(archive: &CodeyPackageArchive) -> Vec<String> {
+    let mut permissions = archive
+        .package
+        .manifest
+        .resources
+        .iter()
+        .filter(|resource| {
+            let prefix = format!("{}/", resource.root);
+            archive
+                .package
+                .manifest
+                .files
+                .iter()
+                .any(|file| file.executable && file.path.starts_with(&prefix))
+        })
+        .map(|resource| format!("executable_resource:{}", resource.resource_ref))
+        .collect::<Vec<_>>();
+    permissions.extend(
+        archive
+            .package
+            .manifest
+            .resources
+            .iter()
+            .filter(|resource| resource.kind == PackageResourceKind::Mcp)
+            .map(|resource| format!("mcp_server:{}", resource.resource_ref)),
+    );
+    permissions.sort();
+    permissions.dedup();
+    permissions
+}
+
+fn resource_order(
+    left: &MarketplaceResourceSummary,
+    right: &MarketplaceResourceSummary,
+) -> std::cmp::Ordering {
+    left.display_name
+        .cmp(&right.display_name)
+        .then_with(|| format!("{:?}", left.resource).cmp(&format!("{:?}", right.resource)))
+}
+
+fn package_revision_id(content_root: &str) -> String {
+    let digest = blake3::hash(content_root.as_bytes());
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&digest.as_bytes()[..16]);
+    bytes[0] &= 0x7f;
+    ulid::Ulid::from(u128::from_be_bytes(bytes)).to_string()
+}
+
 #[derive(Debug, Error)]
 pub enum ArchiveInspectionError {
-    #[error("package archive is not canonical")]
-    NonCanonical,
     #[error("package archive exceeds the configured limit")]
     TooLarge,
     #[error("package archive encoding is invalid")]
     Encoding,
-    #[error(
-        "package does not contain an Agent, Team, Workflow, Skill, or MCP marketplace resource"
-    )]
+    #[error("package does not contain a publishable marketplace resource")]
     NoMarketplaceResource,
-    #[error("package does not contain marketplace/manifest.json")]
+    #[error("package does not contain marketplace/listing.json")]
     MarketplaceMetadataMissing,
     #[error("package marketplace metadata is invalid: {0}")]
     MarketplaceMetadata(String),
+    #[error("package resource metadata is invalid")]
+    ResourceMetadata,
     #[error("template metadata is invalid")]
     TemplateMetadata,
     #[error("package file is missing: {0}")]

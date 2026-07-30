@@ -2,7 +2,8 @@
 import { Image } from 'astro:assets'
 import logo from '../assets/logo.png'
 import type { Locale } from '../i18n/ui'
-import { docsPath, homePath, marketPath, t } from '../i18n/utils'
+import { docsPath, homePath, marketPath, modelsPath, pricingPath, t } from '../i18n/utils'
+import Container from './ui/Container.astro'
 
 interface Props {
   locale: Locale
@@ -12,7 +13,7 @@ const { locale } = Astro.props
 ---
 
 <footer class="site-footer">
-  <div class="container footer-grid">
+  <Container class="footer-grid">
     <div class="footer-brand">
       <a href={homePath(locale)} class="footer-logo">
         <Image src={logo} alt="CodeY" width="28" height="28" />
@@ -38,10 +39,11 @@ const { locale } = Astro.props
         rel="noopener">{t(locale, 'footer.community.coc')}</a
       >
     </nav>
-    <nav class="footer-col" aria-label={t(locale, 'footer.market')}>
-      <h4>{t(locale, 'footer.market')}</h4>
-      <a href={marketPath(locale)}>{t(locale, 'footer.market.browse')}</a>
-      <a href={`${marketPath(locale)}?upload=1`}>{t(locale, 'footer.market.upload')}</a>
+    <nav class="footer-col" aria-label={t(locale, 'footer.product')}>
+      <h4>{t(locale, 'footer.product')}</h4>
+      <a href={modelsPath(locale)}>{t(locale, 'footer.product.models')}</a>
+      <a href={pricingPath(locale)}>{t(locale, 'footer.product.pricing')}</a>
+      <a href={marketPath(locale)}>{t(locale, 'footer.product.market')}</a>
     </nav>
     <nav class="footer-col" aria-label={t(locale, 'footer.more')}>
       <h4>{t(locale, 'footer.more')}</h4>
@@ -52,10 +54,10 @@ const { locale } = Astro.props
         rel="noopener">{t(locale, 'footer.more.license')}</a
       >
     </nav>
-  </div>
-  <div class="container footer-bottom">
+  </Container>
+  <Container class="footer-bottom">
     <span>{t(locale, 'footer.copy')}</span>
-  </div>
+  </Container>
 </footer>
 
 <style>

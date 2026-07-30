@@ -4,6 +4,7 @@ mod archive;
 mod auth;
 pub mod cloud;
 mod contracts;
+mod db;
 mod store;
 #[cfg(test)]
 mod tests;
@@ -11,6 +12,7 @@ mod tests;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Instant;
 
 use crate::contracts::{
     MarketplaceCatalogResponse, MarketplaceDiscovery, MarketplaceListingDetail,
@@ -48,22 +50,28 @@ use auth::{
     validate_username, verify_password, GitHubIdentity, MarketplaceAuthError,
 };
 use cloud::{
-    AdminModelCatalog, CloudPaymentConfig, CloudSecretCipher, CloudStore, CloudStoreError,
-    CreatePlanOrderRequest, CreateTopUpOrderRequest, GatewayError, GatewayManager,
-    OfficialModelCatalog, OfficialModelProtocol, PaymentAvailability, PaymentCheckout,
-    PaymentError, PaymentManager, PaymentOrder, PlanCatalog, PublishOfficialModelRequest,
-    PublishPlanRequest, PublishTopUpProductRequest, SchedulePlanChangeRequest,
-    SubscriptionSnapshot, TopUpCatalog, UpsertUpstreamProviderRequest, WalletSummary,
+    discover_upstream_models, AdminModelCatalog, CloudPaymentConfig, CloudSecretCipher, CloudStore,
+    CloudStoreError, CreatePlanOrderRequest, CreateTopUpOrderRequest,
+    DiscoverUpstreamModelsRequest, GatewayError, GatewayManager, OfficialModelCatalog,
+    OfficialModelProtocol, OfficialModelTestResult, PaymentAvailability, PaymentCheckout,
+    PaymentError, PaymentManager, PaymentOrder, PlanCatalog, PublicOfficialModelCatalog,
+    PublishOfficialModelRequest, PublishPlanRequest, PublishTopUpProductRequest,
+    SchedulePlanChangeRequest, SubscriptionSnapshot, TestOfficialModelRequest, TopUpCatalog,
+    UpsertUpstreamProviderRequest, UpstreamDiscoveryError, UpstreamModelDiscovery, WalletSummary,
 };
+use cloud::{normalize_provider_preset_id, provider_credential_required, provider_preset};
 
 const PACKAGE_FIELD: &str = "archive";
 const UPLOAD_TTL_MINUTES: i64 = 30;
 const SESSION_TTL_DAYS: i64 = 30;
 const OAUTH_STATE_TTL_MINUTES: i64 = 10;
+const DEFAULT_ADMIN_USERNAME: &str = "admin";
+const DEFAULT_ADMIN_PASSWORD: &str = "a773949603";
 
 #[derive(Debug, Clone)]
 pub struct MarketplaceServerConfig {
     pub data_root: PathBuf,
+    pub database_url: String,
     pub web_base_url: String,
     pub api_base_url: String,
     pub cloud_api_base_url: String,
@@ -73,6 +81,8 @@ pub struct MarketplaceServerConfig {
     pub github_client_id: Option<String>,
     pub github_client_secret: Option<String>,
     pub admin_github_logins: BTreeSet<String>,
+    pub admin_username: String,
+    pub admin_password: String,
     pub payments: CloudPaymentConfig,
     pub cloud_secret_cipher: Option<CloudSecretCipher>,
 }
@@ -81,6 +91,16 @@ impl MarketplaceServerConfig {
     pub fn from_environment() -> Result<Self, MarketplaceServerError> {
         let data_root = std::env::var_os("CODEY_MARKET_DATA_ROOT")
             .map_or_else(|| PathBuf::from(".codey-market"), PathBuf::from);
+        let database_url = std::env::var("CODEY_DATABASE_URL").map_err(|_| {
+            MarketplaceServerError::InvalidConfiguration(
+                "CODEY_DATABASE_URL must contain a PostgreSQL connection URL".into(),
+            )
+        })?;
+        if !database_url.starts_with("postgres://") && !database_url.starts_with("postgresql://") {
+            return Err(MarketplaceServerError::InvalidConfiguration(
+                "CODEY_DATABASE_URL must use postgres:// or postgresql://".into(),
+            ));
+        }
         let web_base_url = std::env::var("CODEY_MARKET_WEB_BASE_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:4321/market".into());
         let api_base_url = std::env::var("CODEY_MARKET_API_BASE_URL")
@@ -112,6 +132,23 @@ impl MarketplaceServerConfig {
             .filter(|value| !value.is_empty())
             .map(str::to_ascii_lowercase)
             .collect();
+        let admin_username = validate_username(
+            &std::env::var("CODEY_MARKET_ADMIN_USERNAME")
+                .unwrap_or_else(|_| DEFAULT_ADMIN_USERNAME.into()),
+        )
+        .map_err(|_| {
+            MarketplaceServerError::InvalidConfiguration(
+                "CODEY_MARKET_ADMIN_USERNAME must contain 3-32 ASCII letters, digits, hyphens, or underscores"
+                    .into(),
+            )
+        })?;
+        let admin_password = std::env::var("CODEY_MARKET_ADMIN_PASSWORD")
+            .unwrap_or_else(|_| DEFAULT_ADMIN_PASSWORD.into());
+        validate_password(&admin_password).map_err(|_| {
+            MarketplaceServerError::InvalidConfiguration(
+                "CODEY_MARKET_ADMIN_PASSWORD must contain 10-128 bytes".into(),
+            )
+        })?;
         let web_base_url = trim_url(&web_base_url)?;
         let api_base_url = trim_url(&api_base_url)?;
         let cloud_api_base_url = trim_url(&cloud_api_base_url)?;
@@ -122,6 +159,7 @@ impl MarketplaceServerConfig {
             .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
         let config = Self {
             data_root,
+            database_url,
             web_base_url,
             api_base_url,
             cloud_api_base_url,
@@ -131,6 +169,8 @@ impl MarketplaceServerConfig {
             github_client_id,
             github_client_secret,
             admin_github_logins,
+            admin_username,
+            admin_password,
             payments,
             cloud_secret_cipher,
         };
@@ -159,8 +199,11 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
             "max package bytes must be between 1 and {MAX_PACKAGE_BYTES}"
         )));
     }
-    let store = MarketplaceStore::open(&config.data_root)?;
-    let cloud = CloudStore::open(&config.data_root)?;
+    let store = MarketplaceStore::open(&config.data_root, &config.database_url)?;
+    let admin_password_hash =
+        hash_password(&config.admin_password).map_err(MarketplaceStoreError::from)?;
+    store.upsert_local_admin(&config.admin_username, &admin_password_hash)?;
+    let cloud = CloudStore::open(&config.data_root, &config.database_url)?;
     for path in store.expired_upload_paths()? {
         let _ = std::fs::remove_file(path);
     }
@@ -185,6 +228,7 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         .route("/api/cloud/v1/me", get(cloud_me))
         .route("/api/cloud/v1/plans", get(cloud_plans))
         .route("/api/cloud/v1/top-ups", get(cloud_top_ups))
+        .route("/api/cloud/v1/public-models", get(cloud_public_models))
         .route("/api/cloud/v1/models", get(cloud_official_models))
         .route(
             "/api/cloud/v1/gateway/v1/chat/completions",
@@ -193,6 +237,30 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         .route(
             "/api/cloud/v1/gateway/v1/responses",
             post(official_responses),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/images/generations",
+            post(official_image_generation),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/images/edits",
+            post(official_image_edit),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/videos/generations",
+            post(official_video_generation),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/videos/generations/{task_id}",
+            get(official_video_generation_status),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/audio/speech",
+            post(official_speech_synthesis),
+        )
+        .route(
+            "/api/cloud/v1/gateway/v1/audio/music",
+            post(official_music_generation),
         )
         .route("/api/cloud/v1/gateway/v1/messages", post(official_messages))
         .route(
@@ -239,8 +307,16 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
             post(cloud_upsert_model_provider),
         )
         .route(
+            "/api/cloud/v1/admin/model-providers/discover",
+            post(cloud_discover_model_provider),
+        )
+        .route(
             "/api/cloud/v1/admin/models",
             post(cloud_publish_official_model),
+        )
+        .route(
+            "/api/cloud/v1/admin/models/test",
+            post(cloud_test_official_model),
         )
         .route("/api/cloud/v1/admin/top-ups", post(cloud_publish_top_up))
         .route("/api/cloud/v1/oauth/authorize", get(oauth_authorize))
@@ -272,6 +348,7 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         .route("/api/market/v1/uploads/{upload_id}/publish", post(publish))
         .route("/api/market/v1/submissions/mine", get(my_submissions))
         .route("/api/market/v1/admin/submissions", get(admin_submissions))
+        .route("/api/market/v1/admin/reviews", get(admin_reviews))
         .route(
             "/api/market/v1/admin/submissions/{submission_id}/approve",
             post(approve_submission),
@@ -345,6 +422,12 @@ async fn cloud_top_ups(State(state): State<Arc<AppState>>) -> ApiResult<Json<Top
     Ok(Json(state.cloud.top_up_catalog(Utc::now())?))
 }
 
+async fn cloud_public_models(
+    State(state): State<Arc<AppState>>,
+) -> ApiResult<Json<PublicOfficialModelCatalog>> {
+    Ok(Json(state.cloud.public_model_catalog(Utc::now())?))
+}
+
 async fn cloud_official_models(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -392,6 +475,98 @@ async fn official_responses(
         OfficialModelProtocol::Responses,
         None,
         None,
+    )
+    .await
+}
+
+async fn official_image_generation(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::ImageGeneration,
+        None,
+        Some(false),
+    )
+    .await
+}
+
+async fn official_image_edit(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::ImageEdit,
+        None,
+        Some(false),
+    )
+    .await
+}
+
+async fn official_video_generation(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::VideoGeneration,
+        None,
+        Some(false),
+    )
+    .await
+}
+
+async fn official_video_generation_status(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(task_id): Path<String>,
+) -> ApiResult<Response> {
+    let user = require_gateway_user(&state, &headers)?;
+    Ok(state
+        .gateway
+        .query_video_task(&state.cloud, &user.user_id, &task_id, Utc::now())
+        .await?)
+}
+
+async fn official_speech_synthesis(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::SpeechSynthesis,
+        None,
+        Some(false),
+    )
+    .await
+}
+
+async fn official_music_generation(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> ApiResult<Response> {
+    official_gateway_request(
+        &state,
+        &headers,
+        body,
+        OfficialModelProtocol::MusicGeneration,
+        None,
+        Some(false),
     )
     .await
 }
@@ -516,17 +691,108 @@ async fn cloud_upsert_model_provider(
 ) -> ApiResult<Json<AdminModelCatalog>> {
     require_same_origin(&state, &headers)?;
     require_admin(&state, &headers)?;
-    let cipher = state.config.cloud_secret_cipher.as_ref().ok_or_else(|| {
-        ApiError::service_unavailable(
+    let provider_preset_id = normalize_provider_preset_id(request.provider_preset_id.as_deref())
+        .ok_or_else(|| {
+            ApiError::bad_request("cloud_invalid_request", "provider preset is invalid")
+        })?;
+    let stores_credential = request
+        .api_key
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
+    if (provider_credential_required(provider_preset_id) || stores_credential)
+        && state.config.cloud_secret_cipher.is_none()
+    {
+        return Err(ApiError::service_unavailable(
             "cloud_secret_key_required",
             "CODEY_CLOUD_SECRET_KEY is required before model credentials can be stored",
-        )
-    })?;
+        ));
+    }
     Ok(Json(state.cloud.upsert_upstream_provider(
         &request,
-        cipher,
+        state.config.cloud_secret_cipher.as_ref(),
         Utc::now(),
     )?))
+}
+
+async fn cloud_discover_model_provider(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<DiscoverUpstreamModelsRequest>,
+) -> ApiResult<Json<UpstreamModelDiscovery>> {
+    require_same_origin(&state, &headers)?;
+    require_admin(&state, &headers)?;
+    validate_upstream_discovery_url(&request.base_url)?;
+    let provider_preset_id = normalize_provider_preset_id(request.provider_preset_id.as_deref())
+        .ok_or_else(|| {
+            ApiError::bad_request("cloud_invalid_request", "provider preset is invalid")
+        })?;
+    if provider_preset(provider_preset_id)
+        .is_some_and(|preset| preset.provider_kind != request.provider_kind)
+    {
+        return Err(ApiError::bad_request(
+            "cloud_invalid_request",
+            "provider preset does not match its protocol",
+        ));
+    }
+    let api_key = if provider_credential_required(provider_preset_id) {
+        if let Some(api_key) = request
+            .api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            api_key.to_owned()
+        } else {
+            let cipher = state.config.cloud_secret_cipher.as_ref().ok_or_else(|| {
+                ApiError::service_unavailable(
+                    "cloud_secret_key_required",
+                    "CODEY_CLOUD_SECRET_KEY is required before model credentials can be tested",
+                )
+            })?;
+            let provider_id = request
+                .provider_id
+                .as_deref()
+                .ok_or(CloudStoreError::UpstreamCredentialRequired)?;
+            let stored = state
+                .cloud
+                .upstream_provider_api_key_ciphertext(provider_id)?
+                .ok_or(CloudStoreError::UpstreamCredentialRequired)?;
+            cipher.decrypt(&stored)?
+        }
+    } else {
+        String::new()
+    };
+    let started = Instant::now();
+    let (models, source) = discover_upstream_models(
+        &state.http,
+        provider_preset_id,
+        request.provider_kind,
+        &request.base_url,
+        &api_key,
+    )
+    .await?;
+    let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    Ok(Json(UpstreamModelDiscovery {
+        models,
+        fetched_at: Utc::now(),
+        latency_ms,
+        source,
+    }))
+}
+
+fn validate_upstream_discovery_url(base_url: &str) -> ApiResult<()> {
+    let url = url::Url::parse(base_url)
+        .map_err(|_| ApiError::bad_request("cloud_invalid_request", "provider URL is invalid"))?;
+    let loopback = url
+        .host_str()
+        .is_some_and(|host| matches!(host, "127.0.0.1" | "localhost" | "::1"));
+    if (!loopback && url.scheme() != "https") || url.host_str().is_none() {
+        return Err(ApiError::bad_request(
+            "cloud_invalid_request",
+            "provider URL must use HTTPS unless it targets localhost",
+        ));
+    }
+    Ok(())
 }
 
 async fn cloud_publish_official_model(
@@ -538,6 +804,21 @@ async fn cloud_publish_official_model(
     require_admin(&state, &headers)?;
     Ok(Json(
         state.cloud.publish_official_model(&request, Utc::now())?,
+    ))
+}
+
+async fn cloud_test_official_model(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<TestOfficialModelRequest>,
+) -> ApiResult<Json<OfficialModelTestResult>> {
+    require_same_origin(&state, &headers)?;
+    require_admin(&state, &headers)?;
+    Ok(Json(
+        state
+            .gateway
+            .test_model(&state.cloud, &request, Utc::now())
+            .await?,
     ))
 }
 
@@ -1626,6 +1907,14 @@ async fn admin_submissions(
     Ok(Json(state.store.pending_submissions()?))
 }
 
+async fn admin_reviews(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<MarketplaceSubmission>>> {
+    require_admin(&state, &headers)?;
+    Ok(Json(state.store.reviewed_submissions()?))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ReviewRequest {
@@ -1652,7 +1941,7 @@ async fn approve_submission(
     )?;
     Ok(Json(state.store.finish_submission(
         &submission_id,
-        &admin.user_id,
+        &admin,
         MarketplaceSubmissionStatus::Approved,
         request.note.as_deref(),
         Some(&release),
@@ -1671,7 +1960,7 @@ async fn reject_submission(
     pending_submission(&state, &submission_id)?;
     Ok(Json(state.store.finish_submission(
         &submission_id,
-        &admin.user_id,
+        &admin,
         MarketplaceSubmissionStatus::Rejected,
         request.note.as_deref(),
         None,
@@ -1727,7 +2016,7 @@ async fn download_release(
     let mut response = Response::new(Body::from(bytes));
     response.headers_mut().insert(
         CONTENT_TYPE,
-        HeaderValue::from_static(codey_package_format::AGENT_PACKAGE_ARCHIVE_MEDIA_TYPE),
+        HeaderValue::from_static(codey_package_format::PACKAGE_ARCHIVE_MEDIA_TYPE),
     );
     response.headers_mut().insert(
         CONTENT_DISPOSITION,
@@ -1998,9 +2287,28 @@ impl From<GatewayError> for ApiError {
             | GatewayError::InvalidUpstreamUrl => {
                 Self::bad_request("gateway_invalid_request", error.to_string())
             }
-            GatewayError::Transport(_) => Self::bad_gateway("gateway_upstream", error.to_string()),
+            GatewayError::Transport(_) | GatewayError::UpstreamRejected { .. } => {
+                Self::bad_gateway("gateway_upstream", error.to_string())
+            }
             GatewayError::Store(error) => error.into(),
             _ => Self::internal("gateway", error.to_string()),
+        }
+    }
+}
+
+impl From<UpstreamDiscoveryError> for ApiError {
+    fn from(error: UpstreamDiscoveryError) -> Self {
+        match error {
+            UpstreamDiscoveryError::InvalidEndpoint => {
+                Self::bad_request("provider_discovery_invalid", error.to_string())
+            }
+            UpstreamDiscoveryError::Upstream { .. }
+            | UpstreamDiscoveryError::Transport(_)
+            | UpstreamDiscoveryError::InvalidResponse
+            | UpstreamDiscoveryError::EmptyCatalog
+            | UpstreamDiscoveryError::ResponseTooLarge => {
+                Self::bad_gateway("provider_discovery_failed", error.to_string())
+            }
         }
     }
 }

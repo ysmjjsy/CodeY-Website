@@ -1,18 +1,16 @@
 use std::collections::BTreeSet;
 
 use crate::contracts::{
-    MarketplaceCatalogResponse, MarketplaceDiscovery, MarketplaceListingDetail,
-    MarketplacePrimaryResource, MarketplaceUploadPreview, PackageMarketplaceMetadataDocument,
-    PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
+    AgentComponentKind, ExecutionTargetKind, MarketplaceCatalogResponse, MarketplaceDiscovery,
+    MarketplaceListingDetail, MarketplacePrimaryResource, MarketplaceUploadPreview,
+    PackageMarketplaceMetadataDocument, PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
 };
-use base64::Engine as _;
 use codey_package_format::{
-    package_content_hash, package_dependency_lock_hash, parse_archive, AgentComponentKind,
-    AgentPackage, AgentPackageArchive, DecimalU64, ExecutionTargetKind, PackageArchiveFile,
-    PackageCompatibility, PackageComponentEntry, PackageComponentSource, PackageDefinitionEntry,
-    PackageDefinitionKind, PackageDependencyLock, PackageFileChecksum, PackageId, PackageManifest,
-    PackagePublisher, AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION, AGENT_PACKAGE_CANONICALIZATION_VERSION,
-    AGENT_PACKAGE_MANIFEST_SCHEMA_VERSION,
+    build_file_table, canonical_json_bytes, package_dependency_lock_hash, package_resource_digest,
+    parse_archive, CodeyPackage, CodeyPackageArchive, PackageCompatibility, PackageDependencyLock,
+    PackageId, PackageManifest, PackagePublisher, PackageResourceEntry, PackageResourceKind,
+    PACKAGE_ARCHIVE_FORMAT_VERSION, PACKAGE_CANONICALIZATION_VERSION, PACKAGE_LOCK_PATH,
+    PACKAGE_LOCK_SCHEMA_VERSION, PACKAGE_MANIFEST_SCHEMA_VERSION,
 };
 use reqwest::{Client, StatusCode};
 
@@ -45,6 +43,7 @@ async fn administrator_publishes_versioned_plan_catalog() {
     let market_api = format!("{origin}/api/market/v1");
     let cloud_api = format!("{origin}/api/cloud/v1");
     let router = build_router(MarketplaceServerConfig {
+        database_url: String::new(),
         data_root: data_root.path().to_path_buf(),
         web_base_url: format!("{origin}/market"),
         api_base_url: market_api.clone(),
@@ -55,6 +54,8 @@ async fn administrator_publishes_versioned_plan_catalog() {
         github_client_id: None,
         github_client_secret: None,
         admin_github_logins: BTreeSet::new(),
+        admin_username: "plan-admin".into(),
+        admin_password: "correct-horse-battery-staple".into(),
         payments: crate::cloud::CloudPaymentConfig::default(),
         cloud_secret_cipher: None,
     })
@@ -73,27 +74,18 @@ async fn administrator_publishes_versioned_plan_catalog() {
     assert_eq!(catalog.revision, 0);
     assert_eq!(catalog.plans.len(), 1);
 
-    let register = client
-        .post(format!("{market_api}/auth/register"))
+    let login = client
+        .post(format!("{market_api}/auth/login"))
         .header(reqwest::header::ORIGIN, &origin)
         .json(&serde_json::json!({
-            "username": "plan-admin",
-            "email": "plan-admin@example.com",
-            "displayName": "Plan Admin",
+            "identifier": "plan-admin",
             "password": "correct-horse-battery-staple"
         }))
         .send()
         .await
         .unwrap();
-    assert_response_status(&register, StatusCode::OK);
-    let admin_cookie = session_cookie_header(&register);
-    rusqlite::Connection::open(data_root.path().join("marketplace.sqlite3"))
-        .unwrap()
-        .execute(
-            "UPDATE marketplace_user SET role='admin' WHERE username='plan-admin'",
-            [],
-        )
-        .unwrap();
+    assert_response_status(&login, StatusCode::OK);
+    let admin_cookie = session_cookie_header(&login);
 
     let publish = client
         .post(format!("{cloud_api}/admin/plans"))
@@ -104,6 +96,8 @@ async fn administrator_publishes_versioned_plan_catalog() {
             slug: "pro".into(),
             display_name: "Pro".into(),
             description: "Professional monthly plan".into(),
+            display_name_i18n: Default::default(),
+            description_i18n: Default::default(),
             tier_rank: 10,
             is_default: false,
             monthly_credit_micros: 100_000_000,
@@ -143,6 +137,7 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
     let market_api = format!("{origin}/api/market/v1");
     let cloud_api = format!("{origin}/api/cloud/v1");
     let router = build_router(MarketplaceServerConfig {
+        database_url: String::new(),
         data_root: data_root.path().to_path_buf(),
         web_base_url: format!("{origin}/market"),
         api_base_url: market_api.clone(),
@@ -153,6 +148,8 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
         github_client_id: None,
         github_client_secret: None,
         admin_github_logins: BTreeSet::new(),
+        admin_username: "configured-admin".into(),
+        admin_password: "configured-admin-password".into(),
         payments: crate::cloud::CloudPaymentConfig::default(),
         cloud_secret_cipher: None,
     })
@@ -282,6 +279,7 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
     let origin = format!("http://{address}");
     let api_base_url = format!("{origin}/api/market/v1");
     let router = build_router(MarketplaceServerConfig {
+        database_url: String::new(),
         data_root: data_root.path().to_path_buf(),
         web_base_url: format!("{origin}/market"),
         api_base_url: api_base_url.clone(),
@@ -292,6 +290,8 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         github_client_id: Some("github-client".into()),
         github_client_secret: Some("github-secret".into()),
         admin_github_logins: BTreeSet::new(),
+        admin_username: "configured-admin".into(),
+        admin_password: "configured-admin-password".into(),
         payments: crate::cloud::CloudPaymentConfig::default(),
         cloud_secret_cipher: None,
     })
@@ -399,7 +399,7 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
 
     let boundary = "codey-market-test-boundary";
     let mut body = format!(
-        "--{boundary}\r\nContent-Disposition: form-data; name=\"archive\"; filename=\"fixture.codeypkg\"\r\nContent-Type: application/vnd.codey.agent-package+json\r\n\r\n"
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"archive\"; filename=\"fixture.codeypkg\"\r\nContent-Type: application/vnd.codey.package+zip\r\n\r\n"
     )
     .into_bytes();
     body.extend_from_slice(&archive);
@@ -435,6 +435,20 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         )));
     assert_eq!(preview.publication.title, "Repository analyst");
     assert_eq!(preview.publication.tags, vec!["analysis", "repository"]);
+    assert_eq!(
+        preview
+            .resources
+            .iter()
+            .find(|resource| matches!(
+                resource.resource,
+                MarketplacePrimaryResource::Component {
+                    kind: AgentComponentKind::Skill,
+                    ..
+                }
+            ))
+            .map(|resource| resource.files.as_slice()),
+        Some(["SKILL.md".to_owned()].as_slice())
+    );
 
     let mut changed_publication = preview.publication.clone();
     changed_publication.title = "Changed in browser".into();
@@ -528,6 +542,24 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
     let approved = approve.json::<MarketplaceSubmission>().await.unwrap();
     let release = approved.release.expect("approved submission has a release");
 
+    let reviewed = client
+        .get(format!("{api_base_url}/admin/reviews"))
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&reviewed, StatusCode::OK);
+    let reviewed = reviewed.json::<Vec<MarketplaceSubmission>>().await.unwrap();
+    assert_eq!(reviewed.len(), 1);
+    assert_eq!(reviewed[0].review_note.as_deref(), Some("Verified"));
+    assert_eq!(
+        reviewed[0]
+            .reviewer
+            .as_ref()
+            .map(|user| user.username.as_str()),
+        Some("reviewer")
+    );
+
     let catalog = client
         .get(format!("{api_base_url}/listings?q=repository"))
         .send()
@@ -602,21 +634,43 @@ fn assert_response_status(response: &reqwest::Response, expected: StatusCode) {
 }
 
 fn build_archive() -> Vec<u8> {
-    let skill_content = b"# Repository analyst\n\nInspect the repository before answering.";
-    let skill_path = "SKILL.md";
-    let skill_hash = blake3::hash(skill_content).to_hex().to_string();
-    let workflow_content = br#"{"spec":{"displayName":"Repository workflow"}}"#;
-    let workflow_path = "definitions/workflow.json";
-    let workflow_hash = blake3::hash(workflow_content).to_hex().to_string();
+    let skill_content = b"---\nname: repository-analyst\ndescription: Inspect repositories.\n---\n\nInspect the repository before answering.";
+    let skill_root = "resources/skills/repository-analyst";
+    let skill_path = format!("{skill_root}/SKILL.md");
     let component_id = ulid::Ulid::new().to_string();
     let component_revision = ulid::Ulid::new().to_string();
+    let component_descriptor_path = format!("{skill_root}/codey/resource.json");
+    let component_descriptor = canonical_json_bytes(&serde_json::json!({
+        "schemaVersion": 1,
+        "componentId": component_id,
+        "revision": component_revision,
+        "kind": "skill",
+        "logicalName": "repository-analyst",
+        "entrypoint": "SKILL.md",
+        "dependencies": []
+    }))
+    .unwrap();
+    let workflow_id = ulid::Ulid::new().to_string();
+    let workflow_revision = ulid::Ulid::new().to_string();
+    let workflow_root = format!("resources/workflows/{}", workflow_id.to_ascii_lowercase());
+    let workflow_path = format!("{workflow_root}/definition.json");
+    let workflow_content = canonical_json_bytes(&serde_json::json!({
+        "schemaVersion": 1,
+        "kind": "workflow",
+        "definitionId": workflow_id,
+        "revision": workflow_revision,
+        "spec": {"displayName": "Repository workflow"},
+        "contentHash": blake3::hash(b"workflow").to_hex().to_string(),
+        "dependencies": [],
+        "componentRevisions": [],
+        "bindings": []
+    }))
+    .unwrap();
     let readme_content = b"# Repository analyst\n\nAnalyze a repository with package evidence.";
     let readme_path = "marketplace/README.md";
-    let readme_hash = blake3::hash(readme_content).to_hex().to_string();
     let changelog_content = b"Initial release";
     let changelog_path = "marketplace/CHANGELOG.md";
-    let changelog_hash = blake3::hash(changelog_content).to_hex().to_string();
-    let marketplace_content = serde_json::to_vec(&PackageMarketplaceMetadataDocument {
+    let marketplace_content = canonical_json_bytes(&PackageMarketplaceMetadataDocument {
         schema_version: PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
         primary_resource: MarketplacePrimaryResource::Component {
             kind: AgentComponentKind::Skill,
@@ -630,47 +684,48 @@ fn build_archive() -> Vec<u8> {
         changelog_path: Some(changelog_path.into()),
     })
     .unwrap();
-    let marketplace_path = "marketplace/manifest.json";
-    let marketplace_hash = blake3::hash(&marketplace_content).to_hex().to_string();
-    let checksums = vec![
-        PackageFileChecksum {
-            relative_path: skill_path.into(),
-            length: DecimalU64::new(skill_content.len() as u64),
-            blake3: skill_hash.clone(),
-        },
-        PackageFileChecksum {
-            relative_path: workflow_path.into(),
-            length: DecimalU64::new(workflow_content.len() as u64),
-            blake3: workflow_hash.clone(),
-        },
-        PackageFileChecksum {
-            relative_path: changelog_path.into(),
-            length: DecimalU64::new(changelog_content.len() as u64),
-            blake3: changelog_hash.clone(),
-        },
-        PackageFileChecksum {
-            relative_path: readme_path.into(),
-            length: DecimalU64::new(readme_content.len() as u64),
-            blake3: readme_hash.clone(),
-        },
-        PackageFileChecksum {
-            relative_path: marketplace_path.into(),
-            length: DecimalU64::new(marketplace_content.len() as u64),
-            blake3: marketplace_hash.clone(),
-        },
-    ];
+    let marketplace_path = "marketplace/listing.json";
     let mut dependency_lock = PackageDependencyLock {
-        schema_version: 1,
-        dependencies: Vec::new(),
+        schema_version: PACKAGE_LOCK_SCHEMA_VERSION,
+        packages: Vec::new(),
+        external_artifacts: Vec::new(),
         content_hash: String::new(),
     };
     dependency_lock.content_hash = package_dependency_lock_hash(&dependency_lock).unwrap();
-    let mut manifest = PackageManifest {
-        schema_version: AGENT_PACKAGE_MANIFEST_SCHEMA_VERSION,
-        archive_format_version: AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION,
-        canonicalization_version: AGENT_PACKAGE_CANONICALIZATION_VERSION,
+    let files = std::collections::BTreeMap::from([
+        (skill_path, skill_content.to_vec()),
+        (component_descriptor_path, component_descriptor),
+        (workflow_path, workflow_content),
+        (readme_path.into(), readme_content.to_vec()),
+        (changelog_path.into(), changelog_content.to_vec()),
+        (marketplace_path.into(), marketplace_content),
+        (
+            PACKAGE_LOCK_PATH.into(),
+            canonical_json_bytes(&dependency_lock).unwrap(),
+        ),
+    ]);
+    let file_table = build_file_table(&files, &BTreeSet::new()).unwrap();
+    let resources = vec![
+        PackageResourceEntry {
+            resource_ref: "skill/repository-analyst".into(),
+            kind: PackageResourceKind::Skill,
+            format: "agentskills.io/skill/1".into(),
+            root: skill_root.into(),
+            digest: package_resource_digest(skill_root, &file_table).unwrap(),
+        },
+        PackageResourceEntry {
+            resource_ref: format!("workflow/{}", workflow_id.to_ascii_lowercase()),
+            kind: PackageResourceKind::Workflow,
+            format: "codey.workflow-definition/1".into(),
+            root: workflow_root.clone(),
+            digest: package_resource_digest(&workflow_root, &file_table).unwrap(),
+        },
+    ];
+    let manifest = PackageManifest {
+        schema_version: PACKAGE_MANIFEST_SCHEMA_VERSION,
+        archive_format_version: PACKAGE_ARCHIVE_FORMAT_VERSION,
+        canonicalization_version: PACKAGE_CANONICALIZATION_VERSION,
         package_id: PackageId::new("com.codey.repository-analyst").unwrap(),
-        package_revision_id: ulid::Ulid::new().to_string(),
         namespace: "market-test".into(),
         version: "1.0.0".into(),
         publisher: PackagePublisher {
@@ -685,85 +740,20 @@ fn build_archive() -> Vec<u8> {
             platforms: BTreeSet::new(),
             architectures: BTreeSet::new(),
         },
-        definitions: vec![PackageDefinitionEntry {
-            kind: PackageDefinitionKind::Workflow,
-            definition_id: ulid::Ulid::new().to_string(),
-            revision: ulid::Ulid::new().to_string(),
-            relative_path: workflow_path.into(),
-            content_hash: workflow_hash.clone(),
-        }],
-        templates: Vec::new(),
-        components: vec![PackageComponentEntry {
-            component_id,
-            revision: component_revision,
-            kind: AgentComponentKind::Skill,
-            logical_name: "repository-analyst".into(),
-            source: PackageComponentSource::Embedded {
-                relative_path: skill_path.into(),
-                content_hash: skill_hash.clone(),
-            },
-            requested_capabilities: BTreeSet::new(),
-        }],
+        resources,
         dependencies: Vec::new(),
-        requested_permissions: BTreeSet::new(),
-        migrations: Vec::new(),
-        package_content_hash: String::new(),
+        files: file_table,
+        extensions: Default::default(),
     };
-    manifest.package_content_hash =
-        package_content_hash(&manifest, &dependency_lock, &checksums).unwrap();
-    AgentPackageArchive {
-        archive_format_version: AGENT_PACKAGE_ARCHIVE_FORMAT_VERSION,
-        package: AgentPackage {
+    CodeyPackageArchive {
+        package: CodeyPackage {
             manifest,
             dependency_lock,
-            checksums,
             signature: None,
         },
-        files: vec![
-            PackageArchiveFile {
-                relative_path: skill_path.into(),
-                length: DecimalU64::new(skill_content.len() as u64),
-                blake3: skill_hash,
-                unix_mode: 0o644,
-                modified_unix_seconds: DecimalU64::new(0),
-                content_base64: base64::engine::general_purpose::STANDARD.encode(skill_content),
-            },
-            PackageArchiveFile {
-                relative_path: workflow_path.into(),
-                length: DecimalU64::new(workflow_content.len() as u64),
-                blake3: workflow_hash,
-                unix_mode: 0o644,
-                modified_unix_seconds: DecimalU64::new(0),
-                content_base64: base64::engine::general_purpose::STANDARD.encode(workflow_content),
-            },
-            PackageArchiveFile {
-                relative_path: changelog_path.into(),
-                length: DecimalU64::new(changelog_content.len() as u64),
-                blake3: changelog_hash,
-                unix_mode: 0o644,
-                modified_unix_seconds: DecimalU64::new(0),
-                content_base64: base64::engine::general_purpose::STANDARD.encode(changelog_content),
-            },
-            PackageArchiveFile {
-                relative_path: readme_path.into(),
-                length: DecimalU64::new(readme_content.len() as u64),
-                blake3: readme_hash,
-                unix_mode: 0o644,
-                modified_unix_seconds: DecimalU64::new(0),
-                content_base64: base64::engine::general_purpose::STANDARD.encode(readme_content),
-            },
-            PackageArchiveFile {
-                relative_path: marketplace_path.into(),
-                length: DecimalU64::new(marketplace_content.len() as u64),
-                blake3: marketplace_hash,
-                unix_mode: 0o644,
-                modified_unix_seconds: DecimalU64::new(0),
-                content_base64: base64::engine::general_purpose::STANDARD
-                    .encode(marketplace_content),
-            },
-        ],
+        files,
     }
-    .canonical_bytes()
+    .encode()
     .unwrap()
 }
 
@@ -771,18 +761,9 @@ fn build_archive_without_marketplace() -> Vec<u8> {
     let mut archive = parse_archive(&build_archive()).unwrap();
     archive
         .files
-        .retain(|file| !file.relative_path.starts_with("marketplace/"));
-    archive
-        .package
-        .checksums
-        .retain(|file| !file.relative_path.starts_with("marketplace/"));
-    archive.package.manifest.package_content_hash = package_content_hash(
-        &archive.package.manifest,
-        &archive.package.dependency_lock,
-        &archive.package.checksums,
-    )
-    .unwrap();
-    archive.canonical_bytes().unwrap()
+        .retain(|path, _| !path.starts_with("marketplace/"));
+    archive.package.manifest.files = build_file_table(&archive.files, &BTreeSet::new()).unwrap();
+    archive.encode().unwrap()
 }
 
 fn secure_tempdir() -> tempfile::TempDir {

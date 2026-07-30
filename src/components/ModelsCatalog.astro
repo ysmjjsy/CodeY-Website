@@ -1,0 +1,318 @@
+---
+import type { Locale } from '../i18n/ui'
+import { commercialCopy } from '../i18n/commercial'
+import { pricingPath } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Container from './ui/Container.astro'
+import Dialog from './ui/Dialog.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import Panel from './ui/Panel.astro'
+import StateMessage from './ui/StateMessage.astro'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy = commercialCopy(locale)
+---
+
+<section class="commercial-page models-page" data-models-catalog data-locale={locale} data-copy={JSON.stringify(copy)}>
+  <Container>
+    <PageHeader class="commercial-hero" align="center" eyebrow={copy.modelsEyebrow} eyebrowClass="commercial-eyebrow" title={copy.modelsTitle} description={copy.modelsDescription} />
+
+    <Panel class="model-toolbar commercial-panel" data-model-toolbar>
+      <label class="model-search">
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+        <span class="sr-only">{copy.searchPlaceholder}</span>
+        <input type="search" placeholder={copy.searchPlaceholder} data-model-search />
+      </label>
+      <label>
+        <span class="sr-only">{copy.provider}</span>
+        <select data-provider-filter><option value="">{copy.allProviders}</option></select>
+      </label>
+      <label>
+        <span class="sr-only">{copy.capability}</span>
+        <select data-capability-filter>
+          <option value="">{copy.allCapabilities}</option>
+          <option value="reasoning">{copy.reasoning}</option>
+          <option value="vision">{copy.vision}</option>
+          <option value="tools">{copy.tools}</option>
+          <option value="structured">{copy.structured}</option>
+        </select>
+      </label>
+      <span class="model-result-count" data-model-count></span>
+    </Panel>
+
+    <StateMessage as="div" class="catalog-state" data-state><span>{copy.loading}</span></StateMessage>
+    <List class="model-list commercial-panel" hidden data-model-list>
+      <div class="model-list-head">
+        <span>{copy.model}</span><span>{copy.protocol}</span><span>{copy.capability}</span><span>{copy.context}</span><span>{copy.inputPrice} / {copy.outputPrice}</span><span></span>
+      </div>
+      <div data-model-grid></div>
+      <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-model-pagination />
+    </List>
+
+    <Panel class="models-pricing-cta commercial-panel">
+      <div>
+        <span>{copy.availablePlans}</span>
+        <strong>{copy.compareDescription}</strong>
+      </div>
+      <Button variant="primary" href={pricingPath(locale)}>{copy.viewPricing}</Button>
+    </Panel>
+  </Container>
+
+  <Dialog class="commerce-dialog model-dialog" data-model-dialog aria-labelledby="model-dialog-title">
+    <div class="commerce-dialog-card">
+      <div class="model-dialog-head">
+        <div>
+          <span data-detail-provider></span>
+          <h2 id="model-dialog-title" data-detail-name></h2>
+          <code data-detail-id></code>
+        </div>
+        <button type="button" data-detail-close aria-label={copy.close}>×</button>
+      </div>
+      <dl class="model-detail-grid">
+        <div><dt>{copy.protocol}</dt><dd data-detail-protocol></dd></div>
+        <div><dt>{copy.context}</dt><dd data-detail-context></dd></div>
+        <div><dt>{copy.inputPrice}</dt><dd data-detail-input></dd></div>
+        <div><dt>{copy.outputPrice}</dt><dd data-detail-output></dd></div>
+      </dl>
+      <div class="detail-capabilities" data-detail-capabilities></div>
+      <div class="commerce-dialog-actions single">
+        <Button variant="primary" href={pricingPath(locale)}>{copy.viewPricing}</Button>
+      </div>
+    </div>
+  </Dialog>
+</section>
+
+<script>
+  import { createPagination, pagedItems, type PaginationChange } from '../lib/pagination'
+  import { toast } from '../lib/toast'
+
+  type Pricing = {
+    inputCreditMicrosPerMillion: number
+    outputCreditMicrosPerMillion: number
+    cacheReadCreditMicrosPerMillion: number
+    cacheWriteCreditMicrosPerMillion: number
+    fixedCreditMicrosPerRequest: number
+  }
+  type Model = {
+    modelId: string
+    publicModelId: string
+    displayName: string
+    providerDisplayName: string
+    providerKind: string
+    protocol: string
+    capability: Record<string, unknown>
+    pricing: Pricing
+  }
+  type Catalog = { models: Model[] }
+
+  const root = document.querySelector<HTMLElement>('[data-models-catalog]')
+  if (root) {
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const state = root.querySelector<HTMLElement>('[data-state]')!
+    const grid = root.querySelector<HTMLElement>('[data-model-grid]')!
+    const list = root.querySelector<HTMLElement>('[data-model-list]')!
+    const search = root.querySelector<HTMLInputElement>('[data-model-search]')!
+    const providerFilter = root.querySelector<HTMLSelectElement>('[data-provider-filter]')!
+    const capabilityFilter = root.querySelector<HTMLSelectElement>('[data-capability-filter]')!
+    const dialog = root.querySelector<HTMLDialogElement>('[data-model-dialog]')!
+    const paginationRoot = root.querySelector<HTMLElement>('[data-model-pagination]')
+    const pagination = createPagination(paginationRoot)
+    let models: Model[] = []
+    let page = 1
+    let pageSize = 10
+
+    const points = (value: number): string =>
+      new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / 1_000_000)
+    const tokenCount = (value: unknown): string => {
+      const count = typeof value === 'number' ? value : 0
+      const compact = (amount: number): string => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(amount)
+      return count >= 1_000_000 ? `${compact(count / 1_000_000)}M` : count >= 1_000 ? `${compact(count / 1_000)}K` : String(count || '—')
+    }
+    const protocolName = (value: string): string => ({
+      chat_completions: 'OpenAI Chat Completions',
+      responses: 'OpenAI Responses',
+      messages: 'Anthropic Messages',
+      generate_content: 'Gemini Generate Content',
+    })[value] || value
+
+    function capabilities(model: Model): Array<{ key: string; label: string }> {
+      const values: Array<{ key: string; label: string }> = []
+      const modalities = Array.isArray(model.capability.input_modalities) ? model.capability.input_modalities as string[] : []
+      if (modalities.includes('image')) values.push({ key: 'vision', label: copy.vision })
+      if (model.capability.reasoning) values.push({ key: 'reasoning', label: copy.reasoning })
+      if (model.capability.tool_calling) values.push({ key: 'tools', label: copy.tools })
+      if (model.capability.structured_output) values.push({ key: 'structured', label: copy.structured })
+      return values
+    }
+
+    function matches(model: Model): boolean {
+      const query = search.value.trim().toLowerCase()
+      const provider = providerFilter.value
+      const capability = capabilityFilter.value
+      if (query && !`${model.displayName} ${model.publicModelId}`.toLowerCase().includes(query)) return false
+      if (provider && model.providerDisplayName !== provider) return false
+      if (capability && !capabilities(model).some((item) => item.key === capability)) return false
+      return true
+    }
+
+    function render(): void {
+      const filtered = models.filter(matches)
+      const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+      page = Math.min(page, pageCount)
+      root.querySelector<HTMLElement>('[data-model-count]')!.textContent = `${filtered.length} ${copy.modelCount}`
+      pagination.set({ page, pageSize, totalItems: filtered.length })
+      if (!filtered.length) {
+        const empty = document.createElement('p')
+        empty.className = 'model-empty'
+        empty.textContent = copy.noResults
+        grid.replaceChildren(empty)
+        return
+      }
+      grid.replaceChildren(...pagedItems(filtered, page, pageSize).map((model) => {
+        const card = document.createElement('article')
+        card.className = 'model-row'
+        const caps = capabilities(model)
+        card.innerHTML = `<div class="model-identity"><strong>${escapeHtml(model.displayName)}</strong><span>${escapeHtml(model.providerDisplayName)} · <code>${escapeHtml(model.publicModelId)}</code></span></div><span class="protocol-chip">${escapeHtml(protocolName(model.protocol))}</span><div class="model-capabilities">${caps.map((item) => `<span>${escapeHtml(item.label)}</span>`).join('') || `<span>${escapeHtml(copy.text)}</span>`}</div><strong class="model-number">${tokenCount(model.capability.context_window)}</strong><div class="model-prices"><span>${points(model.pricing.inputCreditMicrosPerMillion)}</span><span>${points(model.pricing.outputCreditMicrosPerMillion)}</span></div>`
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'btn btn-ghost model-detail-button'
+        button.innerHTML = `${copy.details}<i class="ph ph-arrow-right" aria-hidden="true"></i>`
+        button.addEventListener('click', () => openDetails(model))
+        card.append(button)
+        return card
+      }))
+    }
+
+    function openDetails(model: Model): void {
+      root.querySelector<HTMLElement>('[data-detail-provider]')!.textContent = model.providerDisplayName
+      root.querySelector<HTMLElement>('[data-detail-name]')!.textContent = model.displayName
+      root.querySelector<HTMLElement>('[data-detail-id]')!.textContent = model.publicModelId
+      root.querySelector<HTMLElement>('[data-detail-protocol]')!.textContent = protocolName(model.protocol)
+      root.querySelector<HTMLElement>('[data-detail-context]')!.textContent = tokenCount(model.capability.context_window)
+      root.querySelector<HTMLElement>('[data-detail-input]')!.textContent = `${points(model.pricing.inputCreditMicrosPerMillion)} ${copy.points}`
+      root.querySelector<HTMLElement>('[data-detail-output]')!.textContent = `${points(model.pricing.outputCreditMicrosPerMillion)} ${copy.points}`
+      const caps = capabilities(model)
+      root.querySelector<HTMLElement>('[data-detail-capabilities]')!.replaceChildren(...(caps.length ? caps : [{ label: copy.text }]).map((item) => {
+        const chip = document.createElement('span')
+        chip.textContent = item.label
+        return chip
+      }))
+      dialog.showModal()
+    }
+
+    function escapeHtml(value: string): string {
+      const span = document.createElement('span')
+      span.textContent = value
+      return span.innerHTML
+    }
+
+    async function load(): Promise<void> {
+      try {
+        const response = await fetch('/api/cloud/v1/public-models', { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error()
+        const catalog = await response.json() as Catalog
+        models = catalog.models
+        const providers = [...new Set(models.map((model) => model.providerDisplayName))].sort()
+        providerFilter.append(...providers.map((provider) => new Option(provider, provider)))
+        state.hidden = true
+        list.hidden = false
+        render()
+      } catch {
+        toast.error(copy.unavailable)
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void load()
+        state.replaceChildren(retry)
+      }
+    }
+
+    function resetAndRender(): void {
+      page = 1
+      render()
+    }
+
+    search.addEventListener('input', resetAndRender)
+    providerFilter.addEventListener('change', resetAndRender)
+    capabilityFilter.addEventListener('change', resetAndRender)
+    paginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => {
+      page = event.detail.page
+      pageSize = event.detail.pageSize
+      render()
+    }) as EventListener)
+    root.querySelector('[data-detail-close]')?.addEventListener('click', () => dialog.close())
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close() })
+    void load()
+  }
+</script>
+
+<style is:global>
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .model-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 190px 190px auto; align-items: center; gap: 10px; margin-top: 48px; padding: 12px; }
+  .model-toolbar input, .model-toolbar select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; outline: 0; color: var(--fg); background: var(--bg); font: .8rem var(--font-body); }
+  .model-toolbar input:focus, .model-toolbar select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .model-search { position: relative; display: block; }
+  .model-search i { position: absolute; top: 50%; left: 13px; transform: translateY(-50%); color: var(--fg-faint); }
+  .model-search input { padding-left: 38px; }
+  .model-result-count { padding-inline: 8px; color: var(--fg-faint); font: .72rem var(--font-mono); white-space: nowrap; }
+  .model-list { margin-top: 22px; overflow: hidden; }
+  .model-list > .ui-list__viewport { overflow-x: auto; }
+  .model-list-head, .model-row { display: grid; grid-template-columns: minmax(220px, 1.35fr) minmax(145px, .9fr) minmax(170px, 1fr) 85px minmax(130px, .8fr) 104px; align-items: center; min-width: 920px; }
+  .model-list-head { min-height: 44px; color: var(--fg-faint); background: var(--chip-bg); font-size: .65rem; font-weight: 600; text-transform: uppercase; }
+  .model-list-head > span, .model-row > * { padding: 10px 14px; }
+  .model-row { min-height: 72px; border-top: 1px solid var(--border); }
+  .model-identity { display: grid; gap: 4px; min-width: 0; }
+  .model-identity strong, .model-identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .model-identity strong { font-size: .82rem; }
+  .model-identity span { color: var(--fg-faint); font-size: .65rem; }
+  .model-identity code { font-size: inherit; }
+  .model-row .protocol-chip { justify-self: start; text-align: left; }
+  .model-row .model-capabilities { margin: 0; }
+  .model-number { font: 600 .78rem var(--font-mono); }
+  .model-prices { display: grid; gap: 4px; font: .72rem var(--font-mono); }
+  .model-prices span:first-child::before { content: '↓ '; color: var(--fg-faint); }
+  .model-prices span:last-child::before { content: '↑ '; color: var(--fg-faint); }
+  .model-row .model-detail-button { position: static; justify-self: end; min-height: 34px; padding: 7px 10px; white-space: nowrap; }
+  .model-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+  .model-card { position: relative; min-height: 285px; padding: 24px; }
+  .model-card header { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+  .model-card header > div > span { color: var(--accent-bright); font-size: .69rem; font-weight: 600; }
+  .model-card h2 { margin-top: 4px; font-size: 1.28rem; }
+  .model-card code { display: block; margin-top: 5px; color: var(--fg-faint); font-size: .68rem; }
+  .protocol-chip { max-width: 160px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; color: var(--fg-muted); background: var(--chip-bg); font: .61rem/1.3 var(--font-mono); text-align: right; }
+  .model-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 25px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--border); }
+  .model-specs > div { display: grid; gap: 5px; padding: 12px; background: var(--bg); }
+  .model-specs span { color: var(--fg-faint); font-size: .62rem; }
+  .model-specs strong { font: 600 .85rem var(--font-mono); }
+  .model-capabilities, .detail-capabilities { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+  .model-capabilities span, .detail-capabilities span { padding: 5px 8px; border-radius: 6px; color: var(--fg-muted); background: var(--chip-bg); font-size: .67rem; }
+  .model-detail-button { position: absolute; right: 22px; bottom: 20px; display: flex; align-items: center; gap: 7px; padding: 0; border: 0; color: var(--fg-muted); background: transparent; font: .76rem var(--font-body); cursor: pointer; }
+  .model-detail-button:hover { color: var(--accent-bright); }
+  .model-empty { margin: 0; padding: 60px; color: var(--fg-muted); text-align: center; }
+  .models-pricing-cta { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 48px; padding: 26px; }
+  .models-pricing-cta div { display: grid; gap: 5px; }
+  .models-pricing-cta span { color: var(--accent-bright); font-size: .69rem; font-weight: 600; text-transform: uppercase; }
+  .models-pricing-cta strong { font-size: .86rem; font-weight: 500; }
+  .models-pricing-cta .btn { min-height: 40px; padding: 9px 16px; white-space: nowrap; }
+  .model-dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+  .model-dialog-head span { color: var(--accent-bright); font-size: .7rem; font-weight: 600; }
+  .model-dialog-head h2 { margin-top: 4px; }
+  .model-dialog-head code { display: block; margin-top: 6px; color: var(--fg-faint); font-size: .7rem; }
+  .model-dialog-head button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--fg-muted); background: var(--chip-bg); cursor: pointer; }
+  .model-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 24px 0 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--border); }
+  .model-detail-grid > div { padding: 13px; background: var(--bg); }
+  .model-detail-grid dt { color: var(--fg-faint); font-size: .64rem; }
+  .model-detail-grid dd { margin: 5px 0 0; font: .8rem var(--font-mono); }
+  .commerce-dialog-actions.single { grid-template-columns: 1fr; }
+  .commerce-dialog-actions a { justify-content: center; }
+  @media (max-width: 820px) { .model-toolbar { grid-template-columns: 1fr 1fr; } .model-search { grid-column: 1 / -1; } .model-result-count { justify-self: end; } .model-card-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) { .model-toolbar { grid-template-columns: 1fr; } .model-search { grid-column: auto; } .model-result-count { justify-self: start; } .model-specs { grid-template-columns: 1fr; } .models-pricing-cta { align-items: stretch; flex-direction: column; } }
+</style>

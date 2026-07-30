@@ -1,0 +1,19 @@
+---
+interface Props {
+  title: string
+  description?: string
+  class?: string
+  [key: string]: unknown
+}
+
+const { title, description, class: className, ...attributes } = Astro.props
+const hasIcon = Astro.slots.has('icon')
+const hasActions = Astro.slots.has('actions')
+---
+
+<div class:list={['ui-empty', className]} {...attributes}>
+  {hasIcon && <slot name="icon" />}
+  <strong>{title}</strong>
+  {description && <p>{description}</p>}
+  {hasActions && <div class="ui-empty__actions"><slot name="actions" /></div>}
+</div>

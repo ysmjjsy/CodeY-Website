@@ -1,0 +1,13 @@
+---
+interface Props {
+  as?: 'div' | 'p'
+  class?: string
+  [key: string]: unknown
+}
+
+const { as: Element = 'p', class: className, role = 'status', ...attributes } = Astro.props
+---
+
+<Element class:list={['ui-state', className]} role={role} {...attributes}>
+  <slot />
+</Element>
