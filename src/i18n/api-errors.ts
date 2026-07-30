@@ -3,6 +3,7 @@ import type { Locale } from './ui'
 const messages: Record<Locale, Record<string, string>> = {
   'zh-CN': {
     invalid_credentials: '用户名、邮箱或密码不正确。',
+    account_disabled: '当前账号已被禁用，请联系管理员。',
     invalid_account: '账号信息格式不正确，请检查后重试。',
     identity_exists: '用户名或邮箱已被注册。',
     authentication_required: '请先登录后继续操作。',
@@ -44,6 +45,7 @@ const messages: Record<Locale, Record<string, string>> = {
   },
   en: {
     invalid_credentials: 'The username, email, or password is incorrect.',
+    account_disabled: 'This account has been disabled. Contact an administrator.',
     invalid_account: 'Check the account details and try again.',
     identity_exists: 'The username or email is already registered.',
     authentication_required: 'Sign in to continue.',

@@ -1,0 +1,241 @@
+---
+import type { Locale } from '../i18n/ui'
+import { profileCopy } from '../i18n/profile'
+import Button from './ui/Button.astro'
+import Field from './ui/Field.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Panel from './ui/Panel.astro'
+import StateMessage from './ui/StateMessage.astro'
+
+interface Props { locale: Locale }
+
+const { locale } = Astro.props
+const copy = profileCopy(locale)
+---
+
+<section class="profile-overview" data-profile-overview data-locale={locale} data-copy={JSON.stringify(copy)}>
+  <PageHeader title={copy.title} description={copy.description} />
+
+  <StateMessage class="profile-state" data-state>{copy.loading}</StateMessage>
+
+  <div class="profile-content" data-content hidden>
+    <Panel as="section" class="profile-hero">
+      <span class="profile-avatar" data-avatar aria-hidden="true"></span>
+      <div class="profile-heading">
+        <strong data-heading-name>—</strong>
+        <span data-heading-identity>—</span>
+      </div>
+      <span class="profile-role" data-heading-role>—</span>
+    </Panel>
+
+    <div class="profile-grid">
+      <Panel as="section" class="profile-editor">
+        <header class="profile-section-head">
+          <div>
+            <h2>{copy.profileSection}</h2>
+            <p>{copy.profileSectionDescription}</p>
+          </div>
+        </header>
+        <form data-profile-form>
+          <Field label={copy.displayName}>
+            <input name="displayName" autocomplete="name" required maxlength="80" />
+          </Field>
+          <Field label={copy.email} hint={copy.emailHint}>
+            <input name="email" type="email" autocomplete="email" maxlength="254" />
+          </Field>
+          <div class="profile-form-actions">
+            <Button variant="primary" type="submit" data-save>{copy.save}</Button>
+          </div>
+        </form>
+      </Panel>
+
+      <div class="profile-side">
+        <Panel as="section" class="profile-details">
+          <header class="profile-section-head">
+            <div>
+              <h2>{copy.identitySection}</h2>
+              <p>{copy.identitySectionDescription}</p>
+            </div>
+          </header>
+          <dl>
+            <div><dt>{copy.username}</dt><dd data-username>—</dd></div>
+            <div><dt>{copy.userId}</dt><dd><code data-user-id>—</code></dd></div>
+            <div><dt>{copy.role}</dt><dd data-role>—</dd></div>
+            <div><dt>{copy.joinedAt}</dt><dd data-created-at>—</dd></div>
+          </dl>
+        </Panel>
+
+        <Panel as="section" class="profile-connections">
+          <header class="profile-section-head">
+            <div>
+              <h2>{copy.connectionSection}</h2>
+              <p>{copy.connectionSectionDescription}</p>
+            </div>
+          </header>
+          <div class="connection-row">
+            <span class="connection-icon"><i class="ph ph-github-logo" aria-hidden="true"></i></span>
+            <div><strong>{copy.github}</strong><span data-github-login>{copy.notConnected}</span></div>
+            <span class="connection-status" data-github-status>{copy.notConnected}</span>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { localizedApiError } from '../i18n/api-errors'
+  import { toast } from '../lib/toast'
+
+  type Role = 'user' | 'admin'
+  type User = {
+    userId: string
+    username: string
+    email?: string | null
+    displayName: string
+    avatarUrl?: string | null
+    githubLogin?: string | null
+    role: Role
+    createdAt: string
+  }
+  type AuthResponse = { user?: User | null }
+
+  const root = document.querySelector<HTMLElement>('[data-profile-overview]')
+  if (root) {
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const state = root.querySelector<HTMLElement>('[data-state]')!
+    const content = root.querySelector<HTMLElement>('[data-content]')!
+    const form = root.querySelector<HTMLFormElement>('[data-profile-form]')!
+    const save = root.querySelector<HTMLButtonElement>('[data-save]')!
+    let currentUser: User | null = null
+
+    const field = (name: string): HTMLInputElement => form.elements.namedItem(name) as HTMLInputElement
+    const date = (value: string): string => new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(value))
+
+    function render(user: User): void {
+      currentUser = user
+      const avatar = root.querySelector<HTMLElement>('[data-avatar]')!
+      avatar.textContent = user.displayName.slice(0, 1).toUpperCase()
+      avatar.style.backgroundImage = ''
+      if (user.avatarUrl) {
+        try {
+          const url = new URL(user.avatarUrl, window.location.origin)
+          if (url.protocol === 'https:') avatar.style.backgroundImage = `url("${url.href}")`
+        } catch { /* retain initials for an invalid stored avatar URL */ }
+      }
+      root.querySelector<HTMLElement>('[data-heading-name]')!.textContent = user.displayName
+      root.querySelector<HTMLElement>('[data-heading-identity]')!.textContent = user.email || copy.noEmail
+      root.querySelector<HTMLElement>('[data-heading-role]')!.textContent = user.role === 'admin' ? copy.roleAdmin : copy.roleUser
+      root.querySelector<HTMLElement>('[data-username]')!.textContent = `@${user.username}`
+      root.querySelector<HTMLElement>('[data-user-id]')!.textContent = user.userId
+      root.querySelector<HTMLElement>('[data-role]')!.textContent = user.role === 'admin' ? copy.roleAdmin : copy.roleUser
+      root.querySelector<HTMLElement>('[data-created-at]')!.textContent = date(user.createdAt)
+      const githubLogin = root.querySelector<HTMLElement>('[data-github-login]')!
+      const githubStatus = root.querySelector<HTMLElement>('[data-github-status]')!
+      githubLogin.textContent = user.githubLogin ? `@${user.githubLogin}` : copy.notConnected
+      githubStatus.textContent = user.githubLogin ? copy.connected : copy.notConnected
+      githubStatus.classList.toggle('is-connected', Boolean(user.githubLogin))
+      field('displayName').value = user.displayName
+      field('email').value = user.email || ''
+    }
+
+    async function load(): Promise<void> {
+      state.hidden = false
+      state.textContent = copy.loading
+      content.hidden = true
+      try {
+        const response = await fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error(await localizedApiError(response, locale, copy.unavailable))
+        const payload = await response.json() as AuthResponse
+        if (!payload.user) {
+          window.dispatchEvent(new CustomEvent('market-auth-required'))
+          throw new Error(copy.signIn)
+        }
+        render(payload.user)
+        state.hidden = true
+        content.hidden = false
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void load()
+        state.replaceChildren(retry)
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      if (!currentUser) return
+      const original = save.textContent || ''
+      save.disabled = true
+      save.textContent = copy.saving
+      try {
+        const response = await fetch('/api/market/v1/account/profile', {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName: field('displayName').value.trim(), email: field('email').value.trim() || null }),
+        })
+        if (!response.ok) throw new Error(await localizedApiError(response, locale, copy.unavailable))
+        const user = await response.json() as User
+        render(user)
+        window.dispatchEvent(new CustomEvent('market-profile-updated', { detail: { user } }))
+        toast.success(copy.saved)
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      } finally {
+        save.disabled = false
+        save.textContent = original
+      }
+    })
+
+    window.addEventListener('market-auth-changed', ((event: CustomEvent<AuthResponse>) => {
+      if (event.detail.user) {
+        render(event.detail.user)
+        state.hidden = true
+        content.hidden = false
+      } else {
+        content.hidden = true
+        state.hidden = false
+        state.textContent = copy.signIn
+      }
+    }) as EventListener)
+    void load()
+  }
+</script>
+
+<style is:global>
+  .profile-state { display: grid; min-height: 156px; place-items: center; margin-top: 28px; padding: 24px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); color: var(--fg-muted); background: var(--panel-glass); }
+  .profile-content { margin-top: 28px; }
+  .profile-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 22px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--accent) 5%, var(--panel-glass)); }
+  .profile-avatar { display: grid; width: 58px; height: 58px; place-items: center; border-radius: 18px; color: var(--btn-primary-fg); background: var(--accent); background-position: center; background-size: cover; font-size: 1.15rem; font-weight: 700; }
+  .profile-heading { display: grid; min-width: 0; gap: 5px; }
+  .profile-heading strong { overflow: hidden; color: var(--fg); font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-heading span { overflow: hidden; color: var(--fg-muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-role { padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-muted); background: var(--bg); font-size: .7rem; font-weight: 600; white-space: nowrap; }
+  .profile-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 14px; margin-top: 14px; }
+  .profile-editor, .profile-details, .profile-connections { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
+  .profile-side { display: grid; gap: 14px; }
+  .profile-section-head h2 { margin: 0; color: var(--fg); font-size: .92rem; }
+  .profile-section-head p { margin: 6px 0 0; color: var(--fg-muted); font-size: .75rem; line-height: 1.55; }
+  .profile-editor form { display: grid; gap: 18px; margin-top: 24px; }
+  .profile-editor input { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 9px; outline: 0; color: var(--fg); background: var(--bg); font: inherit; font-size: .8rem; }
+  .profile-editor input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .profile-form-actions { display: flex; justify-content: flex-end; padding-top: 2px; }
+  .profile-details dl { display: grid; gap: 0; margin: 18px 0 0; }
+  .profile-details dl > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .profile-details dt { color: var(--fg-muted); font-size: .73rem; }
+  .profile-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--fg); font-size: .76rem; text-align: right; }
+  .profile-details code { color: var(--fg-muted); font-size: .7rem; }
+  .connection-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .connection-icon { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); font-size: 1rem; }
+  .connection-row > div { display: grid; gap: 3px; }
+  .connection-row strong { font-size: .78rem; }
+  .connection-row div span { color: var(--fg-muted); font-size: .7rem; }
+  .connection-status { padding: 5px 8px; border-radius: 999px; color: var(--fg-faint); background: var(--chip-bg); font-size: .66rem; white-space: nowrap; }
+  .connection-status.is-connected { color: var(--success); background: color-mix(in srgb, var(--success) 10%, transparent); }
+  @media (max-width: 980px) { .profile-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) { .profile-hero { grid-template-columns: auto minmax(0, 1fr); } .profile-role { grid-column: 2; justify-self: start; } .profile-editor, .profile-details, .profile-connections { padding: 18px; } .profile-details dl > div { grid-template-columns: 1fr; gap: 5px; } .profile-details dd { text-align: left; } .profile-form-actions .btn { width: 100%; justify-content: center; } }
+</style>

@@ -166,6 +166,16 @@ const copy = authCopy(locale)
       if (!dialog.open) dialog.showModal()
     }
 
+    function renderUser(user: User): void {
+      accountName.textContent = user.displayName
+      avatar.textContent = user.displayName.slice(0, 1).toUpperCase()
+      avatar.style.backgroundImage = ''
+      if (user.avatarUrl) {
+        const avatarUrl = new URL(user.avatarUrl, window.location.origin)
+        if (avatarUrl.protocol === 'https:') avatar.style.backgroundImage = `url("${avatarUrl.href}")`
+      }
+    }
+
     function updateAuth(payload: AuthResponse): void {
       const user = payload.user || null
       document.documentElement.dataset.marketAuth = user ? 'authenticated' : 'anonymous'
@@ -174,15 +184,7 @@ const copy = authCopy(locale)
       })
       signIn.hidden = Boolean(user)
       profile.hidden = !user
-      if (user) {
-        accountName.textContent = user.displayName
-        avatar.textContent = user.displayName.slice(0, 1).toUpperCase()
-        avatar.style.backgroundImage = ''
-        if (user.avatarUrl) {
-          const avatarUrl = new URL(user.avatarUrl, window.location.origin)
-          if (avatarUrl.protocol === 'https:') avatar.style.backgroundImage = `url("${avatarUrl.href}")`
-        }
-      }
+      if (user) renderUser(user)
       root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden = !payload.githubEnabled
       window.dispatchEvent(new CustomEvent('market-auth-changed', { detail: payload }))
     }
@@ -219,6 +221,9 @@ const copy = authCopy(locale)
 
     signIn.addEventListener('click', openAuth)
     window.addEventListener('market-auth-required', openAuth)
+    window.addEventListener('market-profile-updated', ((event: CustomEvent<{ user: User }>) => {
+      renderUser(event.detail.user)
+    }) as EventListener)
     root.querySelector('[data-auth-close]')?.addEventListener('click', () => dialog.close())
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) dialog.close()

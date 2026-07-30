@@ -50,6 +50,16 @@ pub struct MarketplaceUser {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketplaceAdminUser {
+    #[serde(flatten)]
+    pub user: MarketplaceUser,
+    pub has_password: bool,
+    pub github_connected: bool,
+    pub active: bool,
+}
+
 impl MarketplaceUser {
     #[must_use]
     pub const fn is_admin(&self) -> bool {
@@ -62,6 +72,7 @@ pub struct StoredUser {
     pub user: MarketplaceUser,
     pub password_hash: Option<String>,
     pub github_id: Option<u64>,
+    pub active: bool,
 }
 
 #[derive(Debug, Clone)]

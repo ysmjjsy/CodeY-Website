@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub use archive::{inspect_archive, ArchiveInspectionError, InspectedArchive};
-pub use auth::{MarketplaceUser, MarketplaceUserRole};
+pub use auth::{MarketplaceAdminUser, MarketplaceUser, MarketplaceUserRole};
 pub use store::{
     DownloadArtifact, MarketplaceStore, MarketplaceStoreError, MarketplaceSubmission,
     MarketplaceSubmissionStatus, StoredUpload,
@@ -344,11 +344,21 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         .route("/api/market/v1/auth/me", get(auth_me))
         .route("/api/market/v1/auth/github", get(github_start))
         .route("/api/market/v1/auth/github/callback", get(github_callback))
+        .route("/api/market/v1/account/profile", post(update_profile))
         .route("/api/market/v1/uploads", post(upload))
         .route("/api/market/v1/uploads/{upload_id}/publish", post(publish))
         .route("/api/market/v1/submissions/mine", get(my_submissions))
         .route("/api/market/v1/admin/submissions", get(admin_submissions))
         .route("/api/market/v1/admin/reviews", get(admin_reviews))
+        .route("/api/market/v1/admin/users", get(admin_users))
+        .route(
+            "/api/market/v1/admin/users/{user_id}/role",
+            post(update_admin_user_role),
+        )
+        .route(
+            "/api/market/v1/admin/users/{user_id}/active",
+            post(update_admin_user_active),
+        )
         .route(
             "/api/market/v1/admin/submissions/{submission_id}/approve",
             post(approve_submission),
@@ -1252,7 +1262,7 @@ fn require_cloud_user(
     state
         .store
         .user_by_id(&user_id)?
-        .map(|record| record.user)
+        .and_then(|record| record.active.then_some(record.user))
         .ok_or_else(|| ApiError::unauthorized("invalid_access_token", "Access token is invalid"))
 }
 
@@ -1284,7 +1294,7 @@ fn require_gateway_user(state: &AppState, headers: &HeaderMap) -> ApiResult<Mark
     state
         .store
         .user_by_id(&user_id)?
-        .map(|record| record.user)
+        .and_then(|record| record.active.then_some(record.user))
         .ok_or_else(|| {
             ApiError::unauthorized("invalid_access_token", "Cloud access token is invalid")
         })
@@ -1370,12 +1380,11 @@ async fn login(
             "Username, email, or password is incorrect",
         ));
     }
-    authenticated_response(
-        &state,
-        record
-            .expect("valid credentials require a stored user")
-            .user,
-    )
+    let record = record.expect("valid credentials require a stored user");
+    if !record.active {
+        return Err(account_disabled());
+    }
+    authenticated_response(&state, record.user)
 }
 
 async fn logout(State(state): State<Arc<AppState>>, headers: HeaderMap) -> ApiResult<Response> {
@@ -1399,6 +1408,36 @@ async fn auth_me(
         user: current_user(&state, &headers)?,
         github_enabled: github_enabled(&state),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct UpdateProfileRequest {
+    display_name: String,
+    #[serde(default)]
+    email: Option<String>,
+}
+
+async fn update_profile(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<UpdateProfileRequest>,
+) -> ApiResult<Json<MarketplaceUser>> {
+    require_same_origin(&state, &headers)?;
+    let current = require_user(&state, &headers)?;
+    let display_name = validate_display_name(&request.display_name)?;
+    let email = request
+        .email
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(validate_email)
+        .transpose()?;
+    state
+        .store
+        .update_user_profile(&current.user_id, &display_name, email.as_deref())?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("user_not_found", "User account was not found"))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1492,6 +1531,13 @@ async fn github_callback(
         MarketplaceUserRole::User
     };
     let user = state.store.upsert_github_user(&identity, role)?;
+    if !state
+        .store
+        .user_by_id(&user.user_id)?
+        .is_some_and(|record| record.active)
+    {
+        return Err(account_disabled());
+    }
     state.cloud.ensure_default_subscription(
         &user.user_id,
         &state.config.cloud_default_timezone,
@@ -1696,6 +1742,10 @@ fn require_admin(state: &AppState, headers: &HeaderMap) -> ApiResult<Marketplace
         ));
     }
     Ok(user)
+}
+
+fn account_disabled() -> ApiError {
+    ApiError::forbidden("account_disabled", "This account has been disabled")
 }
 
 fn require_same_origin(state: &AppState, headers: &HeaderMap) -> ApiResult<()> {
@@ -1913,6 +1963,80 @@ async fn admin_reviews(
 ) -> ApiResult<Json<Vec<MarketplaceSubmission>>> {
     require_admin(&state, &headers)?;
     Ok(Json(state.store.reviewed_submissions()?))
+}
+
+async fn admin_users(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Vec<MarketplaceAdminUser>>> {
+    require_admin(&state, &headers)?;
+    Ok(Json(state.store.users()?))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct UpdateUserRoleRequest {
+    role: MarketplaceUserRole,
+}
+
+async fn update_admin_user_role(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(user_id): Path<String>,
+    Json(request): Json<UpdateUserRoleRequest>,
+) -> ApiResult<Json<MarketplaceUser>> {
+    require_same_origin(&state, &headers)?;
+    let admin = require_admin(&state, &headers)?;
+    if admin.user_id == user_id && request.role != MarketplaceUserRole::Admin {
+        return Err(ApiError::conflict(
+            "cannot_demote_current_user",
+            "The current administrator cannot change their own role",
+        ));
+    }
+    state
+        .store
+        .update_user_role(&user_id, request.role)?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("user_not_found", "User account was not found"))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct UpdateUserActiveRequest {
+    active: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateUserActiveResponse {
+    user_id: String,
+    active: bool,
+}
+
+async fn update_admin_user_active(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Path(user_id): Path<String>,
+    Json(request): Json<UpdateUserActiveRequest>,
+) -> ApiResult<Json<UpdateUserActiveResponse>> {
+    require_same_origin(&state, &headers)?;
+    let admin = require_admin(&state, &headers)?;
+    if admin.user_id == user_id && !request.active {
+        return Err(ApiError::conflict(
+            "cannot_disable_current_user",
+            "The current administrator cannot disable their own account",
+        ));
+    }
+    if !state.store.update_user_active(&user_id, request.active)? {
+        return Err(ApiError::not_found(
+            "user_not_found",
+            "User account was not found",
+        ));
+    }
+    Ok(Json(UpdateUserActiveResponse {
+        user_id,
+        active: request.active,
+    }))
 }
 
 #[derive(Debug, Deserialize)]

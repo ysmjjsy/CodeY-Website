@@ -15,8 +15,8 @@ use codey_package_format::{
 use reqwest::{Client, StatusCode};
 
 use super::{
-    build_router, inspect_archive, ArchiveInspectionError, MarketplaceServerConfig,
-    MarketplaceSubmission,
+    build_router, inspect_archive, ArchiveInspectionError, MarketplaceAdminUser,
+    MarketplaceServerConfig, MarketplaceSubmission, MarketplaceUser, MarketplaceUserRole,
 };
 
 #[test]
@@ -397,6 +397,36 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
     assert_response_status(&email_login, StatusCode::OK);
     let publisher_cookie = session_cookie_header(&email_login);
 
+    let update_profile = client
+        .post(format!("{api_base_url}/account/profile"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &publisher_cookie)
+        .json(&serde_json::json!({
+            "displayName": "Updated Publisher",
+            "email": "updated-publisher@example.com"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&update_profile, StatusCode::OK);
+    let updated_profile = update_profile.json::<MarketplaceUser>().await.unwrap();
+    assert_eq!(updated_profile.display_name, "Updated Publisher");
+    assert_eq!(
+        updated_profile.email.as_deref(),
+        Some("updated-publisher@example.com")
+    );
+
+    let auth_me = client
+        .get(format!("{api_base_url}/auth/me"))
+        .header(reqwest::header::COOKIE, &publisher_cookie)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&auth_me, StatusCode::OK);
+    let auth_me = auth_me.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(auth_me["user"]["displayName"], "Updated Publisher");
+    assert_eq!(auth_me["user"]["email"], "updated-publisher@example.com");
+
     let boundary = "codey-market-test-boundary";
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"archive\"; filename=\"fixture.codeypkg\"\r\nContent-Type: application/vnd.codey.package+zip\r\n\r\n"
@@ -503,6 +533,19 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         .unwrap();
     assert_response_status(&register_admin, StatusCode::OK);
     let admin_cookie = session_cookie_header(&register_admin);
+    let duplicate_email = client
+        .post(format!("{api_base_url}/account/profile"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&serde_json::json!({
+            "displayName": "Market Reviewer",
+            "email": "updated-publisher@example.com"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&duplicate_email, StatusCode::CONFLICT);
+
     rusqlite::Connection::open(data_root.path().join("marketplace.sqlite3"))
         .unwrap()
         .execute(
@@ -510,6 +553,131 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
             [],
         )
         .unwrap();
+
+    let users = client
+        .get(format!("{api_base_url}/admin/users"))
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&users, StatusCode::OK);
+    let users = users.json::<Vec<MarketplaceAdminUser>>().await.unwrap();
+    let publisher_user_id = users
+        .iter()
+        .find(|user| user.user.username == "publisher")
+        .map(|user| user.user.user_id.clone())
+        .unwrap();
+    let reviewer_user_id = users
+        .iter()
+        .find(|user| user.user.username == "reviewer")
+        .map(|user| user.user.user_id.clone())
+        .unwrap();
+    assert!(users.iter().any(|user| user.has_password));
+    assert!(users.iter().all(|user| user.active));
+
+    let promote = client
+        .post(format!(
+            "{api_base_url}/admin/users/{publisher_user_id}/role"
+        ))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&serde_json::json!({"role": "admin"}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&promote, StatusCode::OK);
+    assert_eq!(
+        promote.json::<MarketplaceUser>().await.unwrap().role,
+        MarketplaceUserRole::Admin
+    );
+
+    let self_demote = client
+        .post(format!(
+            "{api_base_url}/admin/users/{reviewer_user_id}/role"
+        ))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&serde_json::json!({"role": "user"}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&self_demote, StatusCode::CONFLICT);
+
+    let self_disable = client
+        .post(format!(
+            "{api_base_url}/admin/users/{reviewer_user_id}/active"
+        ))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&serde_json::json!({"active": false}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&self_disable, StatusCode::CONFLICT);
+
+    let disable = client
+        .post(format!(
+            "{api_base_url}/admin/users/{publisher_user_id}/active"
+        ))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&serde_json::json!({"active": false}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&disable, StatusCode::OK);
+    assert_eq!(
+        disable
+            .json::<serde_json::Value>()
+            .await
+            .unwrap()
+            .get("active"),
+        Some(&serde_json::Value::Bool(false))
+    );
+
+    let disabled_session = client
+        .get(format!("{api_base_url}/submissions/mine"))
+        .header(reqwest::header::COOKIE, &publisher_cookie)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&disabled_session, StatusCode::UNAUTHORIZED);
+
+    let disabled_login = client
+        .post(format!("{api_base_url}/auth/login"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({
+            "identifier": "publisher",
+            "password": "correct-horse-battery-staple"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&disabled_login, StatusCode::FORBIDDEN);
+
+    let enable = client
+        .post(format!(
+            "{api_base_url}/admin/users/{publisher_user_id}/active"
+        ))
+        .header(reqwest::header::ORIGIN, &origin)
+        .header(reqwest::header::COOKIE, &admin_cookie)
+        .json(&serde_json::json!({"active": true}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&enable, StatusCode::OK);
+
+    let enabled_login = client
+        .post(format!("{api_base_url}/auth/login"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({
+            "identifier": "publisher",
+            "password": "correct-horse-battery-staple"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&enabled_login, StatusCode::OK);
 
     let pending = client
         .get(format!("{api_base_url}/admin/submissions"))

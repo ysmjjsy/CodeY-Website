@@ -4,7 +4,7 @@ import { consoleCopy } from '../i18n/console'
 import { consolePath } from '../i18n/utils'
 import '../styles/console.css'
 
-type ConsoleSection = 'credits' | 'templates' | 'reviews' | 'models' | 'plans' | 'topups'
+type ConsoleSection = 'profile' | 'templates' | 'users' | 'reviews' | 'models' | 'plans' | 'topups'
 
 interface Props {
   locale: Locale
@@ -14,8 +14,9 @@ interface Props {
 const { locale, activeSection } = Astro.props
 const copy = consoleCopy(locale)
 const navigation = [
-  { section: 'credits', label: copy.credits, icon: 'wallet' },
+  { section: 'profile', label: copy.profile, icon: 'user-circle' },
   { section: 'templates', label: copy.templates, icon: 'stack' },
+  { section: 'users', label: copy.users, icon: 'users', admin: true },
   { section: 'reviews', label: copy.reviews, icon: 'shield-check', admin: true },
   { section: 'models', label: copy.models, icon: 'brain', admin: true },
   { section: 'plans', label: copy.plans, icon: 'credit-card', admin: true },

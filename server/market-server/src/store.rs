@@ -11,8 +11,8 @@ use chrono::{DateTime, Utc};
 use thiserror::Error;
 
 use crate::auth::{
-    GitHubIdentity, MarketplaceAuthError, MarketplaceUser, MarketplaceUserRole, OAuthState,
-    StoredUser,
+    GitHubIdentity, MarketplaceAdminUser, MarketplaceAuthError, MarketplaceUser,
+    MarketplaceUserRole, OAuthState, StoredUser,
 };
 
 #[derive(Clone)]
@@ -137,6 +137,7 @@ impl MarketplaceStore {
                 github_login TEXT,
                 avatar_url TEXT,
                 role TEXT NOT NULL,
+                active BOOLEAN NOT NULL DEFAULT TRUE,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -196,6 +197,12 @@ impl MarketplaceStore {
         if !column_exists(&connection, "marketplace_submission", "reviewer_json")? {
             connection.execute(
                 "ALTER TABLE marketplace_submission ADD COLUMN reviewer_json TEXT",
+                params![],
+            )?;
+        }
+        if !column_exists(&connection, "marketplace_user", "active")? {
+            connection.execute(
+                "ALTER TABLE marketplace_user ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE",
                 params![],
             )?;
         }
@@ -654,7 +661,7 @@ impl MarketplaceStore {
         if let Some(user_id) = user_id {
             transaction.execute(
                 "UPDATE marketplace_user
-                 SET password_hash=?1, role='admin', updated_at=?2
+                 SET password_hash=?1, role='admin', active=TRUE, updated_at=?2
                  WHERE user_id=?3",
                 params![password_hash, now, user_id],
             )?;
@@ -676,7 +683,7 @@ impl MarketplaceStore {
     ) -> Result<Option<StoredUser>, MarketplaceStoreError> {
         self.user_by_sql(
             "SELECT user_id, username, email, display_name, password_hash, github_id,
-                    github_login, avatar_url, role, created_at
+                    github_login, avatar_url, role, created_at, active
              FROM marketplace_user
              WHERE LOWER(username)=LOWER(?1) OR LOWER(email)=LOWER(?1)",
             identifier,
@@ -686,10 +693,46 @@ impl MarketplaceStore {
     pub fn user_by_id(&self, user_id: &str) -> Result<Option<StoredUser>, MarketplaceStoreError> {
         self.user_by_sql(
             "SELECT user_id, username, email, display_name, password_hash, github_id,
-                    github_login, avatar_url, role, created_at
+                    github_login, avatar_url, role, created_at, active
              FROM marketplace_user WHERE user_id=?1",
             user_id,
         )
+    }
+
+    pub fn update_user_profile(
+        &self,
+        user_id: &str,
+        display_name: &str,
+        email: Option<&str>,
+    ) -> Result<Option<MarketplaceUser>, MarketplaceStoreError> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(email) = email {
+            let identity_owner = transaction
+                .query_row(
+                    "SELECT user_id FROM marketplace_user
+                     WHERE user_id<>?1
+                       AND (LOWER(username)=LOWER(?2) OR LOWER(email)=LOWER(?2))",
+                    params![user_id, email],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if identity_owner.is_some() {
+                return Err(MarketplaceStoreError::IdentityAlreadyExists);
+            }
+        }
+        let updated = transaction.execute(
+            "UPDATE marketplace_user
+             SET display_name=?1, email=?2, updated_at=?3
+             WHERE user_id=?4",
+            params![display_name, email, Utc::now().to_rfc3339(), user_id],
+        )?;
+        transaction.commit()?;
+        drop(connection);
+        if updated == 0 {
+            return Ok(None);
+        }
+        Ok(self.user_by_id(user_id)?.map(|record| record.user))
     }
 
     pub fn user_by_github_id(
@@ -702,13 +745,72 @@ impl MarketplaceStore {
             .connection()?
             .query_row(
                 "SELECT user_id, username, email, display_name, password_hash, github_id,
-                        github_login, avatar_url, role, created_at
+                        github_login, avatar_url, role, created_at, active
                  FROM marketplace_user WHERE github_id=?1",
                 [github_id],
                 stored_user_row,
             )
             .optional()?;
         row.map(stored_user_from_row).transpose()
+    }
+
+    pub fn users(&self) -> Result<Vec<MarketplaceAdminUser>, MarketplaceStoreError> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT user_id, username, email, display_name, password_hash, github_id,
+                    github_login, avatar_url, role, created_at, active
+             FROM marketplace_user
+             ORDER BY created_at DESC, username ASC",
+        )?;
+        let users = statement
+            .query_map(params![], stored_user_row)?
+            .map(|row| {
+                let stored = stored_user_from_row(row?)?;
+                Ok(MarketplaceAdminUser {
+                    has_password: stored.password_hash.is_some(),
+                    github_connected: stored.github_id.is_some(),
+                    active: stored.active,
+                    user: stored.user,
+                })
+            })
+            .collect();
+        users
+    }
+
+    pub fn update_user_role(
+        &self,
+        user_id: &str,
+        role: MarketplaceUserRole,
+    ) -> Result<Option<MarketplaceUser>, MarketplaceStoreError> {
+        let updated = self.connection()?.execute(
+            "UPDATE marketplace_user SET role=?1, updated_at=?2 WHERE user_id=?3",
+            params![role.as_str(), Utc::now().to_rfc3339(), user_id],
+        )?;
+        if updated == 0 {
+            return Ok(None);
+        }
+        Ok(self.user_by_id(user_id)?.map(|record| record.user))
+    }
+
+    pub fn update_user_active(
+        &self,
+        user_id: &str,
+        active: bool,
+    ) -> Result<bool, MarketplaceStoreError> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let updated = transaction.execute(
+            "UPDATE marketplace_user SET active=?1, updated_at=?2 WHERE user_id=?3",
+            params![active, Utc::now().to_rfc3339(), user_id],
+        )?;
+        if updated != 0 && !active {
+            transaction.execute(
+                "DELETE FROM marketplace_session WHERE user_id=?1",
+                [user_id],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(updated != 0)
     }
 
     pub fn upsert_github_user(
@@ -809,10 +911,10 @@ impl MarketplaceStore {
             .connection()?
             .query_row(
                 "SELECT u.user_id, u.username, u.email, u.display_name, u.password_hash,
-                        u.github_id, u.github_login, u.avatar_url, u.role, u.created_at
+                        u.github_id, u.github_login, u.avatar_url, u.role, u.created_at, u.active
                  FROM marketplace_session s
                  JOIN marketplace_user u ON u.user_id=s.user_id
-                 WHERE s.session_hash=?1 AND s.expires_at>?2",
+                 WHERE s.session_hash=?1 AND s.expires_at>?2 AND u.active=TRUE",
                 params![session_hash, Utc::now().to_rfc3339()],
                 stored_user_row,
             )
@@ -890,12 +992,11 @@ impl MarketplaceStore {
             .map_err(|_| MarketplaceStoreError::InvalidGitHubId)?;
         self.connection()?.execute(
             "UPDATE marketplace_user SET
-                email=COALESCE(email, ?1), display_name=?2, github_id=?3, github_login=?4,
-                avatar_url=?5, role=?6, updated_at=?7
-             WHERE user_id=?8",
+                email=COALESCE(email, ?1), github_id=?2, github_login=?3,
+                avatar_url=?4, role=?5, updated_at=?6
+             WHERE user_id=?7",
             params![
                 identity.email,
-                identity.display_name,
                 github_id,
                 identity.login,
                 identity.avatar_url,
@@ -1081,6 +1182,7 @@ type StoredUserRow = (
     Option<String>,
     String,
     String,
+    bool,
 );
 
 fn stored_user_row(row: &crate::db::Row<'_>) -> crate::db::Result<StoredUserRow> {
@@ -1095,6 +1197,7 @@ fn stored_user_row(row: &crate::db::Row<'_>) -> crate::db::Result<StoredUserRow>
         row.get(7)?,
         row.get(8)?,
         row.get(9)?,
+        row.get(10)?,
     ))
 }
 
@@ -1117,6 +1220,7 @@ fn stored_user_from_row(row: StoredUserRow) -> Result<StoredUser, MarketplaceSto
         },
         password_hash: row.4,
         github_id,
+        active: row.10,
     })
 }
 
@@ -1356,6 +1460,7 @@ mod tests {
 
         let initial = store.user_by_identifier("admin").unwrap().unwrap();
         assert!(initial.user.is_admin());
+        assert!(initial.active);
         assert!(crate::auth::verify_password(
             "initial-admin-password",
             initial.password_hash.as_deref().unwrap()
@@ -1364,10 +1469,14 @@ mod tests {
         let replacement_password =
             crate::auth::hash_password("replacement-admin-password").unwrap();
         store
+            .update_user_active(&initial.user.user_id, false)
+            .unwrap();
+        store
             .upsert_local_admin("admin", &replacement_password)
             .unwrap();
         let replacement = store.user_by_identifier("admin").unwrap().unwrap();
         assert!(replacement.user.is_admin());
+        assert!(replacement.active);
         assert!(crate::auth::verify_password(
             "replacement-admin-password",
             replacement.password_hash.as_deref().unwrap()
@@ -1376,6 +1485,39 @@ mod tests {
             "initial-admin-password",
             replacement.password_hash.as_deref().unwrap()
         ));
+    }
+
+    #[test]
+    fn existing_user_schema_receives_active_column() {
+        let root = tempfile::tempdir().unwrap();
+        let database_path = root.path().join("marketplace.sqlite3");
+        let connection = crate::db::Connection::open(&database_path).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE marketplace_user (
+                    user_id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    email TEXT,
+                    display_name TEXT NOT NULL,
+                    password_hash TEXT,
+                    github_id INTEGER UNIQUE,
+                    github_login TEXT,
+                    avatar_url TEXT,
+                    role TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                INSERT INTO marketplace_user(
+                    user_id, username, display_name, role, created_at, updated_at
+                ) VALUES ('legacy-user', 'legacy', 'Legacy user', 'user',
+                          '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');",
+            )
+            .unwrap();
+        drop(connection);
+
+        let store = MarketplaceStore::open(root.path(), "").unwrap();
+        let user = store.user_by_identifier("legacy").unwrap().unwrap();
+        assert!(user.active);
     }
 
     #[test]

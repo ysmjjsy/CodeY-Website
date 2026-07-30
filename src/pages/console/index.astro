@@ -1,15 +1,15 @@
 ---
-import CloudOverview from '../../components/CloudOverview.astro'
 import ConsoleShell from '../../components/ConsoleShell.astro'
-import { cloudCopy } from '../../i18n/cloud'
+import ProfileOverview from '../../components/ProfileOverview.astro'
+import { profileCopy } from '../../i18n/profile'
 import MarketLayout from '../../layouts/MarketLayout.astro'
 
 const locale = 'zh-CN' as const
-const copy = cloudCopy(locale)
+const copy = profileCopy(locale)
 ---
 
-<MarketLayout title={`${copy.accountTitle} · CodeY`} description={copy.accountDescription} locale={locale} alternateHref="/en/console/">
-  <ConsoleShell locale={locale} activeSection="credits">
-    <CloudOverview locale={locale} />
+<MarketLayout title={`${copy.title} · CodeY`} description={copy.description} locale={locale} alternateHref="/en/console/">
+  <ConsoleShell locale={locale} activeSection="profile">
+    <ProfileOverview locale={locale} />
   </ConsoleShell>
 </MarketLayout>

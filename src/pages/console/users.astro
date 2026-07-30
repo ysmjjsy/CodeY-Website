@@ -1,0 +1,15 @@
+---
+import ConsoleShell from '../../components/ConsoleShell.astro'
+import UserAdmin from '../../components/UserAdmin.astro'
+import { usersCopy } from '../../i18n/users'
+import MarketLayout from '../../layouts/MarketLayout.astro'
+
+const locale = 'zh-CN' as const
+const copy = usersCopy(locale)
+---
+
+<MarketLayout title={`${copy.title} · CodeY`} description={copy.description} locale={locale} alternateHref="/en/console/users/">
+  <ConsoleShell locale={locale} activeSection="users">
+    <UserAdmin locale={locale} />
+  </ConsoleShell>
+</MarketLayout>

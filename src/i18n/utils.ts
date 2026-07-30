@@ -38,9 +38,9 @@ export function pricingPath(locale: Locale): string {
   return locale === 'en' ? '/en/pricing/' : '/pricing/'
 }
 
-export function consolePath(locale: Locale, section: 'credits' | 'templates' | 'reviews' | 'models' | 'plans' | 'topups' = 'credits'): string {
+export function consolePath(locale: Locale, section: 'profile' | 'templates' | 'users' | 'reviews' | 'models' | 'plans' | 'topups' = 'profile'): string {
   const base = locale === 'en' ? '/en/console' : '/console'
-  return section === 'credits' ? `${base}/` : `${base}/${section}/`
+  return section === 'profile' ? `${base}/` : `${base}/${section}/`
 }
 
 /** Counterpart landing path when switching language. */

@@ -1,0 +1,452 @@
+---
+import type { Locale } from '../i18n/ui'
+import { usersCopy } from '../i18n/users'
+import Button from './ui/Button.astro'
+import EmptyState from './ui/EmptyState.astro'
+import List from './ui/List.astro'
+import PageHeader from './ui/PageHeader.astro'
+import Pagination from './ui/Pagination.astro'
+import StateMessage from './ui/StateMessage.astro'
+
+interface Props { locale: Locale }
+
+const { locale } = Astro.props
+const copy = usersCopy(locale)
+---
+
+<section class="user-admin" data-user-admin data-locale={locale} data-copy={JSON.stringify(copy)}>
+  <PageHeader class="user-admin-head" title={copy.title} description={copy.description}>
+    <Button slot="actions" size="sm" data-refresh>
+      <i class="ph ph-arrows-clockwise" aria-hidden="true"></i>
+      {copy.refresh}
+    </Button>
+  </PageHeader>
+
+  <StateMessage class="user-admin-state" data-state>{copy.loading}</StateMessage>
+
+  <div class="user-admin-content" data-content hidden>
+    <section class="user-stats" aria-label={copy.totalUsers}>
+      <article>
+        <span><i class="ph ph-users" aria-hidden="true"></i>{copy.totalUsers}</span>
+        <strong data-total-users>0</strong>
+      </article>
+      <article>
+        <span><i class="ph ph-shield-check" aria-hidden="true"></i>{copy.administrators}</span>
+        <strong data-admin-users>0</strong>
+      </article>
+      <article>
+        <span><i class="ph ph-user-check" aria-hidden="true"></i>{copy.enabledUsers}</span>
+        <strong data-active-users>0</strong>
+      </article>
+    </section>
+
+    <div class="user-toolbar">
+      <label class="user-search">
+        <span class="user-sr-only">{copy.searchLabel}</span>
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" placeholder={copy.searchPlaceholder} autocomplete="off" data-search />
+      </label>
+      <label class="user-filter">
+        <span>{copy.roleFilter}</span>
+        <select data-role-filter>
+          <option value="all">{copy.allRoles}</option>
+          <option value="admin">{copy.roleAdmin}</option>
+          <option value="user">{copy.roleUser}</option>
+        </select>
+      </label>
+      <label class="user-filter">
+        <span>{copy.authFilter}</span>
+        <select data-auth-filter>
+          <option value="all">{copy.allMethods}</option>
+          <option value="github">{copy.methodGithub}</option>
+          <option value="password">{copy.methodPassword}</option>
+        </select>
+      </label>
+      <label class="user-filter">
+        <span>{copy.statusFilter}</span>
+        <select data-status-filter>
+          <option value="all">{copy.allStatuses}</option>
+          <option value="active">{copy.active}</option>
+          <option value="inactive">{copy.inactive}</option>
+        </select>
+      </label>
+    </div>
+
+    <List class="user-table-shell">
+      <table class="user-table" data-table hidden>
+        <thead>
+          <tr>
+            <th scope="col">{copy.userColumn}</th>
+            <th scope="col">{copy.contactColumn}</th>
+            <th scope="col">{copy.authColumn}</th>
+            <th scope="col">{copy.roleColumn}</th>
+            <th scope="col">{copy.statusColumn}</th>
+            <th scope="col">{copy.joinedColumn}</th>
+            <th scope="col"><span class="user-sr-only">{copy.actionColumn}</span></th>
+          </tr>
+        </thead>
+        <tbody data-user-list></tbody>
+      </table>
+      <EmptyState class="user-empty" title={copy.emptyTitle} description={copy.emptyDescription} data-empty hidden>
+        <i slot="icon" class="ph ph-user-focus" aria-hidden="true"></i>
+      </EmptyState>
+      <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-user-pagination />
+    </List>
+  </div>
+</section>
+
+<script>
+  import { createPagination, type PaginationChange } from '../lib/pagination'
+  import { toast } from '../lib/toast'
+
+  type Role = 'user' | 'admin'
+  type AdminUser = {
+    userId: string
+    username: string
+    email?: string | null
+    displayName: string
+    avatarUrl?: string | null
+    githubLogin?: string | null
+    role: Role
+    createdAt: string
+    hasPassword: boolean
+    githubConnected: boolean
+    active: boolean
+  }
+  type AuthResponse = { user?: { userId: string; role: Role } | null }
+
+  const root = document.querySelector<HTMLElement>('[data-user-admin]')
+  if (root) {
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const state = root.querySelector<HTMLElement>('[data-state]')!
+    const content = root.querySelector<HTMLElement>('[data-content]')!
+    const table = root.querySelector<HTMLTableElement>('[data-table]')!
+    const list = root.querySelector<HTMLElement>('[data-user-list]')!
+    const empty = root.querySelector<HTMLElement>('[data-empty]')!
+    const search = root.querySelector<HTMLInputElement>('[data-search]')!
+    const roleFilter = root.querySelector<HTMLSelectElement>('[data-role-filter]')!
+    const authFilter = root.querySelector<HTMLSelectElement>('[data-auth-filter]')!
+    const statusFilter = root.querySelector<HTMLSelectElement>('[data-status-filter]')!
+    const refresh = root.querySelector<HTMLButtonElement>('[data-refresh]')!
+    const paginationRoot = root.querySelector<HTMLElement>('[data-user-pagination]')
+    const pagination = createPagination(paginationRoot)
+    let users: AdminUser[] = []
+    let currentUserId = ''
+    let page = 1
+    let pageSize = 10
+
+    function node<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
+      const element = document.createElement(tag)
+      if (className) element.className = className
+      if (text !== undefined) element.textContent = text
+      return element
+    }
+
+    function interpolate(template: string, values: Record<string, string>): string {
+      return Object.entries(values).reduce((result, [key, value]) => result.replace(`{${key}}`, value), template)
+    }
+
+    async function request<T>(path: string, init?: RequestInit): Promise<T> {
+      const response = await fetch(path, {
+        ...init,
+        headers: {
+          Accept: 'application/json',
+          ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+          ...init?.headers,
+        },
+      })
+      if (response.status === 401) window.dispatchEvent(new CustomEvent('market-auth-required'))
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null
+        throw new Error(payload?.error?.message || copy.unavailable)
+      }
+      return response.json() as Promise<T>
+    }
+
+    function filteredUsers(): AdminUser[] {
+      const query = search.value.trim().toLocaleLowerCase(locale)
+      return users.filter((user) => {
+        const matchesQuery = !query || [user.displayName, user.username, user.email || '', user.githubLogin || '']
+          .some((value) => value.toLocaleLowerCase(locale).includes(query))
+        const matchesRole = roleFilter.value === 'all' || user.role === roleFilter.value
+        const matchesAuth = authFilter.value === 'all'
+          || (authFilter.value === 'github' ? user.githubConnected : user.hasPassword)
+        const matchesStatus = statusFilter.value === 'all'
+          || user.active === (statusFilter.value === 'active')
+        return matchesQuery && matchesRole && matchesAuth && matchesStatus
+      })
+    }
+
+    function avatar(user: AdminUser): HTMLElement {
+      const wrapper = node('span', 'user-avatar')
+      const initials = user.displayName.trim().slice(0, 1).toLocaleUpperCase(locale) || user.username.slice(0, 1).toUpperCase()
+      wrapper.append(node('span', '', initials))
+      if (user.avatarUrl) {
+        const image = node('img')
+        image.src = user.avatarUrl
+        image.alt = ''
+        image.loading = 'lazy'
+        image.referrerPolicy = 'no-referrer'
+        image.addEventListener('error', () => image.remove(), { once: true })
+        wrapper.append(image)
+      }
+      return wrapper
+    }
+
+    function badge(label: string, className = ''): HTMLElement {
+      return node('span', `user-badge ${className}`.trim(), label)
+    }
+
+    function authBadges(user: AdminUser): HTMLElement {
+      const methods = node('div', 'user-methods')
+      if (user.githubConnected) methods.append(badge(copy.methodGithub, 'github'))
+      if (user.hasPassword) methods.append(badge(copy.methodPassword))
+      return methods
+    }
+
+    async function changeRole(user: AdminUser, button: HTMLButtonElement): Promise<void> {
+      const role: Role = user.role === 'admin' ? 'user' : 'admin'
+      const prompt = interpolate(role === 'admin' ? copy.confirmPromote : copy.confirmDemote, { name: user.displayName })
+      if (!window.confirm(prompt)) return
+      button.disabled = true
+      button.setAttribute('aria-busy', 'true')
+      try {
+        const updated = await request<{ role: Role }>(`/api/market/v1/admin/users/${encodeURIComponent(user.userId)}/role`, {
+          method: 'POST',
+          body: JSON.stringify({ role }),
+        })
+        user.role = updated.role
+        render()
+        toast.success(copy.roleUpdated)
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        button.disabled = false
+        button.removeAttribute('aria-busy')
+      }
+    }
+
+    function inlineStatusToggle(user: AdminUser): HTMLButtonElement {
+      const button = node('button', 'inline-status-toggle')
+      button.type = 'button'
+      button.setAttribute('role', 'switch')
+      button.setAttribute('aria-checked', String(user.active))
+      button.setAttribute('aria-label', `${user.active ? copy.disableUser : copy.enableUser}: ${user.displayName}`)
+      const track = node('span', 'inline-status-track')
+      track.setAttribute('aria-hidden', 'true')
+      track.append(node('span'))
+      button.append(track, node('span', 'inline-status-label', user.active ? copy.active : copy.inactive))
+      if (user.userId === currentUserId) {
+        button.disabled = true
+        button.title = copy.cannotDisableSelf
+      } else {
+        button.addEventListener('click', () => void toggleUserActive(user, button))
+      }
+      return button
+    }
+
+    async function toggleUserActive(user: AdminUser, button: HTMLButtonElement): Promise<void> {
+      const active = !user.active
+      button.disabled = true
+      try {
+        const updated = await request<{ active: boolean }>(`/api/market/v1/admin/users/${encodeURIComponent(user.userId)}/active`, {
+          method: 'POST',
+          body: JSON.stringify({ active }),
+        })
+        user.active = updated.active
+        render()
+        toast.success(user.active ? copy.userEnabled : copy.userDisabled)
+      } catch (reason) {
+        button.disabled = false
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      }
+    }
+
+    function userRow(user: AdminUser): HTMLTableRowElement {
+      const row = node('tr')
+
+      const identityCell = node('td')
+      const identity = node('div', 'user-identity')
+      identity.append(avatar(user))
+      const names = node('div')
+      const heading = node('div', 'user-name-line')
+      heading.append(node('strong', '', user.displayName))
+      if (user.userId === currentUserId) heading.append(badge(copy.currentAccount, 'self'))
+      names.append(heading, node('span', '', `@${user.username}`))
+      identity.append(names)
+      identityCell.append(identity)
+
+      const contactCell = node('td')
+      contactCell.append(node('span', user.email ? 'user-email' : 'user-email empty', user.email || copy.noEmail))
+
+      const authCell = node('td')
+      authCell.append(authBadges(user))
+
+      const roleCell = node('td')
+      roleCell.append(badge(user.role === 'admin' ? copy.roleAdmin : copy.roleUser, user.role))
+
+      const statusCell = node('td')
+      statusCell.append(inlineStatusToggle(user))
+
+      const dateCell = node('td', 'user-date', new Intl.DateTimeFormat(locale, {
+        year: 'numeric', month: 'short', day: 'numeric',
+      }).format(new Date(user.createdAt)))
+
+      const actionCell = node('td', 'user-action')
+      const action = node('button', 'user-role-action')
+      action.type = 'button'
+      const icon = node('i', `ph ${user.role === 'admin' ? 'ph-user-minus' : 'ph-user-plus'}`)
+      icon.setAttribute('aria-hidden', 'true')
+      action.append(icon, document.createTextNode(user.role === 'admin' ? copy.setUser : copy.setAdmin))
+      if (user.userId === currentUserId) {
+        action.disabled = true
+        action.title = copy.cannotEditSelf
+      } else {
+        action.addEventListener('click', () => void changeRole(user, action))
+      }
+      actionCell.append(action)
+
+      row.append(identityCell, contactCell, authCell, roleCell, statusCell, dateCell, actionCell)
+      return row
+    }
+
+    function renderStats(): void {
+      root.querySelector<HTMLElement>('[data-total-users]')!.textContent = String(users.length)
+      root.querySelector<HTMLElement>('[data-admin-users]')!.textContent = String(users.filter((user) => user.role === 'admin').length)
+      root.querySelector<HTMLElement>('[data-active-users]')!.textContent = String(users.filter((user) => user.active).length)
+    }
+
+    function render(): void {
+      renderStats()
+      const filtered = filteredUsers()
+      const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+      page = Math.min(page, pageCount)
+      const visible = filtered.slice((page - 1) * pageSize, page * pageSize)
+      list.replaceChildren(...visible.map(userRow))
+      table.hidden = visible.length === 0
+      empty.hidden = visible.length !== 0
+      pagination.set({ page, pageSize, totalItems: filtered.length })
+    }
+
+    async function load(): Promise<void> {
+      refresh.disabled = true
+      refresh.querySelector('i')?.classList.add('is-spinning')
+      state.hidden = false
+      state.textContent = copy.loading
+      content.hidden = true
+      try {
+        const [loadedUsers, auth] = await Promise.all([
+          request<AdminUser[]>('/api/market/v1/admin/users'),
+          request<AuthResponse>('/api/market/v1/auth/me'),
+        ])
+        users = loadedUsers
+        currentUserId = auth.user?.userId || ''
+        page = 1
+        state.hidden = true
+        content.hidden = false
+        render()
+      } catch (reason) {
+        state.textContent = reason instanceof Error ? reason.message : copy.unavailable
+      } finally {
+        refresh.disabled = false
+        refresh.querySelector('i')?.classList.remove('is-spinning')
+      }
+    }
+
+    search.addEventListener('input', () => { page = 1; render() })
+    roleFilter.addEventListener('change', () => { page = 1; render() })
+    authFilter.addEventListener('change', () => { page = 1; render() })
+    statusFilter.addEventListener('change', () => { page = 1; render() })
+    refresh.addEventListener('click', () => void load())
+    paginationRoot?.addEventListener('pagination:change', ((event: CustomEvent<PaginationChange>) => {
+      page = event.detail.page
+      pageSize = event.detail.pageSize
+      render()
+    }) as EventListener)
+    window.addEventListener('market-auth-changed', () => void load())
+    void load()
+  }
+</script>
+
+<style is:global>
+  .user-admin { width: 100%; min-width: 0; overflow-x: clip; }
+  .user-admin-head { width: 100%; }
+  .user-admin-head > div > p:last-child { max-width: 720px; }
+  .user-admin-head .btn { gap: 7px; }
+  .user-admin-state { display: grid; min-height: 156px; place-items: center; margin-top: 28px; padding: 24px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); color: var(--fg-muted); background: var(--panel-glass); font-size: .8rem; }
+  .user-admin-content { display: grid; min-width: 0; gap: 18px; margin-top: 28px; }
+  .user-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .user-stats article { display: flex; min-height: 92px; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); box-shadow: inset 0 1px 0 var(--panel-inset); }
+  .user-stats article span { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-muted); font-size: .76rem; }
+  .user-stats article i { color: var(--fg-faint); font-size: 1rem; }
+  .user-stats article strong { color: var(--fg); font: 600 1.65rem/1 var(--font-display); letter-spacing: -.04em; }
+  .user-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, 150px)); align-items: end; gap: 10px; }
+  .user-search { position: relative; display: block; }
+  .user-search > i { position: absolute; top: 50%; left: 12px; color: var(--fg-faint); font-size: .9rem; transform: translateY(-50%); pointer-events: none; }
+  .user-search input, .user-filter select { width: 100%; min-height: 40px; border: 1px solid var(--border-strong); border-radius: 9px; outline: 0; color: var(--fg); background: var(--bg); font: inherit; font-size: .76rem; }
+  .user-search input { padding: 8px 12px 8px 36px; }
+  .user-search input::placeholder { color: var(--fg-faint); }
+  .user-filter { display: grid; min-width: 150px; gap: 5px; }
+  .user-filter > span { color: var(--fg-faint); font-size: .67rem; font-weight: 600; }
+  .user-filter select { padding: 8px 34px 8px 11px; }
+  .user-search input:focus, .user-filter select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .user-table-shell { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); box-shadow: inset 0 1px 0 var(--panel-inset); }
+  .user-table-shell > .ui-list__viewport { overflow-x: auto; overflow-y: hidden; }
+  .user-table { width: 100%; min-width: 1040px; border-collapse: collapse; table-layout: fixed; text-align: left; }
+  .user-table th { padding: 10px 14px; color: var(--fg-faint); background: var(--chip-bg); font-size: .68rem; font-weight: 600; white-space: nowrap; }
+  .user-table td { padding: 13px 14px; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: .76rem; vertical-align: middle; }
+  .user-table th:nth-child(1) { width: 230px; }
+  .user-table th:nth-child(2) { width: 190px; }
+  .user-table th:nth-child(3) { width: 125px; }
+  .user-table th:nth-child(4) { width: 105px; }
+  .user-table th:nth-child(5) { width: 120px; }
+  .user-table th:nth-child(6) { width: 120px; }
+  .user-table th:last-child, .user-table td:last-child { width: 154px; text-align: right; }
+  .user-identity { display: flex; min-width: 0; align-items: center; gap: 11px; }
+  .user-identity > div { display: grid; min-width: 0; gap: 4px; }
+  .user-name-line { display: flex; min-width: 0; align-items: center; gap: 7px; }
+  .user-name-line strong { overflow: hidden; color: var(--fg); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+  .user-identity > div > span { overflow: hidden; color: var(--fg-faint); font: .68rem var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .user-avatar { position: relative; display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; color: var(--accent-bright); background: var(--accent-soft); font: 600 .75rem var(--font-display); }
+  .user-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .user-email { display: block; overflow: hidden; color: var(--fg-muted); text-overflow: ellipsis; white-space: nowrap; }
+  .user-email.empty { color: var(--fg-faint); }
+  .user-methods { display: flex; flex-wrap: wrap; gap: 5px; }
+  .user-badge { display: inline-flex; width: fit-content; align-items: center; padding: 4px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-muted); background: var(--chip-bg); font-size: .66rem; line-height: 1; white-space: nowrap; }
+  .user-badge.admin { border-color: var(--accent-ring); color: var(--accent-bright); background: var(--accent-soft); }
+  .user-badge.github { color: var(--fg); }
+  .user-badge.self { border-color: color-mix(in srgb, var(--success) 30%, var(--border)); color: var(--success); background: color-mix(in srgb, var(--success) 8%, var(--chip-bg)); }
+  .user-date { color: var(--fg-faint) !important; white-space: nowrap; }
+  .user-role-action { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid transparent; border-radius: 8px; color: var(--fg-muted); background: transparent; font: inherit; font-size: .71rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .user-role-action i { color: var(--fg-faint); font-size: .88rem; }
+  .user-role-action:hover:not(:disabled) { border-color: var(--border); color: var(--fg); background: var(--ghost-bg); }
+  .user-role-action:hover:not(:disabled) i { color: var(--accent-bright); }
+  .user-role-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .user-role-action:disabled { opacity: .45; cursor: not-allowed; }
+  .inline-status-toggle { display: inline-flex; min-height: 30px; align-items: center; gap: 7px; padding: 4px 2px; border: 0; border-radius: 7px; color: var(--fg-muted); background: transparent; font: inherit; cursor: pointer; }
+  .inline-status-toggle:hover { color: var(--fg); }
+  .inline-status-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .inline-status-toggle:disabled { opacity: .55; cursor: not-allowed; }
+  .inline-status-track { display: inline-flex; width: 32px; height: 18px; flex: 0 0 auto; align-items: center; padding: 2px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--chip-bg); transition: border-color .16s ease, background .16s ease; }
+  .inline-status-track > span { width: 12px; height: 12px; border-radius: 50%; background: var(--fg-faint); box-shadow: 0 1px 2px rgb(0 0 0 / .18); transition: transform .16s ease, background .16s ease; }
+  .inline-status-toggle[aria-checked='true'] .inline-status-track { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); background: color-mix(in srgb, var(--success) 22%, var(--chip-bg)); }
+  .inline-status-toggle[aria-checked='true'] .inline-status-track > span { transform: translateX(14px); background: var(--success); }
+  .inline-status-label { font-size: .7rem; white-space: nowrap; }
+  .user-empty { min-height: 220px; align-content: center; padding: 32px 18px; }
+  .user-empty > i { margin-bottom: 8px; color: var(--fg-faint); font-size: 1.6rem; }
+  .user-empty strong { font-size: .86rem; }
+  .user-empty p { max-width: 440px; margin: 6px 0 0; color: var(--fg-muted); font-size: .76rem; line-height: 1.55; }
+  .user-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .is-spinning { animation: user-spin .8s linear infinite; }
+  @keyframes user-spin { to { transform: rotate(360deg); } }
+  @media (max-width: 760px) {
+    .user-admin-content { margin-top: 22px; }
+    .user-stats { grid-template-columns: 1fr; gap: 8px; }
+    .user-stats article { min-height: 64px; padding: 13px 15px; }
+    .user-stats article strong { font-size: 1.35rem; }
+    .user-toolbar { grid-template-columns: 1fr 1fr; }
+    .user-search { grid-column: 1 / -1; }
+    .user-filter { min-width: 0; }
+    .user-filter:last-child { grid-column: 1 / -1; }
+  }
+</style>
