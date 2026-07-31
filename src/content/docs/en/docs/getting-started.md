@@ -1,9 +1,15 @@
 ---
 title: Getting started
-description: Build and run the CodeY desktop app from source.
+description: Download a CodeY installer, or build and run the desktop app from source.
 ---
 
-CodeY currently requires building from source. This page covers prerequisites, development run, production build, and common verification commands.
+## Download an installer
+
+The latest macOS, Windows, and Linux installers are published through [GitHub Releases](https://github.com/ysmjjsy/CodeY/releases). The [download page](/en/download/) checks the latest public release and lists the available packages by platform.
+
+If no installer has been published yet, or the current release does not include your platform and architecture, use the source build below.
+
+The following steps cover prerequisites, development run, production build, and common verification commands.
 
 ## Prerequisites
 
@@ -32,7 +38,7 @@ On first run:
 
 1. Open a project directory.
 2. Configure a model provider under **Settings → Models**.
-3. Create a conversation and start your first task.
+3. Describe your goal on the start screen and begin your first task.
 
 ## Production build
 

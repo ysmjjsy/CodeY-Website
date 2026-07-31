@@ -1,0 +1,753 @@
+---
+import type { Locale } from '../i18n/ui'
+import { docsPath, t } from '../i18n/utils'
+import Button from './ui/Button.astro'
+import Container from './ui/Container.astro'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const latestReleaseApi = 'https://api.github.com/repos/ysmjjsy/CodeY/releases/latest'
+const docsHref = docsPath(locale, 'getting-started')
+const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
+---
+
+<section
+  class="section download-section"
+  id="download"
+  data-download-root
+  data-locale={locale}
+  data-release-api={latestReleaseApi}
+  data-release-state="loading"
+  data-status-ready={t(locale, 'download.status.ready')}
+  data-status-empty={t(locale, 'download.status.empty')}
+  data-status-error={t(locale, 'download.status.error')}
+  data-platform-unavailable={t(locale, 'download.platform.unavailable')}
+  data-arch-arm64={t(locale, 'download.arch.arm64')}
+  data-arch-x64={t(locale, 'download.arch.x64')}
+  data-arch-apple-silicon={t(locale, 'download.arch.appleSilicon')}
+  data-arch-intel={t(locale, 'download.arch.intel')}
+>
+  <div class="download-bg" aria-hidden="true"></div>
+  <div class="download-glow download-glow-cyan" aria-hidden="true"></div>
+  <div class="download-glow download-glow-amber" aria-hidden="true"></div>
+
+  <Container class="download-inner">
+    <div class="download-head reveal">
+      <div class="section-head">
+        <p class="section-tag">{t(locale, 'download.tag')}</p>
+        <h1 class="section-title">
+          {t(locale, 'download.title.prefix')}
+          <span class="title-accent">{t(locale, 'download.title.brand')}</span>
+        </h1>
+        <p class="section-desc">{t(locale, 'download.desc')}</p>
+      </div>
+
+      <div class="download-meta">
+        <div class="release-status" data-release-state="loading" aria-live="polite">
+          <span class="release-dot" aria-hidden="true"></span>
+          <span data-release-status-text>{t(locale, 'download.status.loading')}</span>
+        </div>
+        <div class="platform-chips" aria-hidden="true">
+          <span>macOS</span>
+          <span>Windows</span>
+          <span>Linux</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="download-grid" data-download-grid>
+      <article class="download-card reveal" data-platform="darwin" style="--reveal-delay: 0s">
+        <div class="platform-head">
+          <span class="platform-icon"><i class="ph ph-apple-logo" aria-hidden="true"></i></span>
+          <span class="recommended-badge" data-recommended hidden>{t(locale, 'download.recommended')}</span>
+        </div>
+        <h3>{t(locale, 'download.mac.title')}</h3>
+        <p>{t(locale, 'download.mac.desc')}</p>
+        <div class="asset-actions" data-assets>
+          <span class="asset-skeleton" aria-hidden="true"></span>
+          <span class="asset-skeleton" aria-hidden="true"></span>
+        </div>
+        <p class="platform-unavailable" data-unavailable hidden></p>
+      </article>
+
+      <article class="download-card reveal" data-platform="windows" style="--reveal-delay: 0.08s">
+        <div class="platform-head">
+          <span class="platform-icon"><i class="ph ph-windows-logo" aria-hidden="true"></i></span>
+          <span class="recommended-badge" data-recommended hidden>{t(locale, 'download.recommended')}</span>
+        </div>
+        <h3>{t(locale, 'download.windows.title')}</h3>
+        <p>{t(locale, 'download.windows.desc')}</p>
+        <div class="asset-actions" data-assets>
+          <span class="asset-skeleton" aria-hidden="true"></span>
+          <span class="asset-skeleton" aria-hidden="true"></span>
+        </div>
+        <p class="platform-unavailable" data-unavailable hidden></p>
+      </article>
+
+      <article class="download-card reveal" data-platform="linux" style="--reveal-delay: 0.16s">
+        <div class="platform-head">
+          <span class="platform-icon"><i class="ph ph-linux-logo" aria-hidden="true"></i></span>
+          <span class="recommended-badge" data-recommended hidden>{t(locale, 'download.recommended')}</span>
+        </div>
+        <h3>{t(locale, 'download.linux.title')}</h3>
+        <p>{t(locale, 'download.linux.desc')}</p>
+        <div class="asset-actions" data-assets>
+          <span class="asset-skeleton" aria-hidden="true"></span>
+          <span class="asset-skeleton" aria-hidden="true"></span>
+        </div>
+        <p class="platform-unavailable" data-unavailable hidden></p>
+      </article>
+    </div>
+
+    <div class="download-foot reveal">
+      <p class="download-trust">
+        <i class="ph ph-shield-check" aria-hidden="true"></i>
+        {t(locale, 'download.trust')}
+      </p>
+      <div class="download-links">
+        <Button variant="ghost" size="sm" href={docsHref}>
+          <i class="ph ph-book-open-text" aria-hidden="true"></i>
+          {t(locale, 'download.docs')}
+        </Button>
+        <Button variant="ghost" size="sm" href={releasesHref} target="_blank" rel="noopener">
+          <i class="ph ph-github-logo" aria-hidden="true"></i>
+          {t(locale, 'download.releases')}
+        </Button>
+      </div>
+    </div>
+  </Container>
+</section>
+
+<style>
+  .download-section {
+    position: relative;
+    overflow: hidden;
+    min-height: calc(100vh - 286px);
+    padding-top: clamp(132px, 14vw, 172px);
+    padding-bottom: clamp(72px, 10vw, 112px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .download-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 75% 55% at 50% 0%, black 18%, transparent 78%);
+    pointer-events: none;
+  }
+
+  .download-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+  }
+
+  .download-glow-cyan {
+    width: min(420px, 70vw);
+    height: min(420px, 70vw);
+    top: -80px;
+    right: -40px;
+    background: var(--accent-glow);
+  }
+
+  .download-glow-amber {
+    width: min(260px, 50vw);
+    height: min(260px, 50vw);
+    top: 180px;
+    left: -80px;
+    background: var(--amber-soft);
+  }
+
+  .download-inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  .download-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 28px;
+    margin-bottom: clamp(28px, 5vw, 48px);
+  }
+
+  .download-head .section-head {
+    margin-bottom: 0;
+  }
+
+  .title-accent {
+    color: var(--accent-bright);
+  }
+
+  .download-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
+
+  .release-status {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    color: var(--fg-muted);
+    background: var(--chip-bg);
+    backdrop-filter: blur(8px);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .release-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+    animation: release-pulse 1.8s ease-in-out infinite;
+  }
+
+  .release-status[data-release-state='ready'] .release-dot {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: none;
+  }
+
+  .release-status[data-release-state='empty'] .release-dot {
+    background: var(--fg-faint);
+    box-shadow: none;
+    animation: none;
+  }
+
+  .release-status[data-release-state='error'] .release-dot {
+    background: var(--danger);
+    box-shadow: none;
+    animation: none;
+  }
+
+  @keyframes release-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .platform-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .platform-chips span {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--fg-faint);
+    background: var(--ghost-bg);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+  }
+
+  .download-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .download-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: clamp(22px, 3vw, 30px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background:
+      linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)),
+      var(--surface);
+    box-shadow: inset 0 1px 0 var(--panel-inset);
+    transition:
+      transform 0.25s var(--ease-out),
+      border-color 0.25s,
+      box-shadow 0.25s,
+      background 0.25s;
+  }
+
+  .download-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-hover);
+  }
+
+  .download-card.is-recommended {
+    border-color: var(--accent-ring);
+    background:
+      radial-gradient(ellipse 90% 70% at 100% 0%, var(--accent-glow), transparent 55%),
+      linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)),
+      var(--surface);
+    box-shadow:
+      inset 0 1px 0 var(--panel-inset),
+      0 0 0 1px var(--accent-ring),
+      var(--shadow-window);
+  }
+
+  .platform-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  .platform-icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--accent-ring);
+    border-radius: 12px;
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+    font-size: 1.4rem;
+  }
+
+  .recommended-badge {
+    padding: 4px 10px;
+    border: 1px solid var(--accent-ring);
+    border-radius: 999px;
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .download-card h3 {
+    font-size: 1.22rem;
+    font-weight: 600;
+  }
+
+  .download-card > p:not(.platform-unavailable) {
+    flex: 1;
+    min-height: 3.2em;
+    margin: 8px 0 24px;
+    color: var(--fg-muted);
+    font-size: 0.88rem;
+  }
+
+  .asset-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .asset-skeleton {
+    display: block;
+    height: 42px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(
+      90deg,
+      var(--ghost-bg) 0%,
+      var(--ghost-bg-hover) 45%,
+      var(--ghost-bg) 90%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shine 1.4s ease-in-out infinite;
+  }
+
+  .download-section[data-release-state='ready'] .asset-skeleton,
+  .download-section[data-release-state='empty'] .asset-skeleton,
+  .download-section[data-release-state='error'] .asset-skeleton {
+    display: none;
+  }
+
+  @keyframes skeleton-shine {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+
+  .asset-actions :global(.btn) {
+    width: 100%;
+    min-height: 42px;
+    justify-content: flex-start;
+    padding-inline: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+  }
+
+  .asset-actions :global(.btn-primary) {
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+
+  .asset-actions :global(.download-asset .asset-kind) {
+    display: inline-flex;
+    min-width: 4.2em;
+    color: inherit;
+    opacity: 0.92;
+  }
+
+  .asset-actions :global(.btn-ghost .asset-kind) {
+    color: var(--accent-bright);
+  }
+
+  .asset-actions :global(.download-asset .asset-meta) {
+    color: inherit;
+    opacity: 0.78;
+  }
+
+  .platform-unavailable {
+    margin: 12px 0 0;
+    color: var(--fg-faint);
+    font-size: 0.76rem;
+  }
+
+  .download-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-top: clamp(28px, 4vw, 40px);
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+
+  .download-trust {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--fg-faint);
+    font-size: 0.78rem;
+  }
+
+  .download-trust i {
+    flex-shrink: 0;
+    color: var(--success);
+    font-size: 1rem;
+  }
+
+  .download-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .download-links :global(.btn) {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 900px) {
+    .download-head {
+      align-items: start;
+      flex-direction: column;
+    }
+
+    .download-meta {
+      align-items: stretch;
+      width: 100%;
+    }
+
+    .release-status {
+      width: 100%;
+      flex-wrap: wrap;
+      white-space: normal;
+    }
+
+    .platform-chips {
+      justify-content: flex-start;
+    }
+
+    .download-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .download-card > p:not(.platform-unavailable) {
+      min-height: 0;
+    }
+
+    .download-foot {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .download-links :global(.btn) {
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .download-section {
+      padding-top: 116px;
+    }
+
+    .release-status {
+      align-items: flex-start;
+      border-radius: var(--radius-md);
+    }
+
+    .download-trust {
+      align-items: flex-start;
+    }
+
+    .download-glow-cyan {
+      top: -40px;
+      right: -100px;
+    }
+  }
+
+  @media (hover: none) {
+    .download-card:hover {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .release-dot,
+    .asset-skeleton {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  type Platform = 'darwin' | 'windows' | 'linux'
+  type ReleaseAsset = {
+    name?: unknown
+    size?: unknown
+    browser_download_url?: unknown
+  }
+  type ReleasePayload = {
+    tag_name?: unknown
+    published_at?: unknown
+    assets?: unknown
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-download-root]')
+
+  if (root) {
+    const status = root.querySelector<HTMLElement>('.release-status')
+    const statusText = root.querySelector<HTMLElement>('[data-release-status-text]')
+    const grid = root.querySelector<HTMLElement>('[data-download-grid]')
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+
+    const setStatus = (state: 'ready' | 'empty' | 'error', text: string) => {
+      root.dataset.releaseState = state
+      if (status) status.dataset.releaseState = state
+      if (statusText) statusText.textContent = text
+    }
+
+    const detectedPlatform = (): Platform | undefined => {
+      const value = `${navigator.platform ?? ''} ${navigator.userAgent ?? ''}`.toLowerCase()
+      if (/iphone|ipad|ipod|android/.test(value)) return undefined
+      // iPadOS desktop mode reports as Macintosh
+      if (value.includes('mac') && navigator.maxTouchPoints > 1) return undefined
+      if (value.includes('mac')) return 'darwin'
+      if (value.includes('win')) return 'windows'
+      if (value.includes('linux')) return 'linux'
+      return undefined
+    }
+
+    const recommended = detectedPlatform()
+    if (recommended) {
+      const card = root.querySelector<HTMLElement>(`[data-platform="${recommended}"]`)
+      card?.classList.add('is-recommended')
+      const badge = card?.querySelector<HTMLElement>('[data-recommended]')
+      if (badge) badge.hidden = false
+      if (grid && card && grid.firstElementChild !== card) {
+        grid.prepend(card)
+      }
+      ;[...grid?.querySelectorAll<HTMLElement>('.download-card') ?? []].forEach((item, index) => {
+        item.style.setProperty('--reveal-delay', `${index * 0.08}s`)
+      })
+    }
+
+    const assetPlatform = (name: string): Platform | undefined => {
+      const normalized = name.toLowerCase()
+      if (normalized.endsWith('.dmg')) return 'darwin'
+      if (normalized.endsWith('.msi') || normalized.endsWith('.exe')) return 'windows'
+      if (
+        normalized.endsWith('.appimage') ||
+        normalized.endsWith('.deb') ||
+        normalized.endsWith('.rpm')
+      ) {
+        return 'linux'
+      }
+      return undefined
+    }
+
+    const assetKind = (name: string) => {
+      const normalized = name.toLowerCase()
+      if (normalized.endsWith('.appimage')) return 'AppImage'
+      if (normalized.endsWith('.dmg')) return 'DMG'
+      if (normalized.endsWith('.msi')) return 'MSI'
+      if (normalized.endsWith('.exe')) return 'EXE'
+      if (normalized.endsWith('.deb')) return 'DEB'
+      if (normalized.endsWith('.rpm')) return 'RPM'
+      return ''
+    }
+
+    const assetArchitecture = (name: string, platform: Platform) => {
+      const normalized = name.toLowerCase()
+      if (/(aarch64|arm64)/.test(normalized)) {
+        return platform === 'darwin'
+          ? (root.dataset.archAppleSilicon ?? 'Apple Silicon')
+          : (root.dataset.archArm64 ?? 'ARM64')
+      }
+      if (/(x86_64|x64|amd64)/.test(normalized)) {
+        return platform === 'darwin'
+          ? (root.dataset.archIntel ?? 'Intel')
+          : (root.dataset.archX64 ?? 'x64')
+      }
+      return ''
+    }
+
+    const assetRank = (name: string, platform: Platform) => {
+      const normalized = name.toLowerCase()
+      const isArm = /(aarch64|arm64)/.test(normalized)
+      const isX64 = /(x86_64|x64|amd64)/.test(normalized)
+      if (platform === 'darwin') return isArm ? 0 : isX64 ? 1 : 2
+      if (platform === 'windows') {
+        const architecture = isX64 ? 0 : isArm ? 10 : 20
+        const format = normalized.endsWith('.exe') ? 0 : 1
+        return architecture + format
+      }
+      if (normalized.endsWith('.appimage')) return 0
+      if (normalized.endsWith('.deb')) return 1
+      if (normalized.endsWith('.rpm')) return 2
+      return 3
+    }
+
+    const assetSize = (size: unknown) => {
+      if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) return ''
+      const megabytes = size / 1024 / 1024
+      return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(megabytes)} MB`
+    }
+
+    const safeAssetUrl = (value: unknown) => {
+      if (typeof value !== 'string') return undefined
+      try {
+        const url = new URL(value)
+        if (
+          url.protocol === 'https:' &&
+          url.hostname === 'github.com' &&
+          url.pathname.startsWith('/ysmjjsy/CodeY/releases/download/')
+        ) {
+          return url.href
+        }
+      } catch {
+        return undefined
+      }
+      return undefined
+    }
+
+    const renderAssets = (assets: ReleaseAsset[]) => {
+      const platforms: Platform[] = ['darwin', 'windows', 'linux']
+      for (const platform of platforms) {
+        const card = root.querySelector<HTMLElement>(`[data-platform="${platform}"]`)
+        const actions = card?.querySelector<HTMLElement>('[data-assets]')
+        const unavailable = card?.querySelector<HTMLElement>('[data-unavailable]')
+        if (!actions || !unavailable) continue
+
+        const matches = assets
+          .filter((asset) => typeof asset.name === 'string' && assetPlatform(asset.name) === platform)
+          .map((asset) => ({
+            name: asset.name as string,
+            size: asset.size,
+            url: safeAssetUrl(asset.browser_download_url),
+          }))
+          .filter((asset): asset is { name: string; size: unknown; url: string } => Boolean(asset.url))
+          .sort((left, right) => assetRank(left.name, platform) - assetRank(right.name, platform))
+
+        actions.replaceChildren()
+
+        if (matches.length === 0) {
+          unavailable.textContent = root.dataset.platformUnavailable ?? ''
+          unavailable.hidden = false
+          continue
+        }
+
+        unavailable.hidden = true
+        for (const [index, asset] of matches.entries()) {
+          const link = document.createElement('a')
+          link.className = `btn ${card?.classList.contains('is-recommended') && index === 0 ? 'btn-primary' : 'btn-ghost'} download-asset`
+          link.href = asset.url
+          link.target = '_blank'
+          link.rel = 'noopener'
+          link.dataset.assetName = asset.name
+
+          const icon = document.createElement('i')
+          icon.className = 'ph ph-download-simple'
+          icon.setAttribute('aria-hidden', 'true')
+
+          const kind = document.createElement('span')
+          kind.className = 'asset-kind'
+          kind.textContent = assetKind(asset.name)
+
+          const metaParts = [assetArchitecture(asset.name, platform), assetSize(asset.size)].filter(Boolean)
+          const meta = document.createElement('span')
+          meta.className = 'asset-meta'
+          meta.textContent = metaParts.length > 0 ? `· ${metaParts.join(' · ')}` : ''
+
+          link.append(icon, kind)
+          if (meta.textContent) link.append(meta)
+          actions.append(link)
+        }
+      }
+    }
+
+    const loadLatestRelease = async () => {
+      try {
+        const response = await fetch(root.dataset.releaseApi ?? '', {
+          headers: { Accept: 'application/vnd.github+json' },
+        })
+        if (response.status === 404) {
+          setStatus('empty', root.dataset.statusEmpty ?? '')
+          renderAssets([])
+          return
+        }
+        if (!response.ok) throw new Error(`Release source returned ${response.status}`)
+
+        const release = (await response.json()) as ReleasePayload
+        const tag = typeof release.tag_name === 'string' ? release.tag_name : ''
+        const publishedAt =
+          typeof release.published_at === 'string' ? new Date(release.published_at) : undefined
+        const date =
+          publishedAt && !Number.isNaN(publishedAt.getTime())
+            ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(publishedAt)
+            : ''
+        const ready = (root.dataset.statusReady ?? '{version}')
+          .replace('{version}', tag)
+          .replace('{date}', date)
+        setStatus('ready', ready)
+        renderAssets(Array.isArray(release.assets) ? (release.assets as ReleaseAsset[]) : [])
+      } catch {
+        setStatus('error', root.dataset.statusError ?? '')
+        for (const actions of root.querySelectorAll('[data-assets]')) {
+          actions.replaceChildren()
+        }
+      }
+    }
+
+    void loadLatestRelease()
+  }
+</script>

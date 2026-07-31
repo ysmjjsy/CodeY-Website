@@ -2,7 +2,7 @@
 import { Image } from 'astro:assets'
 import logo from '../assets/logo.png'
 import type { Locale } from '../i18n/ui'
-import { docsPath, homePath, marketPath, modelsPath, pricingPath, t } from '../i18n/utils'
+import { docsPath, downloadPath, homePath, marketPath, modelsPath, pricingPath, t } from '../i18n/utils'
 import Container from './ui/Container.astro'
 
 interface Props {
@@ -41,6 +41,7 @@ const { locale } = Astro.props
     </nav>
     <nav class="footer-col" aria-label={t(locale, 'footer.product')}>
       <h4>{t(locale, 'footer.product')}</h4>
+      <a href={downloadPath(locale)}>{t(locale, 'footer.product.download')}</a>
       <a href={modelsPath(locale)}>{t(locale, 'footer.product.models')}</a>
       <a href={pricingPath(locale)}>{t(locale, 'footer.product.pricing')}</a>
       <a href={marketPath(locale)}>{t(locale, 'footer.product.market')}</a>

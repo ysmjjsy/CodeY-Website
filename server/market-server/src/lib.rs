@@ -5,6 +5,7 @@ mod auth;
 pub mod cloud;
 mod contracts;
 mod db;
+mod package_format;
 mod store;
 #[cfg(test)]
 mod tests;
@@ -2140,7 +2141,7 @@ async fn download_release(
     let mut response = Response::new(Body::from(bytes));
     response.headers_mut().insert(
         CONTENT_TYPE,
-        HeaderValue::from_static(codey_package_format::PACKAGE_ARCHIVE_MEDIA_TYPE),
+        HeaderValue::from_static(package_format::PACKAGE_ARCHIVE_MEDIA_TYPE),
     );
     response.headers_mut().insert(
         CONTENT_DISPOSITION,

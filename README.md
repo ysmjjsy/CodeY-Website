@@ -28,9 +28,9 @@ pnpm start     # 同源提供官网、Market API 和 discovery
 `pnpm start` 会启动 Market Server 和统一的生产 HTTP 入口。前端不需要配置
 `PUBLIC_MARKET_API_URL`。
 
-模板市场后端位于本仓库的 `server/market-server`，不依赖 CodeY 桌面端仓库。
-`.codeypkg` 格式依赖固定版本的公开 `CodeY-Package-Format` 仓库。运行数据默认保存在官网仓库的
-`.codey-market/`，账号、会话、市场和 Cloud 业务数据存放在 PostgreSQL。
+模板市场后端位于本仓库的 `server/market-server`，包含独立的 `.codeypkg` v1 读取与校验实现，
+不依赖 CodeY 桌面端仓库或外部格式仓库。运行数据默认保存在官网仓库的 `.codey-market/`，
+账号、会话、市场和 Cloud 业务数据存放在 PostgreSQL。
 
 账号支持用户名或邮箱加密码，以及 GitHub OAuth。GitHub 登录需要在服务端配置：
 

@@ -5,7 +5,7 @@ use crate::contracts::{
     MarketplaceListingDetail, MarketplacePrimaryResource, MarketplaceUploadPreview,
     PackageMarketplaceMetadataDocument, PACKAGE_MARKETPLACE_METADATA_SCHEMA_VERSION,
 };
-use codey_package_format::{
+use crate::package_format::{
     build_file_table, canonical_json_bytes, package_dependency_lock_hash, package_resource_digest,
     parse_archive, CodeyPackage, CodeyPackageArchive, PackageCompatibility, PackageDependencyLock,
     PackageId, PackageManifest, PackagePublisher, PackageResourceEntry, PackageResourceKind,

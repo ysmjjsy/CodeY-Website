@@ -1,5 +1,5 @@
+use crate::package_format::MAX_PACKAGE_ARCHIVE_BYTES;
 use chrono::{DateTime, Utc};
-use codey_package_format::MAX_PACKAGE_ARCHIVE_BYTES;
 use serde::{Deserialize, Serialize};
 
 pub const MARKETPLACE_SCHEMA_VERSION: u16 = 1;

@@ -19,7 +19,7 @@ export default defineConfig({
     starlight({
       title: 'CodeY',
       description:
-        'A local AI agent desktop workbench with durable execution, explicit permissions, and reusable runtimes.',
+        'An AI work partner that helps you complete tasks and deliver results with local-first execution, recoverable tasks, and explicit permissions.',
       defaultLocale: 'root',
       locales: {
         root: { label: '简体中文', lang: 'zh-CN' },

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use codey_package_format::{
+use crate::package_format::{
     parse_archive, CodeyPackageArchive, PackageFormatError, PackageResourceEntry,
     PackageResourceKind,
 };

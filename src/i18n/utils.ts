@@ -38,6 +38,10 @@ export function pricingPath(locale: Locale): string {
   return locale === 'en' ? '/en/pricing/' : '/pricing/'
 }
 
+export function downloadPath(locale: Locale): string {
+  return locale === 'en' ? '/en/download/' : '/download/'
+}
+
 export function consolePath(locale: Locale, section: 'profile' | 'templates' | 'users' | 'reviews' | 'models' | 'plans' | 'topups' = 'profile'): string {
   const base = locale === 'en' ? '/en/console' : '/console'
   return section === 'profile' ? `${base}/` : `${base}/${section}/`

@@ -329,7 +329,6 @@ dependencies = [
  "bytes",
  "chrono",
  "chrono-tz",
- "codey-package-format",
  "futures-util",
  "postgres",
  "qrcode",
@@ -337,6 +336,7 @@ dependencies = [
  "ring",
  "rsa",
  "rusqlite",
+ "schemars",
  "semver",
  "serde",
  "serde_json",
@@ -348,19 +348,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
- "url",
-]
-
-[[package]]
-name = "codey-package-format"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "schemars",
- "semver",
- "serde",
- "serde_json",
- "thiserror",
  "url",
  "yaml-rust2",
  "zip",

@@ -56,8 +56,8 @@ cargo --version
 caddy version
 ```
 
-官网不依赖 CodeY 桌面端仓库。构建时 Cargo 会按固定 Git 提交获取
-`CodeY-Package-Format`，服务器需要能够访问 GitHub。
+官网不依赖 CodeY 桌面端仓库或外部格式仓库。Market Server 在本仓库内独立实现
+`.codeypkg` v1 读取与校验，Cargo 构建不需要获取其他 CodeY 仓库。
 
 ## 3. 配置公开 Origin
 
