@@ -1,5 +1,6 @@
 ---
 import type { Locale } from '../i18n/ui'
+import { pricingPath } from '../i18n/utils'
 import { profileCopy } from '../i18n/profile'
 import Button from './ui/Button.astro'
 import Field from './ui/Field.astro'
@@ -11,6 +12,7 @@ interface Props { locale: Locale }
 
 const { locale } = Astro.props
 const copy = profileCopy(locale)
+const managePlanHref = pricingPath(locale)
 ---
 
 <section class="profile-overview" data-profile-overview data-locale={locale} data-copy={JSON.stringify(copy)}>
@@ -26,6 +28,43 @@ const copy = profileCopy(locale)
         <span data-heading-identity>—</span>
       </div>
       <span class="profile-role" data-heading-role>—</span>
+    </Panel>
+
+    <Panel as="section" class="profile-benefits">
+      <header class="profile-benefits-head">
+        <div>
+          <h2>{copy.planSection}</h2>
+          <p>{copy.planSectionDescription}</p>
+        </div>
+        <Button href={managePlanHref} size="sm">
+          {copy.managePlan}
+          <i class="ph ph-arrow-right" aria-hidden="true"></i>
+        </Button>
+      </header>
+
+      <StateMessage class="profile-benefits-state" data-benefits-state>{copy.planLoading}</StateMessage>
+
+      <div class="profile-benefits-content" data-benefits-content hidden>
+        <div class="profile-plan-summary">
+          <span class="profile-plan-icon" aria-hidden="true"><i class="ph ph-crown-simple"></i></span>
+          <div class="profile-plan-copy">
+            <span>{copy.currentPlan}</span>
+            <strong data-current-plan>—</strong>
+            <small><span data-plan-period-label>{copy.activeUntil}</span> <time data-plan-period>—</time></small>
+          </div>
+          <div class="profile-scheduled-plan" data-scheduled-plan-wrap hidden>
+            <span>{copy.scheduledPlan}</span>
+            <strong data-scheduled-plan>—</strong>
+          </div>
+        </div>
+
+        <dl class="profile-credit-summary" aria-label={copy.availableCredits}>
+          <div class="is-primary"><dt>{copy.availableCredits}</dt><dd><strong data-available-credit>0</strong><span>{copy.creditsUnit}</span></dd></div>
+          <div><dt>{copy.planCredits}</dt><dd><strong data-plan-credit>0</strong><span>{copy.creditsUnit}</span></dd></div>
+          <div><dt>{copy.permanentCredits}</dt><dd><strong data-permanent-credit>0</strong><span>{copy.creditsUnit}</span></dd></div>
+          <div><dt>{copy.reservedCredits}</dt><dd><strong data-reserved-credit>0</strong><span>{copy.creditsUnit}</span></dd></div>
+        </dl>
+      </div>
     </Panel>
 
     <div class="profile-grid">
@@ -99,6 +138,22 @@ const copy = profileCopy(locale)
     createdAt: string
   }
   type AuthResponse = { user?: User | null }
+  type Plan = { planId: string; displayName: string }
+  type PlanCatalog = { plans: Plan[] }
+  type CloudAccount = {
+    subscription: {
+      planId: string
+      status: 'active' | 'expired'
+      currentPeriodEnd: string
+      scheduledPlanId?: string | null
+    }
+    wallet: {
+      availableCreditMicros: number
+      reservedCreditMicros: number
+      expiringCreditMicros: number
+      permanentCreditMicros: number
+    }
+  }
 
   const root = document.querySelector<HTMLElement>('[data-profile-overview]')
   if (root) {
@@ -108,10 +163,15 @@ const copy = profileCopy(locale)
     const content = root.querySelector<HTMLElement>('[data-content]')!
     const form = root.querySelector<HTMLFormElement>('[data-profile-form]')!
     const save = root.querySelector<HTMLButtonElement>('[data-save]')!
+    const benefitsState = root.querySelector<HTMLElement>('[data-benefits-state]')!
+    const benefitsContent = root.querySelector<HTMLElement>('[data-benefits-content]')!
     let currentUser: User | null = null
+    let benefitsLoading = false
 
     const field = (name: string): HTMLInputElement => form.elements.namedItem(name) as HTMLInputElement
     const date = (value: string): string => new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(value))
+    const dateTime = (value: string): string => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+    const points = (value: number): string => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / 1_000_000)
 
     function render(user: User): void {
       currentUser = user
@@ -166,6 +226,56 @@ const copy = profileCopy(locale)
       }
     }
 
+    function renderBenefits(account: CloudAccount, catalog: PlanCatalog): void {
+      const planById = new Map(catalog.plans.map((plan) => [plan.planId, plan.displayName]))
+      root.querySelector<HTMLElement>('[data-current-plan]')!.textContent = planById.get(account.subscription.planId) || account.subscription.planId
+      root.querySelector<HTMLElement>('[data-plan-period-label]')!.textContent = account.subscription.status === 'expired' ? copy.expiredAt : copy.activeUntil
+      const period = root.querySelector<HTMLTimeElement>('[data-plan-period]')!
+      period.dateTime = account.subscription.currentPeriodEnd
+      period.textContent = dateTime(account.subscription.currentPeriodEnd)
+      root.querySelector<HTMLElement>('[data-available-credit]')!.textContent = points(account.wallet.availableCreditMicros)
+      root.querySelector<HTMLElement>('[data-plan-credit]')!.textContent = points(account.wallet.expiringCreditMicros)
+      root.querySelector<HTMLElement>('[data-permanent-credit]')!.textContent = points(account.wallet.permanentCreditMicros)
+      root.querySelector<HTMLElement>('[data-reserved-credit]')!.textContent = points(account.wallet.reservedCreditMicros)
+      const scheduledWrap = root.querySelector<HTMLElement>('[data-scheduled-plan-wrap]')!
+      scheduledWrap.hidden = !account.subscription.scheduledPlanId
+      root.querySelector<HTMLElement>('[data-scheduled-plan]')!.textContent = planById.get(account.subscription.scheduledPlanId || '') || account.subscription.scheduledPlanId || '—'
+    }
+
+    async function loadBenefits(): Promise<void> {
+      if (benefitsLoading) return
+      benefitsLoading = true
+      benefitsState.hidden = false
+      benefitsState.textContent = copy.planLoading
+      benefitsContent.hidden = true
+      try {
+        const [accountResponse, plansResponse] = await Promise.all([
+          fetch('/api/cloud/v1/me', { headers: { Accept: 'application/json' } }),
+          fetch('/api/cloud/v1/plans', { headers: { Accept: 'application/json' } }),
+        ])
+        if (accountResponse.status === 401) {
+          window.dispatchEvent(new CustomEvent('market-auth-required'))
+          throw new Error(copy.signIn)
+        }
+        if (!accountResponse.ok) throw new Error(copy.planUnavailable)
+        const account = await accountResponse.json() as CloudAccount
+        const catalog = plansResponse.ok ? await plansResponse.json() as PlanCatalog : { plans: [] }
+        renderBenefits(account, catalog)
+        benefitsState.hidden = true
+        benefitsContent.hidden = false
+      } catch (reason) {
+        const retry = document.createElement('button')
+        retry.type = 'button'
+        retry.className = 'btn btn-ghost'
+        retry.textContent = copy.retry
+        retry.onclick = () => void loadBenefits()
+        benefitsState.replaceChildren(retry)
+        toast.error(reason instanceof Error ? reason.message : copy.planUnavailable)
+      } finally {
+        benefitsLoading = false
+      }
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault()
       if (!currentUser) return
@@ -196,6 +306,7 @@ const copy = profileCopy(locale)
         render(event.detail.user)
         state.hidden = true
         content.hidden = false
+        void loadBenefits()
       } else {
         content.hidden = true
         state.hidden = false
@@ -203,6 +314,7 @@ const copy = profileCopy(locale)
       }
     }) as EventListener)
     void load()
+    void loadBenefits()
   }
 </script>
 
@@ -215,6 +327,28 @@ const copy = profileCopy(locale)
   .profile-heading strong { overflow: hidden; color: var(--fg); font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
   .profile-heading span { overflow: hidden; color: var(--fg-muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
   .profile-role { padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-muted); background: var(--bg); font-size: .7rem; font-weight: 600; white-space: nowrap; }
+  .profile-benefits { margin-top: 14px; padding: 22px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
+  .profile-benefits-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .profile-benefits-head h2 { margin: 0; color: var(--fg); font-size: .92rem; }
+  .profile-benefits-head p { max-width: 620px; margin: 6px 0 0; color: var(--fg-muted); font-size: .75rem; line-height: 1.55; }
+  .profile-benefits-head .btn { flex: none; gap: 7px; white-space: nowrap; }
+  .profile-benefits-state { display: grid; min-height: 104px; place-items: center; margin: 18px 0 0; border: 1px dashed var(--border); border-radius: 12px; color: var(--fg-muted); font-size: .75rem; }
+  .profile-benefits-content { display: grid; grid-template-columns: minmax(240px, .72fr) minmax(0, 1.28fr); gap: 14px; margin-top: 18px; }
+  .profile-plan-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--accent) 5%, var(--bg)); }
+  .profile-plan-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; color: var(--accent-bright); background: var(--accent-soft); font-size: 1rem; }
+  .profile-plan-copy { display: grid; min-width: 0; gap: 3px; }
+  .profile-plan-copy > span, .profile-scheduled-plan span { color: var(--fg-muted); font-size: .68rem; }
+  .profile-plan-copy strong { overflow: hidden; color: var(--fg); font-size: .94rem; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-plan-copy small { color: var(--fg-faint); font-size: .67rem; }
+  .profile-scheduled-plan { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .profile-scheduled-plan strong { color: var(--fg); font-size: .72rem; }
+  .profile-credit-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+  .profile-credit-summary > div { min-width: 0; padding: 14px 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+  .profile-credit-summary > div.is-primary { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--bg)); }
+  .profile-credit-summary dt { color: var(--fg-muted); font-size: .68rem; }
+  .profile-credit-summary dd { display: flex; align-items: baseline; gap: 5px; min-width: 0; margin: 7px 0 0; }
+  .profile-credit-summary strong { overflow: hidden; color: var(--fg); font: 600 1.05rem var(--font-mono); text-overflow: ellipsis; }
+  .profile-credit-summary dd span { color: var(--fg-faint); font-size: .64rem; }
   .profile-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 14px; margin-top: 14px; }
   .profile-editor, .profile-details, .profile-connections { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
   .profile-side { display: grid; gap: 14px; }
@@ -236,6 +370,7 @@ const copy = profileCopy(locale)
   .connection-row div span { color: var(--fg-muted); font-size: .7rem; }
   .connection-status { padding: 5px 8px; border-radius: 999px; color: var(--fg-faint); background: var(--chip-bg); font-size: .66rem; white-space: nowrap; }
   .connection-status.is-connected { color: var(--success); background: color-mix(in srgb, var(--success) 10%, transparent); }
-  @media (max-width: 980px) { .profile-grid { grid-template-columns: 1fr; } }
-  @media (max-width: 620px) { .profile-hero { grid-template-columns: auto minmax(0, 1fr); } .profile-role { grid-column: 2; justify-self: start; } .profile-editor, .profile-details, .profile-connections { padding: 18px; } .profile-details dl > div { grid-template-columns: 1fr; gap: 5px; } .profile-details dd { text-align: left; } .profile-form-actions .btn { width: 100%; justify-content: center; } }
+  @media (max-width: 980px) { .profile-benefits-content, .profile-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) { .profile-hero { grid-template-columns: auto minmax(0, 1fr); } .profile-role { grid-column: 2; justify-self: start; } .profile-benefits, .profile-editor, .profile-details, .profile-connections { padding: 18px; } .profile-benefits-head { display: grid; } .profile-benefits-head .btn { width: 100%; justify-content: center; } .profile-credit-summary { grid-template-columns: 1fr 1fr; } .profile-details dl > div { grid-template-columns: 1fr; gap: 5px; } .profile-details dd { text-align: left; } .profile-form-actions .btn { width: 100%; justify-content: center; } }
+  @media (max-width: 420px) { .profile-credit-summary { grid-template-columns: 1fr; } }
 </style>
