@@ -26,7 +26,9 @@ Definitions that require attached callbacks are rejected because the host proces
 
 ## Crash recovery
 
-TaskStore is the source of truth for accepted commands, sessions, snapshots, events, and recovery state. A daemon crash can replay deterministic operations. External side effects are not exactly-once: tool invocations carry idempotency identities; an unknown external outcome becomes `recovery_required` and must be resolved explicitly.
+TaskStore is the source of truth for accepted commands, sessions, snapshots, events, and recovery state. A daemon crash can replay deterministic operations. External side effects are not exactly-once: tool invocations carry idempotency identities; an unknown external outcome becomes `recovery_required` and must be resolved explicitly. A pre-commit workspace conflict is a retriable rejection with a known no-effect outcome.
+
+Agent Teams use durable attempts as their recovery boundary. Fail-fast must stop unfinished child execution; retry must confirm old cancelled children are terminal before a new attempt starts, preventing two rounds from sharing workspace and concurrency quota. Temporary parent capacity enters retry waiting. `max_iterations` and `max_budget` are recorded as `Budget` failures. Team `wait` returns only for material task progress, input requests, blockers, or terminal state, not resource counters or heartbeats.
 
 ## Side-by-side upgrades
 

@@ -53,6 +53,16 @@ After a daemon restart:
 
 External side effects are not exactly-once. Idempotency prevents duplicate command acceptance and gives tool calls stable identities, but it cannot prove the outcome of an external system after a crash.
 
+A workspace file or command-version conflict detected before commit is a retriable rejection with a known no-effect outcome. It does not enter `recovery_required`.
+
+## Agent Team execution semantics
+
+Agent Team members share the current live workspace. A task that reads, tests, or reviews another member's files, or may write the same path, must declare an explicit dependency. Only independent tasks may run in parallel.
+
+Teams use durable attempts as their scheduling and recovery boundary. `wait` reacts only to task, attempt, member, blocker, input-request, artifact, or terminal-state changes; token, cost, and heartbeat updates do not consume the parent agent's iteration window. Fail-fast stops unfinished child execution, and retry confirms old execution has ended before it creates a new attempt. Iteration or budget exhaustion is recorded as a `Budget` failure, not task completion.
+
+The desktop workbench shows the status, failure class, and original error for every attempt so failures and retries can be inspected.
+
 See [Runtime and recovery](/en/docs/sdk/runtime-and-recovery/) for SDK lifecycle and upgrade semantics.
 
 ## Rust crate layers

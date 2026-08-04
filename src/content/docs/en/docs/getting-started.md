@@ -7,6 +7,8 @@ description: Download a CodeY installer, or build and run the desktop app from s
 
 The latest macOS, Windows, and Linux installers are published through [GitHub Releases](https://github.com/ysmjjsy/CodeY-Releases/releases). The [download page](/en/download/) checks the latest public release and lists the available packages by platform.
 
+The public distribution repository starts at `v0.3.2` and does not include earlier releases. Clients that still use the former updater endpoint must install `v0.3.2` manually before they can receive later updates.
+
 If no installer has been published yet, or the current release does not include your platform and architecture, use the source build below.
 
 The following steps cover prerequisites, development run, production build, and common verification commands.

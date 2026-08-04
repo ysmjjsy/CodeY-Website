@@ -29,7 +29,7 @@ export const ui = {
     'nav.lang.zh': '简体中文',
     'nav.lang.en': 'English',
 
-    'hero.badge': 'v0.2.x Alpha · 活跃开发中',
+    'hero.badge': 'v0.3.2 Alpha · 活跃开发中',
     'hero.title.line1': '你的 AI 工作伙伴',
     'hero.title.line2': '从目标到结果',
     'hero.sub':
@@ -80,7 +80,8 @@ export const ui = {
     'download.releases': '版本记录',
     'download.history.kicker': 'Release history',
     'download.history.title': '版本记录',
-    'download.history.desc': '在当前页面查看每个版本的更新内容，并下载对应平台的历史安装包。',
+    'download.history.desc':
+      '公开版本记录从 v0.3.2 开始。可在当前页面查看更新内容并下载对应平台安装包；更早版本未迁移。',
     'download.history.loading': '正在载入版本…',
     'download.history.count': '共 {count} 个版本',
     'download.history.latest': '最新',
@@ -110,13 +111,13 @@ export const ui = {
     'features.mode.custom': '自定义',
     'features.inspectable.title': '过程和结果随时可查',
     'features.inspectable.desc':
-      '在一条任务时间线中查看计划、进度、操作、文件变更、产物和权限决定。',
+      '在一条任务时间线中查看计划、进度、操作、文件变更、产物、权限决定，以及 Agent Team 每次尝试的状态和失败原因。',
     'features.extensible.title': '连接完成任务所需的能力',
     'features.extensible.desc':
       '按任务需要使用内置工具、MCP Server、Skill、Plugin、浏览器自动化和经过授权的电脑操作。',
     'features.orchestration.title': '复杂任务可以拆分协作',
     'features.orchestration.desc':
-      'CodeY 可以按需调度子 Agent、Agent 团队、后台 Agent 和持久化定时任务。',
+      'CodeY 可以调度子 Agent、Agent 团队、后台 Agent 和持久化定时任务；Team 按依赖并行，并在失败或重试前收敛旧执行。',
     'features.sdk.title': '同一能力也能接入应用',
     'features.sdk.desc':
       'TypeScript、Python、Rust 共用同一份 Schema 与同一条守护进程执行路径，不依赖 Tauri。',
@@ -222,7 +223,7 @@ export const ui = {
     'nav.lang.zh': '简体中文',
     'nav.lang.en': 'English',
 
-    'hero.badge': 'v0.2.x Alpha · Active development',
+    'hero.badge': 'v0.3.2 Alpha · Active development',
     'hero.title.line1': 'Your AI work partner',
     'hero.title.line2': 'From goal to result',
     'hero.sub':
@@ -273,7 +274,8 @@ export const ui = {
     'download.releases': 'Release history',
     'download.history.kicker': 'Release history',
     'download.history.title': 'Release history',
-    'download.history.desc': 'Read the notes for every release and download earlier installers without leaving this page.',
+    'download.history.desc':
+      'Public release history starts at v0.3.2. Read the notes and download installers here; earlier releases were not migrated.',
     'download.history.loading': 'Loading releases…',
     'download.history.count': '{count} releases',
     'download.history.latest': 'Latest',
@@ -303,13 +305,13 @@ export const ui = {
     'features.mode.custom': 'Custom',
     'features.inspectable.title': 'Review the process and result',
     'features.inspectable.desc':
-      'See plans, progress, actions, file changes, artifacts, and permission decisions in one task timeline.',
+      'See plans, progress, actions, file changes, artifacts, permission decisions, and the status and failure reason of every Agent Team attempt in one task timeline.',
     'features.extensible.title': 'Connect the capabilities a task needs',
     'features.extensible.desc':
       'Use built-in tools, MCP servers, skills, plugins, browser automation, and authorized computer control as the task requires.',
     'features.orchestration.title': 'Split complex work across agents',
     'features.orchestration.desc':
-      'CodeY can coordinate subagents, agent teams, background agents, and durable scheduled tasks when needed.',
+      'CodeY coordinates subagents, agent teams, background agents, and durable scheduled tasks. Teams run by dependency and converge old execution before failure or retry.',
     'features.sdk.title': 'Bring the same capabilities into your app',
     'features.sdk.desc':
       'TypeScript, Python, and Rust share one schema and one daemon execution path, without depending on Tauri.',

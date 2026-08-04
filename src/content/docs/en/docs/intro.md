@@ -23,10 +23,10 @@ The React UI never executes agent work. It sends commands through Tauri to a loc
 | Capability | Description |
 | --- | --- |
 | Durable tasks | Task state and events are journaled so the UI can reconnect and the daemon can recover work after a restart |
-| Inspectable workbench | Review plans, progress, commands, file changes, artifacts, and permission decisions in one task timeline |
+| Inspectable workbench | Review plans, progress, commands, file changes, artifacts, permission decisions, and Agent Team attempt history in one task timeline |
 | Controlled execution | Safe, standard, full-access, or custom run settings backed by permission, sandbox, workspace, and network policies |
 | Extensible capabilities | Built-in tools, MCP servers, skills, plugins, browser automation, and authorized computer control |
-| Agent orchestration | Subagents, agent teams, background agents, and persistent scheduled tasks |
+| Agent orchestration | Subagents, agent teams, background agents, and persistent scheduled tasks; teams run by explicit dependency and clean up old execution before retry |
 | Local runtime SDK | TypeScript, Python, and Rust applications reuse the same runtime without depending on Tauri |
 | Cross-platform desktop | Release configuration covers macOS, Windows, and Linux; native computer-control support is platform-specific |
 | Bilingual interface | English and Simplified Chinese are included, with light, dark, and system themes |

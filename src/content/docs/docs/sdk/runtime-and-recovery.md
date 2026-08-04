@@ -26,7 +26,9 @@ description: 运行时生命周期、持久化服务、定时自动化、崩溃�
 
 ## 崩溃恢复
 
-TaskStore 是已接收命令、会话、快照、事件和恢复状态的事实来源。守护进程崩溃后可以重放确定性操作。外部副作用不是 exactly-once：工具调用携带幂等身份；结局未知的外部调用进入 `recovery_required`，必须被显式解决。
+TaskStore 是已接收命令、会话、快照、事件和恢复状态的事实来源。守护进程崩溃后可以重放确定性操作。外部副作用不是 exactly-once：工具调用携带幂等身份；结局未知的外部调用进入 `recovery_required`，必须被显式解决。提交前发现的工作区冲突是可重试拒绝，副作用结果固定为未发生。
+
+Agent Team 以持久化 attempt 作为恢复边界。fail-fast 必须停止未结束的子执行；retry 必须先确认旧 cancelled child 已终态，避免两轮执行共享工作区和并发配额。临时父级容量不足进入等待重试。`max_iterations` 与 `max_budget` 记录为 `Budget` 失败。Team `wait` 只因实际任务进展、输入请求、阻塞或终态返回，不响应资源计数和心跳。
 
 ## 并行升级
 

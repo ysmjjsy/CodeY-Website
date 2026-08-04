@@ -32,7 +32,7 @@ The project does not provide a response-time guarantee. General model-provider o
 
 ## Security policy
 
-CodeY is in `0.2.x` pre-release development. Security fixes are applied to the current `main` branch.
+CodeY is in `0.3.x` pre-release development. Security fixes are applied to the current `main` branch.
 
 **Do not disclose exploit details, credentials, private data, or proof-of-concept code in a public issue.**
 
