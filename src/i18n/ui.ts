@@ -80,8 +80,7 @@ export const ui = {
     'download.releases': '版本记录',
     'download.history.kicker': 'Release history',
     'download.history.title': '版本记录',
-    'download.history.desc':
-      '公开版本记录从 v0.3.2 开始。可在当前页面查看更新内容并下载对应平台安装包；更早版本未迁移。',
+    'download.history.desc': '在当前页面查看版本更新内容，并下载对应平台的安装包。',
     'download.history.loading': '正在载入版本…',
     'download.history.count': '共 {count} 个版本',
     'download.history.latest': '最新',
@@ -274,8 +273,7 @@ export const ui = {
     'download.releases': 'Release history',
     'download.history.kicker': 'Release history',
     'download.history.title': 'Release history',
-    'download.history.desc':
-      'Public release history starts at v0.3.2. Read the notes and download installers here; earlier releases were not migrated.',
+    'download.history.desc': 'Read release notes and download installers for each platform here.',
     'download.history.loading': 'Loading releases…',
     'download.history.count': '{count} releases',
     'download.history.latest': 'Latest',
