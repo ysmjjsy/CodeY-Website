@@ -5,7 +5,7 @@ description: 下载 CodeY 安装包，或从源码构建并运行桌面端。
 
 ## 下载安装包
 
-最新的 macOS、Windows 和 Linux 安装包由 [GitHub Releases](https://github.com/ysmjjsy/CodeY/releases) 提供。官网[下载页](/download/)会读取最新公开版本，并按平台显示可用安装包。
+最新的 macOS、Windows 和 Linux 安装包由 [GitHub Releases](https://github.com/ysmjjsy/CodeY-Releases/releases) 提供。官网[下载页](/download/)会读取最新公开版本，并按平台显示可用安装包。
 
 如果发布页尚无安装包，或当前版本没有适合你的平台和架构，请使用下面的源码构建方式。
 

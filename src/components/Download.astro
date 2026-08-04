@@ -10,7 +10,7 @@ interface Props {
 }
 
 const { locale } = Astro.props
-const releasesApi = 'https://api.github.com/repos/ysmjjsy/CodeY/releases?per_page=20'
+const releasesApi = 'https://api.github.com/repos/ysmjjsy/CodeY-Releases/releases?per_page=20'
 const docsHref = docsPath(locale, 'getting-started')
 ---
 
@@ -670,7 +670,7 @@ const docsHref = docsPath(locale, 'getting-started')
         if (
           url.protocol === 'https:' &&
           url.hostname === 'github.com' &&
-          url.pathname.startsWith('/ysmjjsy/CodeY/releases/download/')
+          url.pathname.startsWith('/ysmjjsy/CodeY-Releases/releases/download/')
         ) {
           return url.href
         }

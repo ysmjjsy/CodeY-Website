@@ -8,7 +8,7 @@ CodeY is an AI work partner that helps you complete tasks and deliver results. G
 CodeY uses a local-first execution model. Tasks run durably in a local daemon, permissions are explicit, and the same runtime serves both the desktop app and your applications through the SDK.
 
 :::caution[Development stage]
-CodeY is in active `0.2.x` development. Installers and release notes are published through [GitHub Releases](https://github.com/ysmjjsy/CodeY/releases); [build from source](/en/docs/getting-started/) when no matching installer is available. Expect interfaces and storage formats to change before a stable release.
+CodeY is in active `0.3.x` development. Installers and release notes are published through [GitHub Releases](https://github.com/ysmjjsy/CodeY-Releases/releases). Expect interfaces and storage formats to change before a stable release.
 :::
 
 ## Two entry points

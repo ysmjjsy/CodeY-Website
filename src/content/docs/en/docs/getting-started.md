@@ -5,7 +5,7 @@ description: Download a CodeY installer, or build and run the desktop app from s
 
 ## Download an installer
 
-The latest macOS, Windows, and Linux installers are published through [GitHub Releases](https://github.com/ysmjjsy/CodeY/releases). The [download page](/en/download/) checks the latest public release and lists the available packages by platform.
+The latest macOS, Windows, and Linux installers are published through [GitHub Releases](https://github.com/ysmjjsy/CodeY-Releases/releases). The [download page](/en/download/) checks the latest public release and lists the available packages by platform.
 
 If no installer has been published yet, or the current release does not include your platform and architecture, use the source build below.
 
