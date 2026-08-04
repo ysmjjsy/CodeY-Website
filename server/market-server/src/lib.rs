@@ -51,7 +51,8 @@ use auth::{
     validate_username, verify_password, GitHubIdentity, MarketplaceAuthError,
 };
 use cloud::{
-    discover_upstream_models, AdminModelCatalog, CloudPaymentConfig, CloudSecretCipher, CloudStore,
+    discover_upstream_models, AdminModelCatalog, CloudEntitlementError, CloudEntitlementSigner,
+    CloudEntitlementVerificationKey, CloudPaymentConfig, CloudSecretCipher, CloudStore,
     CloudStoreError, CreatePlanOrderRequest, CreateTopUpOrderRequest,
     DiscoverUpstreamModelsRequest, GatewayError, GatewayManager, OfficialModelCatalog,
     OfficialModelProtocol, OfficialModelTestResult, PaymentAvailability, PaymentCheckout,
@@ -192,6 +193,7 @@ struct AppState {
     http: reqwest::Client,
     payments: PaymentManager,
     gateway: GatewayManager,
+    entitlement_signer: CloudEntitlementSigner,
 }
 
 pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, MarketplaceServerError> {
@@ -214,6 +216,8 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
     let payments = PaymentManager::new(config.payments.clone(), http.clone());
     let gateway = GatewayManager::new(config.cloud_secret_cipher.clone(), http.clone());
+    let entitlement_signer = CloudEntitlementSigner::load_or_create(&config.data_root)
+        .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
     let state = Arc::new(AppState {
         store,
         cloud,
@@ -221,6 +225,7 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         http,
         payments,
         gateway,
+        entitlement_signer,
     });
     let max_body = state.config.max_package_bytes.saturating_add(512 * 1024);
     Ok(Router::new()
@@ -231,6 +236,10 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
         .route("/api/cloud/v1/top-ups", get(cloud_top_ups))
         .route("/api/cloud/v1/public-models", get(cloud_public_models))
         .route("/api/cloud/v1/models", get(cloud_official_models))
+        .route(
+            "/api/cloud/v1/entitlements/models",
+            get(cloud_model_entitlement),
+        )
         .route(
             "/api/cloud/v1/gateway/v1/chat/completions",
             post(official_chat_completions),
@@ -381,16 +390,16 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CloudDiscovery {
-    schema_version: u16,
     api_base_url: String,
     web_base_url: String,
+    entitlement_signing_keys: Vec<CloudEntitlementVerificationKey>,
 }
 
 async fn cloud_discovery(State(state): State<Arc<AppState>>) -> Json<CloudDiscovery> {
     Json(CloudDiscovery {
-        schema_version: 1,
         api_base_url: state.config.cloud_api_base_url.clone(),
         web_base_url: state.config.cors_origin.clone(),
+        entitlement_signing_keys: vec![state.entitlement_signer.verification_key()],
     })
 }
 
@@ -454,6 +463,40 @@ async fn cloud_official_models(
     Ok(Json(state.cloud.official_model_catalog(
         &user.user_id,
         &format!("{}/gateway", state.config.cloud_api_base_url),
+        now,
+    )?))
+}
+
+async fn cloud_model_entitlement(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> ApiResult<Json<cloud::CloudOfficialEntitlementEnvelope>> {
+    let user = require_cloud_user(&state, &headers, "entitlement:read")?;
+    let now = Utc::now();
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        now,
+    )?;
+    let subscription = state
+        .cloud
+        .reconcile_subscription(&user.user_id, now)?
+        .ok_or(CloudStoreError::SubscriptionIntegrity)?;
+    if subscription.status != cloud::SubscriptionStatus::Active {
+        return Err(ApiError::forbidden(
+            "subscription_inactive",
+            "An active subscription is required",
+        ));
+    }
+    let catalog = state.cloud.official_model_catalog(
+        &user.user_id,
+        &format!("{}/gateway", state.config.cloud_api_base_url),
+        now,
+    )?;
+    Ok(Json(state.entitlement_signer.issue(
+        &user.user_id,
+        &subscription,
+        &catalog,
         now,
     )?))
 }
@@ -643,7 +686,7 @@ async fn official_gateway_request(
     state
         .cloud
         .reconcile_subscription(&user.user_id, Utc::now())?;
-    Ok(state
+    state
         .gateway
         .invoke(
             &state.cloud,
@@ -656,7 +699,23 @@ async fn official_gateway_request(
             body,
             Utc::now(),
         )
-        .await?)
+        .await
+        .map_err(public_gateway_error)
+}
+
+fn public_gateway_error(error: GatewayError) -> ApiError {
+    match error {
+        GatewayError::Store(CloudStoreError::OfficialModelNotFound) => {
+            ApiError::not_found("model_not_found", "model_not_found")
+        }
+        GatewayError::Store(CloudStoreError::ModelNotEntitled) => {
+            ApiError::forbidden("model_unauthorized", "model_unauthorized")
+        }
+        GatewayError::Store(CloudStoreError::InsufficientCredits { .. }) => {
+            ApiError::payment_required("insufficient_balance", "insufficient_balance")
+        }
+        other => other.into(),
+    }
 }
 
 async fn cloud_payment_availability(
@@ -2274,6 +2333,10 @@ impl ApiError {
         Self::new(StatusCode::UNAUTHORIZED, code, message)
     }
 
+    fn payment_required(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::new(StatusCode::PAYMENT_REQUIRED, code, message)
+    }
+
     fn forbidden(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self::new(StatusCode::FORBIDDEN, code, message)
     }
@@ -2417,6 +2480,17 @@ impl From<GatewayError> for ApiError {
             }
             GatewayError::Store(error) => error.into(),
             _ => Self::internal("gateway", error.to_string()),
+        }
+    }
+}
+
+impl From<CloudEntitlementError> for ApiError {
+    fn from(error: CloudEntitlementError) -> Self {
+        match error {
+            CloudEntitlementError::SubscriptionExpired => {
+                Self::forbidden("subscription_inactive", error.to_string())
+            }
+            _ => Self::internal("cloud_entitlement", error.to_string()),
         }
     }
 }

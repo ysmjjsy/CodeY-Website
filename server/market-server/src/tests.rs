@@ -12,12 +12,44 @@ use crate::package_format::{
     PACKAGE_ARCHIVE_FORMAT_VERSION, PACKAGE_CANONICALIZATION_VERSION, PACKAGE_LOCK_PATH,
     PACKAGE_LOCK_SCHEMA_VERSION, PACKAGE_MANIFEST_SCHEMA_VERSION,
 };
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine as _;
 use reqwest::{Client, StatusCode};
+use ring::signature;
 
 use super::{
     build_router, inspect_archive, ArchiveInspectionError, MarketplaceAdminUser,
     MarketplaceServerConfig, MarketplaceSubmission, MarketplaceUser, MarketplaceUserRole,
 };
+
+#[test]
+fn desktop_gateway_public_errors_match_the_model_client_contract() {
+    for (error, status, code) in [
+        (
+            crate::cloud::CloudStoreError::OfficialModelNotFound,
+            StatusCode::NOT_FOUND,
+            "model_not_found",
+        ),
+        (
+            crate::cloud::CloudStoreError::ModelNotEntitled,
+            StatusCode::FORBIDDEN,
+            "model_unauthorized",
+        ),
+        (
+            crate::cloud::CloudStoreError::InsufficientCredits {
+                required: 2,
+                available: 1,
+            },
+            StatusCode::PAYMENT_REQUIRED,
+            "insufficient_balance",
+        ),
+    ] {
+        let error = super::public_gateway_error(crate::cloud::GatewayError::Store(error));
+        assert_eq!(error.status, status);
+        assert_eq!(error.code, code);
+        assert_eq!(error.message, code);
+    }
+}
 
 #[test]
 fn archive_inspection_requires_package_marketplace_metadata() {
@@ -168,6 +200,14 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
         .await
         .unwrap();
     assert_eq!(discovery["webBaseUrl"], origin);
+    assert!(discovery.get("schemaVersion").is_none());
+    assert_eq!(
+        discovery["entitlementSigningKeys"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     let register = client
         .post(format!("{market_api}/auth/register"))
         .header(reqwest::header::ORIGIN, &origin)
@@ -187,6 +227,48 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
     let challenge = crate::auth::pkce_challenge(&verifier);
     let redirect_uri = "http://127.0.0.1:45678/oauth/callback";
     let state = "desktop-oauth-state-1234567890";
+    let signed_out_authorize = client
+        .get(format!("{cloud_api}/oauth/authorize"))
+        .query(&[
+            ("response_type", "code"),
+            ("client_id", "codey-desktop"),
+            ("redirect_uri", redirect_uri),
+            ("code_challenge", challenge.as_str()),
+            ("code_challenge_method", "S256"),
+            ("state", state),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        signed_out_authorize.status(),
+        StatusCode::TEMPORARY_REDIRECT
+    );
+    let website_login = url::Url::parse(
+        signed_out_authorize
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .unwrap()
+            .to_str()
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(website_login.path(), "/market");
+    assert_eq!(
+        website_login
+            .query_pairs()
+            .find(|(key, _)| key == "auth")
+            .unwrap()
+            .1,
+        "desktop"
+    );
+    assert!(website_login
+        .query_pairs()
+        .find(|(key, _)| key == "continue")
+        .unwrap()
+        .1
+        .starts_with(&format!("{cloud_api}/oauth/authorize?")));
+
     let authorize = client
         .get(format!("{cloud_api}/oauth/authorize"))
         .header(reqwest::header::COOKIE, &cookie)
@@ -251,6 +333,43 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
     assert_eq!(profile["user"]["username"], "desktop-user");
     assert_eq!(profile["subscription"]["planId"], "plan-free");
     assert_eq!(profile["subscription"]["billingTimezone"], "Asia/Shanghai");
+    assert!(profile["subscription"]["subscriptionId"]
+        .as_str()
+        .is_some_and(|value| !value.is_empty()));
+
+    let entitlement = client
+        .get(format!("{cloud_api}/entitlements/models"))
+        .bearer_auth(&token.access_token)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&entitlement, StatusCode::OK);
+    let entitlement = entitlement.json::<serde_json::Value>().await.unwrap();
+    let payload_bytes = URL_SAFE_NO_PAD
+        .decode(entitlement["payload"].as_str().unwrap())
+        .unwrap();
+    let signature_bytes = URL_SAFE_NO_PAD
+        .decode(entitlement["signature"].as_str().unwrap())
+        .unwrap();
+    let public_key = URL_SAFE_NO_PAD
+        .decode(
+            discovery["entitlementSigningKeys"][0]["publicKey"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+    signature::UnparsedPublicKey::new(&signature::ED25519, public_key)
+        .verify(&payload_bytes, &signature_bytes)
+        .unwrap();
+    let payload = serde_json::from_slice::<serde_json::Value>(&payload_bytes).unwrap();
+    assert_eq!(payload["schemaVersion"], 1);
+    assert_eq!(payload["accountId"], profile["user"]["userId"]);
+    assert_eq!(
+        payload["subscriptionId"],
+        profile["subscription"]["subscriptionId"]
+    );
+    assert_eq!(payload["baseUrl"], format!("{cloud_api}/gateway"));
+    assert_eq!(payload["revision"], 1);
 
     let devices = client
         .get(format!("{cloud_api}/devices"))

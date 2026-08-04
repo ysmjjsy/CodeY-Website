@@ -1614,9 +1614,9 @@ pub(super) fn subscription(
 ) -> Result<Option<SubscriptionSnapshot>, CloudStoreError> {
     connection
         .query_row(
-            "SELECT s.plan_id, s.plan_version_id, s.status, s.current_period_id,
-                    p.starts_at, p.ends_at, s.billing_timezone, s.billing_anchor_day,
-                    s.scheduled_plan_id
+            "SELECT s.subscription_id, s.plan_id, s.plan_version_id, s.status,
+                    s.current_period_id, p.starts_at, p.ends_at, s.billing_timezone,
+                    s.billing_anchor_day, s.scheduled_plan_id
              FROM cloud_subscription s
              JOIN cloud_subscription_period p ON p.period_id=s.current_period_id
              WHERE s.user_id=?1",
@@ -1630,14 +1630,16 @@ pub(super) fn subscription(
                     row.get::<_, String>(4)?,
                     row.get::<_, String>(5)?,
                     row.get::<_, String>(6)?,
-                    row.get::<_, i64>(7)?,
-                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, String>(7)?,
+                    row.get::<_, i64>(8)?,
+                    row.get::<_, Option<String>>(9)?,
                 ))
             },
         )
         .optional()?
         .map(
             |(
+                subscription_id,
                 plan_id,
                 plan_version_id,
                 status,
@@ -1649,6 +1651,7 @@ pub(super) fn subscription(
                 scheduled_plan_id,
             )| {
                 Ok(SubscriptionSnapshot {
+                    subscription_id,
                     user_id: user_id.to_owned(),
                     plan_id,
                     plan_version_id,

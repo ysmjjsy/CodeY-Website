@@ -3,15 +3,15 @@ import type { Locale } from '../i18n/ui'
 import { docsPath, t } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import Container from './ui/Container.astro'
+import ReleaseHistory from './ReleaseHistory.astro'
 
 interface Props {
   locale: Locale
 }
 
 const { locale } = Astro.props
-const latestReleaseApi = 'https://api.github.com/repos/ysmjjsy/CodeY/releases/latest'
+const releasesApi = 'https://api.github.com/repos/ysmjjsy/CodeY/releases?per_page=20'
 const docsHref = docsPath(locale, 'getting-started')
-const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
 ---
 
 <section
@@ -19,7 +19,7 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
   id="download"
   data-download-root
   data-locale={locale}
-  data-release-api={latestReleaseApi}
+  data-release-api={releasesApi}
   data-release-state="loading"
   data-status-ready={t(locale, 'download.status.ready')}
   data-status-empty={t(locale, 'download.status.empty')}
@@ -29,6 +29,16 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
   data-arch-x64={t(locale, 'download.arch.x64')}
   data-arch-apple-silicon={t(locale, 'download.arch.appleSilicon')}
   data-arch-intel={t(locale, 'download.arch.intel')}
+  data-history-count={t(locale, 'download.history.count')}
+  data-history-latest={t(locale, 'download.history.latest')}
+  data-history-prerelease={t(locale, 'download.history.prerelease')}
+  data-history-published={t(locale, 'download.history.published')}
+  data-history-notes={t(locale, 'download.history.notes')}
+  data-history-downloads={t(locale, 'download.history.downloads')}
+  data-history-packages={t(locale, 'download.history.packages')}
+  data-history-empty-notes={t(locale, 'download.history.emptyNotes')}
+  data-history-empty-downloads={t(locale, 'download.history.emptyDownloads')}
+  data-history-error={t(locale, 'download.history.error')}
 >
   <div class="download-bg" aria-hidden="true"></div>
   <div class="download-glow download-glow-cyan" aria-hidden="true"></div>
@@ -112,12 +122,14 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
           <i class="ph ph-book-open-text" aria-hidden="true"></i>
           {t(locale, 'download.docs')}
         </Button>
-        <Button variant="ghost" size="sm" href={releasesHref} target="_blank" rel="noopener">
-          <i class="ph ph-github-logo" aria-hidden="true"></i>
+        <Button variant="ghost" size="sm" href="#release-history">
+          <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
           {t(locale, 'download.releases')}
         </Button>
       </div>
     </div>
+
+    <ReleaseHistory locale={locale} />
   </Container>
 </section>
 
@@ -538,7 +550,10 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
   }
   type ReleasePayload = {
     tag_name?: unknown
+    name?: unknown
     published_at?: unknown
+    body?: unknown
+    prerelease?: unknown
     assets?: unknown
   }
 
@@ -548,6 +563,11 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
     const status = root.querySelector<HTMLElement>('.release-status')
     const statusText = root.querySelector<HTMLElement>('[data-release-status-text]')
     const grid = root.querySelector<HTMLElement>('[data-download-grid]')
+    const history = root.querySelector<HTMLElement>('[data-release-history]')
+    const historyBrowser = history?.querySelector<HTMLElement>('.release-browser')
+    const historyList = history?.querySelector<HTMLElement>('[data-release-list]')
+    const historyDetail = history?.querySelector<HTMLElement>('[data-release-detail]')
+    const historyCount = history?.querySelector<HTMLElement>('[data-release-count]')
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
 
     const setStatus = (state: 'ready' | 'empty' | 'error', text: string) => {
@@ -715,7 +735,310 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
       }
     }
 
-    const loadLatestRelease = async () => {
+    const releaseDate = (value: unknown, dateStyle: 'long' | 'medium' = 'medium') => {
+      if (typeof value !== 'string') return ''
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return ''
+      return new Intl.DateTimeFormat(locale, { dateStyle }).format(date)
+    }
+
+    const plainMarkdown = (value: string) =>
+      value
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+        .replace(/\[([^\]]+)]/g, '$1')
+        .trim()
+
+    const renderReleaseNotes = (container: HTMLElement, body: unknown) => {
+      container.replaceChildren()
+      if (typeof body !== 'string' || !body.trim()) {
+        const empty = document.createElement('p')
+        empty.className = 'release-empty'
+        empty.textContent = root.dataset.historyEmptyNotes ?? ''
+        container.append(empty)
+        return
+      }
+
+      const lines = body.replace(/\r/g, '').split('\n')
+      let list: HTMLUListElement | undefined
+      for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line) {
+          list = undefined
+          continue
+        }
+        if (/^\[[^\]]+]:\s*https?:\/\//.test(line) || /^\*\*Full Changelog\*\*:/i.test(line)) {
+          continue
+        }
+        if (/^##\s+\[[^\]]+]\s+-\s+/.test(line)) continue
+
+        const heading = line.match(/^#{2,4}\s+(.+)$/)
+        if (heading) {
+          const title = document.createElement('h4')
+          title.textContent = plainMarkdown(heading[1] ?? '')
+          container.append(title)
+          list = undefined
+          continue
+        }
+
+        const listItem = line.match(/^[-*]\s+(.+)$/)
+        if (listItem) {
+          if (!list) {
+            list = document.createElement('ul')
+            container.append(list)
+          }
+          const item = document.createElement('li')
+          item.textContent = plainMarkdown(listItem[1] ?? '')
+          list.append(item)
+          continue
+        }
+
+        const paragraph = document.createElement('p')
+        paragraph.textContent = plainMarkdown(line)
+        container.append(paragraph)
+        list = undefined
+      }
+
+      if (!container.hasChildNodes()) {
+        const empty = document.createElement('p')
+        empty.className = 'release-empty'
+        empty.textContent = root.dataset.historyEmptyNotes ?? ''
+        container.append(empty)
+      }
+    }
+
+    const platformMeta = (platform: Platform) => {
+      if (platform === 'darwin') return { name: 'macOS', icon: 'apple-logo' }
+      if (platform === 'windows') return { name: 'Windows', icon: 'windows-logo' }
+      return { name: 'Linux', icon: 'linux-logo' }
+    }
+
+    const installerAssets = (release: ReleasePayload, platform: Platform) =>
+      (Array.isArray(release.assets) ? (release.assets as ReleaseAsset[]) : [])
+        .filter((asset) => typeof asset.name === 'string' && assetPlatform(asset.name) === platform)
+        .map((asset) => ({
+          name: asset.name as string,
+          size: asset.size,
+          url: safeAssetUrl(asset.browser_download_url),
+        }))
+        .filter((asset): asset is { name: string; size: unknown; url: string } => Boolean(asset.url))
+        .sort((left, right) => assetRank(left.name, platform) - assetRank(right.name, platform))
+
+    const renderReleaseDownloads = (container: HTMLElement, release: ReleasePayload) => {
+      container.replaceChildren()
+      const platforms: Platform[] = ['darwin', 'windows', 'linux']
+      let packageCount = 0
+
+      for (const platform of platforms) {
+        const assets = installerAssets(release, platform)
+        if (assets.length === 0) continue
+        packageCount += assets.length
+
+        const group = document.createElement('section')
+        group.className = 'release-platform-group'
+        const platformName = document.createElement('div')
+        platformName.className = 'release-platform-name'
+        const platformIcon = document.createElement('i')
+        platformIcon.className = `ph ph-${platformMeta(platform).icon}`
+        platformIcon.setAttribute('aria-hidden', 'true')
+        const platformLabel = document.createElement('span')
+        platformLabel.textContent = platformMeta(platform).name
+        platformName.append(platformIcon, platformLabel)
+
+        const assetList = document.createElement('div')
+        assetList.className = 'release-asset-list'
+        for (const asset of assets) {
+          const link = document.createElement('a')
+          link.className = 'release-asset'
+          link.href = asset.url
+          link.rel = 'noopener'
+          link.dataset.assetName = asset.name
+
+          const icon = document.createElement('i')
+          icon.className = 'ph ph-download-simple'
+          icon.setAttribute('aria-hidden', 'true')
+          const kind = document.createElement('span')
+          kind.className = 'release-asset-kind'
+          kind.textContent = assetKind(asset.name)
+          const meta = document.createElement('span')
+          meta.className = 'release-asset-meta'
+          const metaParts = [assetArchitecture(asset.name, platform), assetSize(asset.size)].filter(Boolean)
+          meta.textContent = metaParts.join(' · ')
+          link.append(icon, kind, meta)
+          assetList.append(link)
+        }
+
+        group.append(platformName, assetList)
+        container.append(group)
+      }
+
+      if (packageCount === 0) {
+        const empty = document.createElement('p')
+        empty.className = 'release-empty'
+        empty.textContent = root.dataset.historyEmptyDownloads ?? ''
+        container.append(empty)
+      }
+      return packageCount
+    }
+
+    const renderReleaseDetail = (release: ReleasePayload, index: number, latestIndex: number) => {
+      if (!historyDetail || !historyList) return
+      historyDetail.replaceChildren()
+      historyDetail.id = `release-panel-${index}`
+      historyDetail.setAttribute('aria-labelledby', `release-tab-${index}`)
+
+      const head = document.createElement('header')
+      head.className = 'release-detail-head'
+      const versionMeta = document.createElement('div')
+      const versionLine = document.createElement('div')
+      versionLine.className = 'release-version-line'
+      const version = document.createElement('span')
+      version.className = 'release-version'
+      version.textContent = typeof release.tag_name === 'string' ? release.tag_name : ''
+      versionLine.append(version)
+      if (index === latestIndex || release.prerelease === true) {
+        const badge = document.createElement('span')
+        badge.className = 'release-badge'
+        badge.textContent =
+          index === latestIndex
+            ? (root.dataset.historyLatest ?? '')
+            : (root.dataset.historyPrerelease ?? '')
+        versionLine.append(badge)
+      }
+      const date = document.createElement('time')
+      date.className = 'release-date'
+      date.textContent = (root.dataset.historyPublished ?? '{date}').replace(
+        '{date}',
+        releaseDate(release.published_at, 'long'),
+      )
+      if (typeof release.published_at === 'string') date.dateTime = release.published_at
+      versionMeta.append(versionLine, date)
+      const packageCount = document.createElement('span')
+      packageCount.className = 'release-package-count'
+      head.append(versionMeta, packageCount)
+
+      const notesSection = document.createElement('section')
+      notesSection.className = 'release-content-section'
+      const notesTitle = document.createElement('h3')
+      notesTitle.className = 'release-content-title'
+      const notesIcon = document.createElement('i')
+      notesIcon.className = 'ph ph-note-pencil'
+      notesIcon.setAttribute('aria-hidden', 'true')
+      notesTitle.append(notesIcon, document.createTextNode(root.dataset.historyNotes ?? ''))
+      const notes = document.createElement('div')
+      notes.className = 'release-notes'
+      renderReleaseNotes(notes, release.body)
+      notesSection.append(notesTitle, notes)
+
+      const downloadsSection = document.createElement('section')
+      downloadsSection.className = 'release-content-section'
+      const downloadsTitle = document.createElement('h3')
+      downloadsTitle.className = 'release-content-title'
+      const downloadsIcon = document.createElement('i')
+      downloadsIcon.className = 'ph ph-package'
+      downloadsIcon.setAttribute('aria-hidden', 'true')
+      downloadsTitle.append(downloadsIcon, document.createTextNode(root.dataset.historyDownloads ?? ''))
+      const downloads = document.createElement('div')
+      downloads.className = 'release-assets-grid'
+      const count = renderReleaseDownloads(downloads, release)
+      packageCount.textContent = (root.dataset.historyPackages ?? '{count}').replace('{count}', `${count}`)
+      downloadsSection.append(downloadsTitle, downloads)
+
+      historyDetail.append(head, notesSection, downloadsSection)
+      for (const tab of historyList.querySelectorAll<HTMLButtonElement>('[role="tab"]')) {
+        const selected = tab.dataset.releaseIndex === `${index}`
+        tab.setAttribute('aria-selected', `${selected}`)
+        tab.tabIndex = selected ? 0 : -1
+      }
+    }
+
+    const renderReleaseHistory = (releases: ReleasePayload[], latestRelease?: ReleasePayload) => {
+      if (!historyBrowser || !historyList || !historyDetail || !historyCount) return
+      historyBrowser.dataset.historyState = releases.length > 0 ? 'ready' : 'empty'
+      historyCount.textContent = (root.dataset.historyCount ?? '{count}').replace(
+        '{count}',
+        `${releases.length}`,
+      )
+      historyList.replaceChildren()
+
+      if (releases.length === 0) {
+        const empty = document.createElement('p')
+        empty.className = 'release-empty'
+        empty.textContent = root.dataset.statusEmpty ?? ''
+        historyDetail.replaceChildren(empty)
+        return
+      }
+
+      const latestIndex = Math.max(0, latestRelease ? releases.indexOf(latestRelease) : 0)
+
+      releases.forEach((release, index) => {
+        const tab = document.createElement('button')
+        tab.type = 'button'
+        tab.className = 'release-tab'
+        tab.id = `release-tab-${index}`
+        tab.role = 'tab'
+        tab.dataset.releaseIndex = `${index}`
+        tab.setAttribute('aria-controls', `release-panel-${index}`)
+        tab.setAttribute('aria-selected', `${index === latestIndex}`)
+        tab.tabIndex = index === latestIndex ? 0 : -1
+
+        const version = document.createElement('span')
+        version.className = 'release-tab-version'
+        version.textContent = typeof release.tag_name === 'string' ? release.tag_name : ''
+        const date = document.createElement('time')
+        date.className = 'release-tab-date'
+        date.textContent = releaseDate(release.published_at)
+        if (typeof release.published_at === 'string') date.dateTime = release.published_at
+        tab.append(version, date)
+        if (index === latestIndex || release.prerelease === true) {
+          const badge = document.createElement('span')
+          badge.className = 'release-tab-badge'
+          badge.textContent =
+            index === latestIndex
+              ? (root.dataset.historyLatest ?? '')
+              : (root.dataset.historyPrerelease ?? '')
+          tab.append(badge)
+        }
+        tab.addEventListener('click', () => renderReleaseDetail(release, index, latestIndex))
+        tab.addEventListener('keydown', (event) => {
+          if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+            return
+          }
+          event.preventDefault()
+          const lastIndex = releases.length - 1
+          const nextIndex =
+            event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? lastIndex
+                : event.key === 'ArrowDown' || event.key === 'ArrowRight'
+                  ? (index + 1) % releases.length
+                  : (index - 1 + releases.length) % releases.length
+          const nextTab = historyList.querySelector<HTMLButtonElement>(
+            `[data-release-index="${nextIndex}"]`,
+          )
+          nextTab?.focus()
+          renderReleaseDetail(releases[nextIndex] ?? release, nextIndex, latestIndex)
+        })
+        historyList.append(tab)
+      })
+
+      renderReleaseDetail(releases[latestIndex] ?? {}, latestIndex, latestIndex)
+    }
+
+    const renderHistoryError = () => {
+      if (!historyBrowser || !historyList || !historyDetail || !historyCount) return
+      historyBrowser.dataset.historyState = 'error'
+      historyCount.textContent = root.dataset.historyError ?? ''
+      historyList.replaceChildren()
+      const empty = document.createElement('p')
+      empty.className = 'release-empty'
+      empty.textContent = root.dataset.historyError ?? ''
+      historyDetail.replaceChildren(empty)
+    }
+
+    const loadReleases = async () => {
       try {
         const response = await fetch(root.dataset.releaseApi ?? '', {
           headers: { Accept: 'application/vnd.github+json' },
@@ -723,31 +1046,41 @@ const releasesHref = 'https://github.com/ysmjjsy/CodeY/releases'
         if (response.status === 404) {
           setStatus('empty', root.dataset.statusEmpty ?? '')
           renderAssets([])
+          renderReleaseHistory([])
           return
         }
         if (!response.ok) throw new Error(`Release source returned ${response.status}`)
 
-        const release = (await response.json()) as ReleasePayload
+        const payload = (await response.json()) as unknown
+        const releases = Array.isArray(payload)
+          ? (payload as ReleasePayload[]).filter(
+              (release) => typeof release.tag_name === 'string' && release.tag_name.length > 0,
+            )
+          : []
+        const release = releases.find((item) => item.prerelease !== true) ?? releases[0]
+        if (!release) {
+          setStatus('empty', root.dataset.statusEmpty ?? '')
+          renderAssets([])
+          renderReleaseHistory([])
+          return
+        }
         const tag = typeof release.tag_name === 'string' ? release.tag_name : ''
-        const publishedAt =
-          typeof release.published_at === 'string' ? new Date(release.published_at) : undefined
-        const date =
-          publishedAt && !Number.isNaN(publishedAt.getTime())
-            ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(publishedAt)
-            : ''
+        const date = releaseDate(release.published_at)
         const ready = (root.dataset.statusReady ?? '{version}')
           .replace('{version}', tag)
           .replace('{date}', date)
         setStatus('ready', ready)
         renderAssets(Array.isArray(release.assets) ? (release.assets as ReleaseAsset[]) : [])
+        renderReleaseHistory(releases, release)
       } catch {
         setStatus('error', root.dataset.statusError ?? '')
         for (const actions of root.querySelectorAll('[data-assets]')) {
           actions.replaceChildren()
         }
+        renderHistoryError()
       }
     }
 
-    void loadLatestRelease()
+    void loadReleases()
   }
 </script>

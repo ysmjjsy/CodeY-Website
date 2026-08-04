@@ -75,7 +75,8 @@ Code + PKCE 登录，并从 `/.well-known/codey-cloud.json` 发现 Cloud API。
 
 CodeY 官方模型请求经过 `/api/cloud/v1/gateway/`。上游密钥不会返回浏览器或
 Desktop。Desktop 中用户自己的 API Key 和本地模型仍走本地 daemon，不进入云积分
-账本。
+账本。Desktop 从 `/api/cloud/v1/entitlements/models` 获取按账号、套餐和目录版本绑定的
+Ed25519 签名模型目录，并使用 discovery 中的公钥校验后同步 CodeY 官方模型。
 
 ### 服务端配置
 
@@ -86,6 +87,11 @@ Desktop。Desktop 中用户自己的 API Key 和本地模型仍走本地 daemon�
 CODEY_CLOUD_SECRET_KEY=...
 CODEY_CLOUD_DEFAULT_TIMEZONE=Asia/Shanghai
 ```
+
+模型 entitlement 签名密钥默认生成到
+`CODEY_MARKET_DATA_ROOT/cloud-entitlement-ed25519.pk8`。生产部署必须持久化并备份该文件。
+也可以通过 `CODEY_CLOUD_ENTITLEMENT_SIGNING_KEY` 提供 unpadded base64url 编码的 Ed25519
+PKCS#8 私钥，并用 `CODEY_CLOUD_ENTITLEMENT_KEY_ID` 设置稳定的密钥 ID。
 
 支付渠道按组启用。某组只填写一部分变量时服务会拒绝启动。微信和支付宝私钥、公钥
 文件必须只对服务账号可读。Stripe webhook、微信通知和支付宝异步通知地址都应指向

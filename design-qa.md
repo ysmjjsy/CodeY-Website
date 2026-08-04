@@ -251,3 +251,53 @@ Final result: passed
 - P3: no live upstream discovery was triggered against the saved MiniMax credential during visual QA.
 
 final result: passed
+
+---
+
+# Download release history design QA
+
+- Source visual truth: `/var/folders/r6/yxptvvk91mn385_y6sw55nx40000gn/T/codex-clipboard-32171317-3485-4707-9114-ff00247adb72.png`
+- Implementation screenshots:
+  - `/Users/goya/Repo/Git/YSMJSJY/CodeY-Website/qa/download-current-top-1338x692.png`
+  - `/Users/goya/Repo/Git/YSMJSJY/CodeY-Website/qa/download-release-history-final.png`
+  - `/Users/goya/Repo/Git/YSMJSJY/CodeY-Website/qa/download-release-history-mobile-detail.png`
+  - `/Users/goya/Repo/Git/YSMJSJY/CodeY-Website/qa/download-release-history-packages.png`
+- Comparison image: `/Users/goya/Repo/Git/YSMJSJY/CodeY-Website/qa/download-top-comparison.png`
+- State: Chinese locale, light theme, latest stable release selected, live GitHub Releases response.
+- Viewports: 1338 × 900 with a 1338 × 692 comparison clip; 1440 × 960 desktop history; 390 × 844 narrow layout.
+- Density normalization: source and matched implementation clip are both 1338 × 692 pixels at 1× density. The comparison image downsamples both halves equally to 669 × 346 pixels.
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- Fonts and typography: the existing Space Grotesk, PingFang/system body stack, and JetBrains Mono technical labels are preserved. Version numbers, dates, badges, headings, and notes retain the source hierarchy without clipping or unintended wrapping.
+- Spacing and layout rhythm: the existing three-card download composition remains aligned with the source. Release history uses a compact version rail and a larger reading pane on desktop. At 390 px, the rail becomes horizontally scrollable and the detail pane stacks without horizontal page overflow.
+- Colors and visual tokens: the new section uses the existing surface, border, muted foreground, accent, ring, radius, and focus tokens. It does not introduce a second visual language.
+- Image quality and asset fidelity: no new raster assets or handcrafted SVGs were introduced. Existing Phosphor icons are used for platform, note, package, and download affordances.
+- Copy and content: Chinese and English interface copy is localized. Release-note bodies are rendered from the official release payload as safe text; external changelog links are omitted from the in-page notes.
+- Accessibility and interaction: version controls use tab semantics, expose selection state, support arrow/Home/End navigation, and preserve visible focus styles. The in-page anchor, version switching, responsive layout, and empty/error states were checked.
+
+## Full-view comparison evidence
+
+`qa/download-top-comparison.png` places the supplied source and the current implementation in one normalized image. The download title, status pill, platform cards, accent treatment, button density, borders, radii, and grid rhythm remain consistent. The source does not depict the requested history state, so it is treated as the visual-system reference rather than a pixel target for the added section.
+
+## Focused region evidence
+
+- `qa/download-release-history-final.png` verifies the desktop history header, version rail, selected state, release metadata, and readable notes hierarchy.
+- `qa/download-release-history-packages.png` verifies the per-platform historical installer groups and direct download actions.
+- `qa/download-release-history-mobile-detail.png` verifies the 390 px stacked layout and horizontal version rail.
+
+## Comparison history
+
+- Initial desktop and mobile passes found no P0/P1/P2 issues.
+- One P3 refinement was applied after the installer-region capture: platform groups now align to their own content height instead of stretching to the tallest group.
+- Post-fix desktop capture: `qa/download-release-history-final.png`.
+- Browser console: no errors or warnings.
+- Primary interactions tested: in-page history anchor, v0.3.0 tab selection, selected-panel metadata update, Chinese/English rendering, and responsive layout.
+
+## Follow-up polish
+
+- Release-note prose follows the language stored in each GitHub release. Translating release bodies would require localized source content or a release API field for each locale.
+
+final result: passed

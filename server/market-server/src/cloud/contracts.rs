@@ -709,6 +709,7 @@ pub struct CreditReservation {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubscriptionSnapshot {
+    pub subscription_id: String,
     pub user_id: String,
     pub plan_id: String,
     pub plan_version_id: String,

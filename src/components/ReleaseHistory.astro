@@ -1,0 +1,441 @@
+---
+import type { Locale } from '../i18n/ui'
+import { t } from '../i18n/utils'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+---
+
+<section class="release-history reveal" id="release-history" aria-labelledby="release-history-title" data-release-history>
+  <div class="release-history-head">
+    <div>
+      <p class="release-history-kicker">{t(locale, 'download.history.kicker')}</p>
+      <h2 id="release-history-title">{t(locale, 'download.history.title')}</h2>
+      <p>{t(locale, 'download.history.desc')}</p>
+    </div>
+    <span class="release-count" data-release-count>{t(locale, 'download.history.loading')}</span>
+  </div>
+
+  <div class="release-browser" data-history-state="loading">
+    <div
+      class="release-list"
+      role="tablist"
+      aria-label={t(locale, 'download.history.selectLabel')}
+      data-release-list
+    >
+      <span class="release-row-skeleton" aria-hidden="true"></span>
+      <span class="release-row-skeleton" aria-hidden="true"></span>
+      <span class="release-row-skeleton" aria-hidden="true"></span>
+    </div>
+
+    <article class="release-detail" role="tabpanel" tabindex="0" data-release-detail>
+      <div class="release-detail-skeleton" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </article>
+  </div>
+</section>
+
+<style>
+  .release-history {
+    margin-top: clamp(48px, 7vw, 72px);
+    scroll-margin-top: 104px;
+  }
+
+  .release-history-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .release-history-kicker {
+    margin: 0 0 8px;
+    color: var(--accent-bright);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .release-history h2 {
+    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+    font-weight: 600;
+  }
+
+  .release-history-head > div > p:last-child {
+    max-width: 640px;
+    margin: 8px 0 0;
+    color: var(--fg-muted);
+    font-size: 0.88rem;
+  }
+
+  .release-count {
+    flex: none;
+    padding: 5px 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--fg-faint);
+    background: var(--ghost-bg);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+  }
+
+  .release-browser {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.3fr) minmax(0, 1fr);
+    min-height: 420px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+    box-shadow: inset 0 1px 0 var(--panel-inset);
+  }
+
+  .release-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border-right: 1px solid var(--border);
+    background: var(--ghost-bg);
+  }
+
+  .release-list :global(.release-tab) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 5px 12px;
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--fg-muted);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+  }
+
+  .release-list :global(.release-tab:hover) {
+    color: var(--fg);
+    background: var(--ghost-bg-hover);
+  }
+
+  .release-list :global(.release-tab[aria-selected='true']) {
+    border-color: var(--accent-ring);
+    color: var(--fg);
+    background: var(--accent-soft);
+  }
+
+  .release-list :global(.release-tab:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .release-list :global(.release-tab-version) {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .release-list :global(.release-tab-date) {
+    grid-column: 1;
+    color: var(--fg-faint);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+  }
+
+  .release-list :global(.release-tab-badge) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+  }
+
+  .release-row-skeleton {
+    height: 63px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(90deg, var(--ghost-bg), var(--ghost-bg-hover), var(--ghost-bg));
+    background-size: 200% 100%;
+    animation: history-skeleton 1.4s ease-in-out infinite;
+  }
+
+  .release-detail {
+    min-width: 0;
+    padding: clamp(24px, 4vw, 40px);
+    outline: none;
+  }
+
+  .release-detail :global(.release-detail-head) {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .release-detail :global(.release-version-line) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .release-detail :global(.release-version) {
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+
+  .release-detail :global(.release-badge) {
+    padding: 3px 8px;
+    border: 1px solid var(--accent-ring);
+    border-radius: 999px;
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+  }
+
+  .release-detail :global(.release-date) {
+    display: block;
+    margin-top: 6px;
+    color: var(--fg-faint);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+  }
+
+  .release-detail :global(.release-package-count) {
+    flex: none;
+    color: var(--fg-faint);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+  }
+
+  .release-detail :global(.release-content-section) {
+    padding-top: 24px;
+  }
+
+  .release-detail :global(.release-content-title) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+
+  .release-detail :global(.release-content-title i) {
+    color: var(--accent-bright);
+    font-size: 1rem;
+  }
+
+  .release-detail :global(.release-notes) {
+    color: var(--fg-muted);
+    font-size: 0.84rem;
+    line-height: 1.75;
+  }
+
+  .release-detail :global(.release-notes h4) {
+    margin: 20px 0 8px;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .release-detail :global(.release-notes h4:first-child) {
+    margin-top: 0;
+  }
+
+  .release-detail :global(.release-notes p) {
+    margin: 0;
+  }
+
+  .release-detail :global(.release-notes ul) {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+
+  .release-detail :global(.release-notes li::marker) {
+    color: var(--accent);
+  }
+
+  .release-detail :global(.release-empty) {
+    margin: 0;
+    color: var(--fg-faint);
+    font-size: 0.82rem;
+  }
+
+  .release-detail :global(.release-assets-grid) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 10px;
+  }
+
+  .release-detail :global(.release-platform-group) {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--ghost-bg);
+  }
+
+  .release-detail :global(.release-platform-name) {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .release-detail :global(.release-platform-name i) {
+    color: var(--accent-bright);
+    font-size: 0.95rem;
+  }
+
+  .release-detail :global(.release-asset-list) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .release-detail :global(.release-asset) {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 7px 8px;
+    border-radius: 8px;
+    color: var(--fg-muted);
+    background: var(--ghost-bg);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    transition: color 0.2s, background 0.2s;
+  }
+
+  .release-detail :global(.release-asset:hover) {
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+  }
+
+  .release-detail :global(.release-asset:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .release-detail :global(.release-asset i) {
+    flex: none;
+  }
+
+  .release-detail :global(.release-asset-kind) {
+    flex: none;
+    color: var(--accent-bright);
+  }
+
+  .release-detail :global(.release-asset-meta) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .release-detail-skeleton {
+    display: grid;
+    gap: 14px;
+  }
+
+  .release-detail-skeleton span {
+    height: 18px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--ghost-bg), var(--ghost-bg-hover), var(--ghost-bg));
+    background-size: 200% 100%;
+    animation: history-skeleton 1.4s ease-in-out infinite;
+  }
+
+  .release-detail-skeleton span:first-child {
+    width: 34%;
+    height: 28px;
+  }
+
+  .release-detail-skeleton span:nth-child(3) {
+    width: 82%;
+  }
+
+  .release-detail-skeleton span:last-child {
+    width: 70%;
+  }
+
+  @keyframes history-skeleton {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .release-browser {
+      grid-template-columns: 1fr;
+    }
+
+    .release-list {
+      flex-direction: row;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+      scrollbar-width: thin;
+    }
+
+    .release-list :global(.release-tab),
+    .release-row-skeleton {
+      flex: 0 0 190px;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .release-history-head {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .release-detail :global(.release-assets-grid) {
+      grid-template-columns: 1fr;
+    }
+
+    .release-detail :global(.release-detail-head) {
+      flex-direction: column;
+      gap: 8px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .release-row-skeleton,
+    .release-detail-skeleton span {
+      animation: none;
+    }
+  }
+</style>

@@ -2,6 +2,7 @@ mod billing;
 mod catalog;
 mod contracts;
 mod discovery;
+mod entitlement;
 mod gateway;
 mod models;
 mod payment;
@@ -25,6 +26,10 @@ pub use contracts::{
     UpstreamProviderSummary, WalletSummary, CREDIT_MICROS_PER_POINT,
 };
 pub use discovery::{discover_upstream_models, UpstreamDiscoveryError};
+pub use entitlement::{
+    CloudEntitlementError, CloudEntitlementSigner, CloudEntitlementVerificationKey,
+    CloudOfficialEntitlementEnvelope,
+};
 pub use gateway::{GatewayError, GatewayManager};
 pub use models::CloudSecretCipher;
 pub use payment::{CloudPaymentConfig, PaymentError, PaymentManager};

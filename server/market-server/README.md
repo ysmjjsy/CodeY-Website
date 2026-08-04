@@ -18,6 +18,8 @@ Environment variables:
 | `CODEY_MARKET_WEB_BASE_URL` | `http://127.0.0.1:4321/market` | Public marketplace page |
 | `CODEY_MARKET_API_BASE_URL` | `http://127.0.0.1:8787/api/market/v1` | Public API base URL |
 | `CODEY_MARKET_CORS_ORIGIN` | `http://127.0.0.1:4321` | Website origin allowed to call the API |
+| `CODEY_CLOUD_ENTITLEMENT_SIGNING_KEY` | generated and persisted | Unpadded base64url Ed25519 PKCS#8 key used to sign Desktop model entitlements |
+| `CODEY_CLOUD_ENTITLEMENT_KEY_ID` | `codey-cloud-v1` | Stable ID published with the entitlement verification key |
 | `CODEY_MARKET_GITHUB_CLIENT_ID` | unset | GitHub OAuth App client ID |
 | `CODEY_MARKET_GITHUB_CLIENT_SECRET` | unset | GitHub OAuth App client secret |
 | `CODEY_MARKET_ADMIN_GITHUB_LOGINS` | unset | Comma-separated GitHub logins promoted to administrators |
@@ -47,3 +49,7 @@ The desktop reads `~/.codey/config/marketplace.json`:
 ```
 
 The desktop derives the API address from the website's `/.well-known/codey-market.json` response.
+Desktop account login uses `/.well-known/codey-cloud.json`. The response publishes the Cloud API
+address and entitlement verification key. If no signing key is configured, the server creates
+`cloud-entitlement-ed25519.pk8` under `CODEY_MARKET_DATA_ROOT`; that file must remain persistent
+across deployments.
