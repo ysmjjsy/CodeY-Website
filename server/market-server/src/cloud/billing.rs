@@ -704,8 +704,8 @@ fn stale_upgrade_exists(
             order.order_id,
             order.created_at.to_rfc3339(),
         ],
-        |row| row.get::<_, i64>(0),
-    )? != 0)
+        |row| row.get::<_, bool>(0),
+    )?)
 }
 
 fn reconcile_subscription(

@@ -743,9 +743,9 @@ fn model_entitled(
             model.model_id,
             model.public_model_id,
         ],
-        |row| row.get::<_, i64>(0),
+        |row| row.get::<_, bool>(0),
     )?;
-    Ok(entitled != 0)
+    Ok(entitled)
 }
 
 fn model_revision(connection: &crate::db::Connection) -> Result<u64, CloudStoreError> {
