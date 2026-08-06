@@ -731,7 +731,12 @@ fn model_entitled(
         "SELECT EXISTS(
             SELECT 1 FROM cloud_subscription s
             JOIN cloud_subscription_period period ON period.period_id=s.current_period_id
-            JOIN cloud_plan_benefit pb ON pb.plan_version_id=s.plan_version_id
+            JOIN cloud_plan_version entitlement_version ON entitlement_version.plan_id=s.plan_id
+              AND entitlement_version.version=(
+                  SELECT MAX(latest.version) FROM cloud_plan_version latest
+                  WHERE latest.plan_id=s.plan_id
+              )
+            JOIN cloud_plan_benefit pb ON pb.plan_version_id=entitlement_version.plan_version_id
             JOIN cloud_benefit_definition benefit ON benefit.benefit_id=pb.benefit_id
             WHERE s.user_id=?1 AND s.status='active' AND period.ends_at>?2
               AND benefit.resource_type='model' AND benefit.action='invoke'
@@ -883,7 +888,7 @@ mod tests {
     use crate::cloud::{ModelPricingInput, PlanBenefitInput, PublishPlanRequest};
 
     #[test]
-    fn model_credentials_are_encrypted_and_catalog_is_entitlement_filtered() {
+    fn model_credentials_are_encrypted_and_existing_subscriptions_use_latest_entitlements() {
         let root = TempDir::new().unwrap();
         let store = CloudStore::open(root.path(), "").unwrap();
         let cipher = CloudSecretCipher::for_test();
@@ -942,6 +947,9 @@ mod tests {
             )
             .unwrap();
         let model_id = admin.models[0].model_id.clone();
+        let subscription = store
+            .ensure_default_subscription("user-1", "UTC", now)
+            .unwrap();
         let catalog = store
             .publish_plan(
                 &PublishPlanRequest {
@@ -968,9 +976,10 @@ mod tests {
             )
             .unwrap();
         assert_eq!(catalog.revision, 1);
-        store
-            .ensure_default_subscription("user-1", "UTC", now)
-            .unwrap();
+        assert_ne!(
+            subscription.plan_version_id,
+            catalog.plans[0].plan_version_id
+        );
         let catalog = store
             .official_model_catalog("user-1", "https://cloud.example/gateway", now)
             .unwrap();
