@@ -308,14 +308,23 @@ https://codey.example.com
 
 ## 11. 更新版本
 
-更新官网后重新构建：
+使用仓库内的部署脚本：
 
 ```bash
 cd /opt/codey/CodeY-Website
-git pull --ff-only
-pnpm install --frozen-lockfile
-pnpm build
-sudo systemctl restart codey-website
+./scripts/deploy.sh
+```
+
+脚本会依次执行：检查工作区、`git pull --ff-only`、安装锁定依赖、构建、重启
+`codey-website` 服务，并检查 `http://127.0.0.1:4321/`。
+
+如服务器使用了不同的分支、服务名或监听地址，可通过环境变量覆盖：
+
+```bash
+CODEY_DEPLOY_BRANCH=release \
+CODEY_DEPLOY_SERVICE=codey-website \
+CODEY_DEPLOY_HEALTHCHECK_URL=http://127.0.0.1:4321/ \
+./scripts/deploy.sh
 ```
 
 检查服务和日志：
