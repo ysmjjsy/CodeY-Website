@@ -1,0 +1,12 @@
+---
+import RegisterAccount from '../../components/RegisterAccount.astro'
+import { authCopy } from '../../i18n/auth'
+import CommercialLayout from '../../layouts/CommercialLayout.astro'
+
+const locale = 'zh-CN' as const
+const copy = authCopy(locale)
+---
+
+<CommercialLayout title={`${copy.registerTitle} · CodeY`} description={copy.registerDescription} locale={locale} alternateHref="/en/register/">
+  <RegisterAccount locale={locale} />
+</CommercialLayout>

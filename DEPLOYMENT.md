@@ -141,6 +141,14 @@ CODEY_MARKET_GITHUB_CLIENT_SECRET=
 CODEY_MARKET_ADMIN_GITHUB_LOGINS=
 CODEY_MARKET_ADMIN_USERNAME=admin
 CODEY_MARKET_ADMIN_PASSWORD=change-me
+
+# 注册邮箱验证码。SMTP_HOST 与 EMAIL_FROM 留空时注册入口自动关闭。
+CODEY_REGISTRATION_SMTP_HOST=smtp.example.com
+CODEY_REGISTRATION_SMTP_PORT=587
+CODEY_REGISTRATION_SMTP_SECURITY=starttls
+CODEY_REGISTRATION_SMTP_USERNAME=no-reply@codey.example.com
+CODEY_REGISTRATION_SMTP_PASSWORD=change-me
+CODEY_REGISTRATION_EMAIL_FROM="CodeY <no-reply@codey.example.com>"
 ```
 
 如果暂时不启用 GitHub 登录，保持三个 GitHub 配置为空。
@@ -166,7 +174,7 @@ sudo chown root:codey /etc/codey/website.env
 sudo chmod 640 /etc/codey/website.env
 ```
 
-不要把数据库密码、GitHub Client Secret 和生产管理员密码写入 Git 仓库。
+不要把数据库密码、SMTP 密码、GitHub Client Secret 和生产管理员密码写入 Git 仓库。
 
 ## 7. 配置 systemd
 

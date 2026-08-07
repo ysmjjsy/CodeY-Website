@@ -1,7 +1,7 @@
 ---
 import type { Locale } from '../i18n/ui'
 import { authCopy } from '../i18n/auth'
-import { consolePath } from '../i18n/utils'
+import { consolePath, registerPath } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import Dialog from './ui/Dialog.astro'
 import Field from './ui/Field.astro'
@@ -12,10 +12,12 @@ interface Props {
 
 const { locale } = Astro.props
 const copy = authCopy(locale)
+const registerHref = registerPath(locale)
 ---
 
 <div class="account-menu" data-account-menu data-copy={JSON.stringify(copy)} data-locale={locale}>
   <button class="account-sign-in" type="button" data-auth-open>{copy.signIn}</button>
+  <a class="account-register" href={registerHref} data-register-link>{copy.freeRegister}</a>
   <details class="account-profile" hidden data-account-profile>
     <summary>
       <span class="account-avatar" data-account-avatar></span>
@@ -67,23 +69,7 @@ const copy = authCopy(locale)
             </a>
           </div>
         </div>
-        <p class="auth-switch">{copy.noAccount} <button type="button" data-show-register>{copy.registerAction}</button></p>
-      </section>
-
-      <section hidden data-auth-register>
-        <header class="auth-head">
-          <span class="auth-brand-mark" aria-hidden="true">C</span>
-          <h2>{copy.registerTitle}</h2>
-          <p>{copy.registerDescription}</p>
-        </header>
-        <form class="auth-form" data-register-form>
-          <Field label={copy.username}><input name="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" /></Field>
-          <Field label={copy.email}><input name="email" type="email" autocomplete="email" required maxlength="254" /></Field>
-          <Field label={copy.displayName}><input name="displayName" autocomplete="name" required maxlength="80" /></Field>
-          <Field label={copy.password} hint={copy.passwordHint}><input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" /></Field>
-          <Button variant="primary" type="submit" data-register-submit>{copy.registerSubmit}</Button>
-        </form>
-        <p class="auth-switch">{copy.hasAccount} <button type="button" data-show-login>{copy.loginAction}</button></p>
+        <p class="auth-switch">{copy.noAccount} <a href={registerHref} data-register-link>{copy.registerAction}</a></p>
       </section>
     </div>
   </Dialog>
@@ -117,7 +103,7 @@ const copy = authCopy(locale)
     avatarUrl?: string | null
     role: 'user' | 'admin'
   }
-  type AuthResponse = { user?: User | null; githubEnabled: boolean }
+  type AuthResponse = { user?: User | null; githubEnabled: boolean; registrationEnabled: boolean }
 
   const root = document.querySelector<HTMLElement>('[data-account-menu]')
   if (root) {
@@ -128,12 +114,11 @@ const copy = authCopy(locale)
     const profile = root.querySelector<HTMLDetailsElement>('[data-account-profile]')!
     const accountName = root.querySelector<HTMLElement>('[data-account-name]')!
     const avatar = root.querySelector<HTMLElement>('[data-account-avatar]')!
-    const loginSection = root.querySelector<HTMLElement>('[data-auth-login]')!
-    const registerSection = root.querySelector<HTMLElement>('[data-auth-register]')!
     const loginForm = root.querySelector<HTMLFormElement>('[data-login-form]')!
-    const registerForm = root.querySelector<HTMLFormElement>('[data-register-form]')!
     const logoutDialog = root.querySelector<HTMLDialogElement>('[data-logout-dialog]')!
     const logoutConfirm = root.querySelector<HTMLButtonElement>('[data-logout-confirm]')!
+    let githubEnabled = false
+    let registrationEnabled = false
 
     function desktopContinuation(): string | null {
       const value = new URLSearchParams(window.location.search).get('continue')
@@ -155,14 +140,15 @@ const copy = authCopy(locale)
       githubUrl.searchParams.set('continue', continuation)
       githubLogin.href = githubUrl.href
     }
-
-    function setMode(mode: 'login' | 'register'): void {
-      loginSection.hidden = mode !== 'login'
-      registerSection.hidden = mode !== 'register'
+    if (continuation) {
+      root.querySelectorAll<HTMLAnchorElement>('[data-register-link]').forEach((link) => {
+        const registerUrl = new URL(link.href)
+        registerUrl.searchParams.set('continue', continuation)
+        link.href = registerUrl.href
+      })
     }
 
     function openAuth(): void {
-      setMode('login')
       if (!dialog.open) dialog.showModal()
     }
 
@@ -178,11 +164,16 @@ const copy = authCopy(locale)
 
     function updateAuth(payload: AuthResponse): void {
       const user = payload.user || null
+      githubEnabled = payload.githubEnabled
+      registrationEnabled = payload.registrationEnabled
       document.documentElement.dataset.marketAuth = user ? 'authenticated' : 'anonymous'
       document.querySelectorAll<HTMLElement>('[data-authenticated-only]').forEach((element) => {
         element.hidden = !user
       })
       signIn.hidden = Boolean(user)
+      root.querySelectorAll<HTMLElement>('[data-register-link]').forEach((link) => {
+        link.hidden = Boolean(user) || !payload.registrationEnabled
+      })
       profile.hidden = !user
       if (user) renderUser(user)
       root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden = !payload.githubEnabled
@@ -228,8 +219,6 @@ const copy = authCopy(locale)
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) dialog.close()
     })
-    root.querySelector('[data-show-register]')?.addEventListener('click', () => setMode('register'))
-    root.querySelector('[data-show-login]')?.addEventListener('click', () => setMode('login'))
     root.querySelectorAll<HTMLButtonElement>('[data-password-toggle]').forEach((button) => {
       button.addEventListener('click', () => {
         const input = button.parentElement?.querySelector<HTMLInputElement>('input')
@@ -243,10 +232,6 @@ const copy = authCopy(locale)
     loginForm.addEventListener('submit', (event) => {
       event.preventDefault()
       void submit(loginForm, 'login', root.querySelector('[data-login-submit]')!, copy.loggingIn)
-    })
-    registerForm.addEventListener('submit', (event) => {
-      event.preventDefault()
-      void submit(registerForm, 'register', root.querySelector('[data-register-submit]')!, copy.registering)
     })
     root.querySelector('[data-auth-logout]')?.addEventListener('click', () => {
       profile.open = false
@@ -264,7 +249,11 @@ const copy = authCopy(locale)
         const response = await fetch('/api/market/v1/auth/logout', { method: 'POST' })
         if (!response.ok) throw new Error()
         logoutDialog.close()
-        updateAuth({ user: null, githubEnabled: !root.querySelector<HTMLElement>('[data-auth-providers]')!.hidden })
+        updateAuth({
+          user: null,
+          githubEnabled,
+          registrationEnabled,
+        })
       } catch {
         toast.error(copy.logoutError)
       } finally {
@@ -281,7 +270,7 @@ const copy = authCopy(locale)
           openAuth()
         }
       })
-      .catch(() => updateAuth({ user: null, githubEnabled: false }))
+      .catch(() => updateAuth({ user: null, githubEnabled: false, registrationEnabled: false }))
   }
 </script>
 
@@ -289,6 +278,8 @@ const copy = authCopy(locale)
   .account-menu { display: contents; }
   .account-sign-in { min-height: 32px; padding: 5px 11px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--fg-muted); background: var(--ghost-bg); font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
   .account-sign-in:hover { color: var(--fg); border-color: var(--border-hover); }
+  .account-register { min-height: 32px; padding: 6px 12px; border-radius: 8px; color: var(--btn-primary-fg); background: var(--accent); font-size: 0.8rem; white-space: nowrap; }
+  .account-register:hover { color: var(--btn-primary-fg); filter: brightness(1.05); }
   .account-profile { position: relative; }
   .account-profile summary { display: flex; align-items: center; gap: 7px; max-width: 120px; color: var(--fg-muted); font-size: 0.8rem; cursor: pointer; list-style: none; }
   .account-profile summary::-webkit-details-marker { display: none; }
@@ -325,7 +316,7 @@ const copy = authCopy(locale)
   .auth-provider:hover > span { transform: translateY(-2px); border-color: var(--border-hover); background: var(--ghost-bg-hover); }
   .auth-provider small { font: inherit; }
   .auth-switch { margin: 22px 0 0; color: var(--fg-muted); font-size: 0.8rem; text-align: center; }
-  .auth-switch button { padding: 0; border: 0; color: var(--accent-bright); background: transparent; font: inherit; cursor: pointer; }
+  .auth-switch a { color: var(--accent-bright); }
   .logout-dialog { width: min(400px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; border: 1px solid var(--border-strong); border-radius: 18px; color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / 0.3); }
   .logout-dialog-card { padding: 28px; text-align: center; }
   .logout-dialog-icon { display: grid; width: 48px; height: 48px; margin: 0 auto 17px; place-items: center; border-radius: 14px; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }

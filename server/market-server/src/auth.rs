@@ -160,6 +160,20 @@ pub fn random_token(bytes: usize) -> Result<String, MarketplaceAuthError> {
     Ok(URL_SAFE_NO_PAD.encode(random_bytes(bytes)?))
 }
 
+pub fn random_numeric_code() -> Result<String, MarketplaceAuthError> {
+    const MODULUS: u32 = 1_000_000;
+    const LIMIT: u32 = u32::MAX - (u32::MAX % MODULUS);
+    loop {
+        let bytes: [u8; 4] = random_bytes(4)?
+            .try_into()
+            .expect("four requested random bytes have a fixed length");
+        let value = u32::from_be_bytes(bytes);
+        if value < LIMIT {
+            return Ok(format!("{:06}", value % MODULUS));
+        }
+    }
+}
+
 pub fn token_hash(token: &str) -> String {
     blake3::hash(token.as_bytes()).to_hex().to_string()
 }

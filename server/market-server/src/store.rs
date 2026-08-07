@@ -138,6 +138,9 @@ impl MarketplaceStore {
                 avatar_url TEXT,
                 role TEXT NOT NULL,
                 active BOOLEAN NOT NULL DEFAULT TRUE,
+                registration_status TEXT NOT NULL DEFAULT 'active',
+                email_verified_at TEXT,
+                terms_accepted_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -154,6 +157,20 @@ impl MarketplaceStore {
             );
             CREATE INDEX IF NOT EXISTS idx_marketplace_session_user
                 ON marketplace_session(user_id);
+            CREATE TABLE IF NOT EXISTS marketplace_registration_challenge (
+                challenge_id TEXT PRIMARY KEY,
+                email TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                expires_at TEXT NOT NULL,
+                consumed_at TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_registration_challenge_email
+                ON marketplace_registration_challenge(LOWER(email), created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_registration_challenge_source
+                ON marketplace_registration_challenge(source_hash, created_at DESC);
             CREATE TABLE IF NOT EXISTS marketplace_oauth_state (
                 state_hash TEXT PRIMARY KEY,
                 code_verifier TEXT NOT NULL,
@@ -203,6 +220,24 @@ impl MarketplaceStore {
         if !column_exists(&connection, "marketplace_user", "active")? {
             connection.execute(
                 "ALTER TABLE marketplace_user ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE",
+                params![],
+            )?;
+        }
+        if !column_exists(&connection, "marketplace_user", "registration_status")? {
+            connection.execute(
+                "ALTER TABLE marketplace_user ADD COLUMN registration_status TEXT NOT NULL DEFAULT 'active'",
+                params![],
+            )?;
+        }
+        if !column_exists(&connection, "marketplace_user", "email_verified_at")? {
+            connection.execute(
+                "ALTER TABLE marketplace_user ADD COLUMN email_verified_at TEXT",
+                params![],
+            )?;
+        }
+        if !column_exists(&connection, "marketplace_user", "terms_accepted_at")? {
+            connection.execute(
+                "ALTER TABLE marketplace_user ADD COLUMN terms_accepted_at TEXT",
                 params![],
             )?;
         }
@@ -600,6 +635,213 @@ impl MarketplaceStore {
             params![serde_json::to_string(&listing)?, listing_id],
         )?;
         transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn create_registration_challenge(
+        &self,
+        email: &str,
+        code_hash: &str,
+        source_hash: &str,
+        now: DateTime<Utc>,
+        expires_at: DateTime<Utc>,
+    ) -> Result<String, MarketplaceStoreError> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let minute_ago = (now - chrono::Duration::minutes(1)).to_rfc3339();
+        let hour_ago = (now - chrono::Duration::hours(1)).to_rfc3339();
+        let recent_email = transaction.query_row(
+            "SELECT COUNT(*) FROM marketplace_registration_challenge
+             WHERE LOWER(email)=LOWER(?1) AND created_at>?2",
+            params![email, minute_ago],
+            |row| row.get::<_, i64>(0),
+        )?;
+        let hourly_email = transaction.query_row(
+            "SELECT COUNT(*) FROM marketplace_registration_challenge
+             WHERE LOWER(email)=LOWER(?1) AND created_at>?2",
+            params![email, hour_ago],
+            |row| row.get::<_, i64>(0),
+        )?;
+        let hourly_source = transaction.query_row(
+            "SELECT COUNT(*) FROM marketplace_registration_challenge
+             WHERE source_hash=?1 AND created_at>?2",
+            params![source_hash, hour_ago],
+            |row| row.get::<_, i64>(0),
+        )?;
+        if recent_email != 0 || hourly_email >= 5 || hourly_source >= 20 {
+            return Err(MarketplaceStoreError::RegistrationRateLimited);
+        }
+        transaction.execute(
+            "UPDATE marketplace_registration_challenge SET consumed_at=?1
+             WHERE LOWER(email)=LOWER(?2) AND consumed_at IS NULL",
+            params![now.to_rfc3339(), email],
+        )?;
+        let challenge_id = ulid::Ulid::new().to_string();
+        transaction.execute(
+            "INSERT INTO marketplace_registration_challenge(
+                challenge_id, email, code_hash, source_hash, expires_at, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                challenge_id,
+                email,
+                code_hash,
+                source_hash,
+                expires_at.to_rfc3339(),
+                now.to_rfc3339(),
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(challenge_id)
+    }
+
+    pub fn delete_registration_challenge(
+        &self,
+        challenge_id: &str,
+    ) -> Result<(), MarketplaceStoreError> {
+        self.connection()?.execute(
+            "DELETE FROM marketplace_registration_challenge WHERE challenge_id=?1",
+            [challenge_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn consume_registration_challenge(
+        &self,
+        email: &str,
+        code_hash: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(), MarketplaceStoreError> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let challenge = transaction
+            .query_row(
+                "SELECT challenge_id, code_hash, attempt_count
+                 FROM marketplace_registration_challenge
+                 WHERE LOWER(email)=LOWER(?1) AND consumed_at IS NULL AND expires_at>?2
+                 ORDER BY created_at DESC LIMIT 1",
+                params![email, now.to_rfc3339()],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((challenge_id, expected_hash, attempts)) = challenge else {
+            return Err(MarketplaceStoreError::RegistrationCodeInvalid);
+        };
+        if attempts >= 5 || expected_hash != code_hash {
+            transaction.execute(
+                "UPDATE marketplace_registration_challenge SET attempt_count=attempt_count+1
+                 WHERE challenge_id=?1",
+                [challenge_id],
+            )?;
+            transaction.commit()?;
+            return Err(MarketplaceStoreError::RegistrationCodeInvalid);
+        }
+        transaction.execute(
+            "UPDATE marketplace_registration_challenge SET consumed_at=?1
+             WHERE challenge_id=?2",
+            params![now.to_rfc3339(), challenge_id],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn create_or_resume_verified_local_user(
+        &self,
+        username: &str,
+        email: &str,
+        display_name: &str,
+        password_hash: &str,
+        now: DateTime<Utc>,
+    ) -> Result<MarketplaceUser, MarketplaceStoreError> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let username_owner = transaction
+            .query_row(
+                "SELECT user_id, registration_status FROM marketplace_user
+                 WHERE LOWER(username)=LOWER(?1)",
+                [username],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?;
+        let email_owner = transaction
+            .query_row(
+                "SELECT user_id, registration_status FROM marketplace_user
+                 WHERE LOWER(email)=LOWER(?1)",
+                [email],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?;
+
+        let user_id = match email_owner {
+            Some((email_user_id, status)) if status != "active" => {
+                if username_owner
+                    .as_ref()
+                    .is_some_and(|(username_user_id, _)| username_user_id != &email_user_id)
+                {
+                    return Err(MarketplaceStoreError::IdentityAlreadyExists);
+                }
+                transaction.execute(
+                    "UPDATE marketplace_user SET username=?1, display_name=?2, password_hash=?3,
+                        active=FALSE, registration_status='provisioning', email_verified_at=?4,
+                        terms_accepted_at=?4, updated_at=?4 WHERE user_id=?5",
+                    params![
+                        username,
+                        display_name,
+                        password_hash,
+                        now.to_rfc3339(),
+                        email_user_id,
+                    ],
+                )?;
+                email_user_id
+            }
+            Some(_) => return Err(MarketplaceStoreError::IdentityAlreadyExists),
+            None if username_owner.is_some() => {
+                return Err(MarketplaceStoreError::IdentityAlreadyExists);
+            }
+            None => {
+                let user_id = ulid::Ulid::new().to_string();
+                transaction.execute(
+                    "INSERT INTO marketplace_user(
+                        user_id, username, email, display_name, password_hash, role, active,
+                        registration_status, email_verified_at, terms_accepted_at, created_at, updated_at
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, 'user', FALSE, 'provisioning', ?6, ?6, ?6, ?6)",
+                    params![
+                        user_id,
+                        username,
+                        email,
+                        display_name,
+                        password_hash,
+                        now.to_rfc3339(),
+                    ],
+                )?;
+                user_id
+            }
+        };
+        transaction.commit()?;
+        drop(connection);
+        self.user_by_id(&user_id)?
+            .map(|stored| stored.user)
+            .ok_or(MarketplaceStoreError::AccountIntegrity)
+    }
+
+    pub fn activate_registered_user(
+        &self,
+        user_id: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(), MarketplaceStoreError> {
+        let updated = self.connection()?.execute(
+            "UPDATE marketplace_user SET active=TRUE, registration_status='active', updated_at=?1
+             WHERE user_id=?2 AND registration_status='provisioning'",
+            params![now.to_rfc3339(), user_id],
+        )?;
+        if updated == 0 {
+            return Err(MarketplaceStoreError::AccountIntegrity);
+        }
         Ok(())
     }
 
@@ -1356,6 +1598,10 @@ pub enum MarketplaceStoreError {
     InvalidPrimaryResource,
     #[error("username or email already exists")]
     IdentityAlreadyExists,
+    #[error("registration verification requests are temporarily rate limited")]
+    RegistrationRateLimited,
+    #[error("registration verification code is invalid or expired")]
+    RegistrationCodeInvalid,
     #[error("stored account is inconsistent")]
     AccountIntegrity,
     #[error("GitHub account identifier is invalid")]
@@ -1518,6 +1764,78 @@ mod tests {
         let store = MarketplaceStore::open(root.path(), "").unwrap();
         let user = store.user_by_identifier("legacy").unwrap().unwrap();
         assert!(user.active);
+    }
+
+    #[test]
+    fn verified_registration_is_rate_limited_resumable_and_activated_once() {
+        let root = tempfile::tempdir().unwrap();
+        let store = MarketplaceStore::open(root.path(), "").unwrap();
+        let now = Utc::now();
+        let email = "new-user@example.com";
+        let code_hash = crate::auth::token_hash("123456");
+        store
+            .create_registration_challenge(
+                email,
+                &code_hash,
+                "source-hash",
+                now,
+                now + Duration::minutes(10),
+            )
+            .unwrap();
+        assert!(matches!(
+            store.create_registration_challenge(
+                email,
+                &code_hash,
+                "source-hash",
+                now,
+                now + Duration::minutes(10),
+            ),
+            Err(MarketplaceStoreError::RegistrationRateLimited)
+        ));
+        assert!(matches!(
+            store.consume_registration_challenge(email, &crate::auth::token_hash("000000"), now,),
+            Err(MarketplaceStoreError::RegistrationCodeInvalid)
+        ));
+        store
+            .consume_registration_challenge(email, &code_hash, now)
+            .unwrap();
+
+        let first = store
+            .create_or_resume_verified_local_user(
+                "first-name",
+                email,
+                "New User",
+                "password-hash",
+                now,
+            )
+            .unwrap();
+        assert!(!store.user_by_id(&first.user_id).unwrap().unwrap().active);
+        let resumed = store
+            .create_or_resume_verified_local_user(
+                "final-name",
+                email,
+                "Final User",
+                "replacement-hash",
+                now + Duration::seconds(1),
+            )
+            .unwrap();
+        assert_eq!(resumed.user_id, first.user_id);
+        assert_eq!(resumed.username, "final-name");
+
+        store
+            .activate_registered_user(&resumed.user_id, now + Duration::seconds(2))
+            .unwrap();
+        assert!(store.user_by_id(&resumed.user_id).unwrap().unwrap().active);
+        assert!(matches!(
+            store.create_or_resume_verified_local_user(
+                "final-name",
+                email,
+                "Final User",
+                "replacement-hash",
+                now + Duration::seconds(3),
+            ),
+            Err(MarketplaceStoreError::IdentityAlreadyExists)
+        ));
     }
 
     #[test]

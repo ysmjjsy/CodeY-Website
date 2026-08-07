@@ -34,6 +34,9 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{get, options, post};
 use axum::{Form, Json, Router};
 use chrono::{Duration, Utc};
+use lettre::message::Mailbox;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -46,9 +49,9 @@ pub use store::{
 
 use auth::{
     clear_oauth_state_cookie, clear_session_cookie, hash_password, oauth_state_cookie,
-    oauth_state_token, pkce_challenge, random_token, session_cookie, session_token,
-    set_session_cookie, token_hash, validate_display_name, validate_email, validate_password,
-    validate_username, verify_password, GitHubIdentity, MarketplaceAuthError,
+    oauth_state_token, pkce_challenge, random_numeric_code, random_token, session_cookie,
+    session_token, set_session_cookie, token_hash, validate_display_name, validate_email,
+    validate_password, validate_username, verify_password, GitHubIdentity, MarketplaceAuthError,
 };
 use cloud::{
     discover_upstream_models, AdminModelCatalog, CloudEntitlementError, CloudEntitlementSigner,
@@ -67,6 +70,7 @@ const PACKAGE_FIELD: &str = "archive";
 const UPLOAD_TTL_MINUTES: i64 = 30;
 const SESSION_TTL_DAYS: i64 = 30;
 const OAUTH_STATE_TTL_MINUTES: i64 = 10;
+const REGISTRATION_CODE_TTL_MINUTES: i64 = 10;
 const DEFAULT_ADMIN_USERNAME: &str = "admin";
 const DEFAULT_ADMIN_PASSWORD: &str = "a773949603";
 
@@ -87,6 +91,26 @@ pub struct MarketplaceServerConfig {
     pub admin_password: String,
     pub payments: CloudPaymentConfig,
     pub cloud_secret_cipher: Option<CloudSecretCipher>,
+    pub registration_email: Option<RegistrationEmailConfig>,
+    #[cfg(test)]
+    pub registration_test_code: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RegistrationEmailConfig {
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    pub smtp_security: RegistrationSmtpSecurity,
+    pub smtp_username: Option<String>,
+    pub smtp_password: Option<String>,
+    pub from: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum RegistrationSmtpSecurity {
+    Tls,
+    StartTls,
+    None,
 }
 
 impl MarketplaceServerConfig {
@@ -159,6 +183,7 @@ impl MarketplaceServerConfig {
             .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
         let cloud_secret_cipher = CloudSecretCipher::from_environment()
             .map_err(|error| MarketplaceServerError::InvalidConfiguration(error.to_string()))?;
+        let registration_email = registration_email_from_environment()?;
         let config = Self {
             data_root,
             database_url,
@@ -175,6 +200,9 @@ impl MarketplaceServerConfig {
             admin_password,
             payments,
             cloud_secret_cipher,
+            registration_email,
+            #[cfg(test)]
+            registration_test_code: None,
         };
         if config.cors_origin.is_empty() {
             return Err(MarketplaceServerError::InvalidConfiguration(
@@ -349,6 +377,10 @@ pub fn build_router(config: MarketplaceServerConfig) -> Result<Router, Marketpla
             get(download_release),
         )
         .route("/api/market/v1/auth/register", post(register))
+        .route(
+            "/api/market/v1/auth/register/challenge",
+            post(registration_challenge),
+        )
         .route("/api/market/v1/auth/login", post(login))
         .route("/api/market/v1/auth/logout", post(logout))
         .route("/api/market/v1/auth/me", get(auth_me))
@@ -1377,6 +1409,16 @@ struct RegisterRequest {
     email: String,
     display_name: String,
     password: String,
+    verification_code: String,
+    terms_accepted: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RegistrationChallengeRequest {
+    email: String,
+    #[serde(default)]
+    locale: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1391,6 +1433,163 @@ struct LoginRequest {
 struct AuthResponse {
     user: Option<MarketplaceUser>,
     github_enabled: bool,
+    registration_enabled: bool,
+}
+
+fn registration_enabled(state: &AppState) -> bool {
+    if state.config.registration_email.is_some() {
+        return true;
+    }
+    #[cfg(test)]
+    {
+        state.config.registration_test_code.is_some()
+    }
+    #[cfg(not(test))]
+    {
+        false
+    }
+}
+
+#[cfg(test)]
+fn registration_verification_code(state: &AppState) -> ApiResult<String> {
+    if let Some(code) = &state.config.registration_test_code {
+        return Ok(code.clone());
+    }
+    random_numeric_code().map_err(ApiError::from)
+}
+
+#[cfg(not(test))]
+fn registration_verification_code(_: &AppState) -> ApiResult<String> {
+    random_numeric_code().map_err(ApiError::from)
+}
+
+fn registration_source_hash(headers: &HeaderMap) -> String {
+    let source = headers
+        .get("x-real-ip")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.trim().parse::<std::net::IpAddr>().ok())
+        .or_else(|| {
+            headers
+                .get("x-forwarded-for")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.split(',').next())
+                .and_then(|value| value.trim().parse::<std::net::IpAddr>().ok())
+        })
+        .map_or_else(|| "unknown".into(), |address| address.to_string());
+    token_hash(&source)
+}
+
+async fn send_registration_email(
+    state: &AppState,
+    recipient: &str,
+    code: &str,
+    english: bool,
+) -> Result<(), String> {
+    #[cfg(test)]
+    if state.config.registration_test_code.is_some() {
+        return Ok(());
+    }
+    let config = state
+        .config
+        .registration_email
+        .clone()
+        .ok_or_else(|| "registration email is not configured".to_owned())?;
+    let recipient = recipient.to_owned();
+    let code = code.to_owned();
+    tokio::task::spawn_blocking(move || {
+        let (subject, body) = if english {
+            (
+                "Your CodeY verification code",
+                format!(
+                    "Your CodeY verification code is {code}. It expires in {REGISTRATION_CODE_TTL_MINUTES} minutes. If you did not request this, ignore this email."
+                ),
+            )
+        } else {
+            (
+                "CodeY 注册验证码",
+                format!(
+                    "你的 CodeY 注册验证码是 {code}。验证码将在 {REGISTRATION_CODE_TTL_MINUTES} 分钟后失效。如非本人操作，请忽略此邮件。"
+                ),
+            )
+        };
+        let message = Message::builder()
+            .from(
+                config
+                    .from
+                    .parse::<Mailbox>()
+                    .map_err(|error| error.to_string())?,
+            )
+            .to(recipient
+                .parse::<Mailbox>()
+                .map_err(|error| error.to_string())?)
+            .subject(subject)
+            .body(body)
+            .map_err(|error| error.to_string())?;
+        let mut builder = match config.smtp_security {
+            RegistrationSmtpSecurity::Tls => SmtpTransport::relay(&config.smtp_host),
+            RegistrationSmtpSecurity::StartTls => {
+                SmtpTransport::starttls_relay(&config.smtp_host)
+            }
+            RegistrationSmtpSecurity::None => {
+                Ok(SmtpTransport::builder_dangerous(&config.smtp_host))
+            }
+        }
+        .map_err(|error| error.to_string())?
+        .port(config.smtp_port)
+        .timeout(Some(std::time::Duration::from_secs(10)));
+        if let (Some(username), Some(password)) =
+            (config.smtp_username, config.smtp_password)
+        {
+            builder = builder.credentials(Credentials::new(username, password));
+        }
+        builder
+            .build()
+            .send(&message)
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+async fn registration_challenge(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(request): Json<RegistrationChallengeRequest>,
+) -> ApiResult<StatusCode> {
+    require_same_origin(&state, &headers)?;
+    if !registration_enabled(&state) {
+        return Err(ApiError::service_unavailable(
+            "registration_unavailable",
+            "Account registration is not configured",
+        ));
+    }
+    let email = validate_email(&request.email)?;
+    let code = registration_verification_code(&state)?;
+    let now = Utc::now();
+    let challenge_id = state.store.create_registration_challenge(
+        &email,
+        &token_hash(&code),
+        &registration_source_hash(&headers),
+        now,
+        now + Duration::minutes(REGISTRATION_CODE_TTL_MINUTES),
+    )?;
+    if let Err(error) = send_registration_email(
+        &state,
+        &email,
+        &code,
+        request.locale.as_deref() == Some("en"),
+    )
+    .await
+    {
+        let _ = state.store.delete_registration_challenge(&challenge_id);
+        tracing::error!(%error, "registration verification email delivery failed");
+        return Err(ApiError::service_unavailable(
+            "registration_unavailable",
+            "Account registration is temporarily unavailable",
+        ));
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn register(
@@ -1403,14 +1602,40 @@ async fn register(
     let email = validate_email(&request.email)?;
     let display_name = validate_display_name(&request.display_name)?;
     validate_password(&request.password)?;
+    if !request.terms_accepted {
+        return Err(ApiError::bad_request(
+            "terms_required",
+            "Terms must be accepted before registration",
+        ));
+    }
+    if !registration_enabled(&state) {
+        return Err(ApiError::service_unavailable(
+            "registration_unavailable",
+            "Account registration is not configured",
+        ));
+    }
+    state.store.consume_registration_challenge(
+        &email,
+        &token_hash(request.verification_code.trim()),
+        Utc::now(),
+    )?;
     let password_hash = hash_password(&request.password)?;
-    let user = state.store.create_local_user(
+    let now = Utc::now();
+    let user = state.store.create_or_resume_verified_local_user(
         &username,
         &email,
         &display_name,
         &password_hash,
-        MarketplaceUserRole::User,
+        now,
     )?;
+    state.cloud.ensure_default_subscription(
+        &user.user_id,
+        &state.config.cloud_default_timezone,
+        now,
+    )?;
+    state
+        .store
+        .activate_registered_user(&user.user_id, Utc::now())?;
     authenticated_response(&state, user)
 }
 
@@ -1467,6 +1692,7 @@ async fn auth_me(
     Ok(Json(AuthResponse {
         user: current_user(&state, &headers)?,
         github_enabled: github_enabled(&state),
+        registration_enabled: registration_enabled(&state),
     }))
 }
 
@@ -1755,6 +1981,7 @@ fn authenticated_response(state: &AppState, user: MarketplaceUser) -> ApiResult<
         Json(AuthResponse {
             user: Some(user),
             github_enabled: github_enabled(state),
+            registration_enabled: registration_enabled(state),
         }),
     )
         .into_response();
@@ -2298,6 +2525,65 @@ fn environment_value(name: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn registration_email_from_environment(
+) -> Result<Option<RegistrationEmailConfig>, MarketplaceServerError> {
+    let host = environment_value("CODEY_REGISTRATION_SMTP_HOST");
+    let from = environment_value("CODEY_REGISTRATION_EMAIL_FROM");
+    if host.is_none() && from.is_none() {
+        return Ok(None);
+    }
+    let (Some(smtp_host), Some(from)) = (host, from) else {
+        return Err(MarketplaceServerError::InvalidConfiguration(
+            "CODEY_REGISTRATION_SMTP_HOST and CODEY_REGISTRATION_EMAIL_FROM must be configured together"
+                .into(),
+        ));
+    };
+    from.parse::<Mailbox>().map_err(|error| {
+        MarketplaceServerError::InvalidConfiguration(format!(
+            "CODEY_REGISTRATION_EMAIL_FROM is invalid: {error}"
+        ))
+    })?;
+    let smtp_port = std::env::var("CODEY_REGISTRATION_SMTP_PORT")
+        .unwrap_or_else(|_| "587".into())
+        .parse::<u16>()
+        .map_err(|_| {
+            MarketplaceServerError::InvalidConfiguration(
+                "CODEY_REGISTRATION_SMTP_PORT must be a valid TCP port".into(),
+            )
+        })?;
+    let smtp_security = match std::env::var("CODEY_REGISTRATION_SMTP_SECURITY")
+        .unwrap_or_else(|_| "starttls".into())
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "tls" => RegistrationSmtpSecurity::Tls,
+        "starttls" => RegistrationSmtpSecurity::StartTls,
+        "none" => RegistrationSmtpSecurity::None,
+        _ => {
+            return Err(MarketplaceServerError::InvalidConfiguration(
+                "CODEY_REGISTRATION_SMTP_SECURITY must be tls, starttls, or none".into(),
+            ));
+        }
+    };
+    let smtp_username = environment_value("CODEY_REGISTRATION_SMTP_USERNAME");
+    let smtp_password = environment_value("CODEY_REGISTRATION_SMTP_PASSWORD");
+    if smtp_username.is_some() != smtp_password.is_some() {
+        return Err(MarketplaceServerError::InvalidConfiguration(
+            "CODEY_REGISTRATION_SMTP_USERNAME and CODEY_REGISTRATION_SMTP_PASSWORD must be configured together"
+                .into(),
+        ));
+    }
+    Ok(Some(RegistrationEmailConfig {
+        smtp_host,
+        smtp_port,
+        smtp_security,
+        smtp_username,
+        smtp_password,
+        from,
+    }))
+}
+
 type ApiResult<T> = Result<T, ApiError>;
 
 #[derive(Debug, Serialize)]
@@ -2343,6 +2629,10 @@ impl ApiError {
 
     fn conflict(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self::new(StatusCode::CONFLICT, code, message)
+    }
+
+    fn too_many_requests(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::new(StatusCode::TOO_MANY_REQUESTS, code, message)
     }
 
     fn service_unavailable(code: impl Into<String>, message: impl Into<String>) -> Self {
@@ -2406,6 +2696,12 @@ impl From<MarketplaceStoreError> for ApiError {
             }
             MarketplaceStoreError::IdentityAlreadyExists => {
                 Self::conflict("identity_exists", error.to_string())
+            }
+            MarketplaceStoreError::RegistrationRateLimited => {
+                Self::too_many_requests("registration_rate_limited", error.to_string())
+            }
+            MarketplaceStoreError::RegistrationCodeInvalid => {
+                Self::bad_request("verification_code_invalid", error.to_string())
             }
             MarketplaceStoreError::SubmissionAlreadyPending => {
                 Self::conflict("submission_pending", error.to_string())

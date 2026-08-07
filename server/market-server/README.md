@@ -25,12 +25,23 @@ Environment variables:
 | `CODEY_MARKET_ADMIN_GITHUB_LOGINS` | unset | Comma-separated GitHub logins promoted to administrators |
 | `CODEY_MARKET_ADMIN_USERNAME` | `admin` | Local administrator username |
 | `CODEY_MARKET_ADMIN_PASSWORD` | `a773949603` | Local administrator password |
+| `CODEY_REGISTRATION_SMTP_HOST` | unset | SMTP host; registration is disabled when unset |
+| `CODEY_REGISTRATION_SMTP_PORT` | `587` | SMTP port |
+| `CODEY_REGISTRATION_SMTP_SECURITY` | `starttls` | `tls`, `starttls`, or `none` |
+| `CODEY_REGISTRATION_SMTP_USERNAME` | unset | Optional SMTP username; configure with the password |
+| `CODEY_REGISTRATION_SMTP_PASSWORD` | unset | Optional SMTP password; configure with the username |
+| `CODEY_REGISTRATION_EMAIL_FROM` | unset | Verification sender mailbox; required with the SMTP host |
 
 Local accounts support login by either username or email. Passwords are stored as Argon2id
 hashes. The configured local administrator is created on startup; changing its configured password
 updates the stored hash on the next startup. GitHub login is enabled only when both OAuth variables
 are configured. The OAuth App callback is
 `<website-origin>/api/market/v1/auth/github/callback`.
+
+Local registration requires SMTP configuration and a six-digit email verification code. Codes
+expire after ten minutes. The server rate-limits sends by email and reverse-proxy client address,
+stores only code hashes, and activates the account only after the default cloud subscription has
+been provisioned.
 
 The normal development and production entry points live in `CodeY-Website`: `pnpm dev` and
 `pnpm start` manage this service and proxy both `/.well-known/codey-market.json` and

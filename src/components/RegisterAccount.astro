@@ -1,0 +1,231 @@
+---
+import type { Locale } from '../i18n/ui'
+import { authCopy } from '../i18n/auth'
+import { consolePath } from '../i18n/utils'
+import Button from './ui/Button.astro'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+const copy = authCopy(locale)
+---
+
+<section class="register-page" data-register-page data-copy={JSON.stringify(copy)} data-locale={locale} data-console={consolePath(locale)}>
+  <div class="register-card commercial-panel">
+    <header>
+      <span class="register-mark" aria-hidden="true">C</span>
+      <p class="register-kicker">CODEY ACCOUNT</p>
+      <h1>{copy.registerTitle}</h1>
+      <p>{copy.registerDescription}</p>
+    </header>
+
+    <p class="register-state" data-register-state hidden></p>
+
+    <form data-register-form>
+      <label>
+        <span>{copy.email}</span>
+        <span class="verification-row">
+          <input name="email" type="email" autocomplete="email" required maxlength="254" placeholder={copy.emailPlaceholder} />
+          <button type="button" data-send-code>{copy.sendCode}</button>
+        </span>
+      </label>
+
+      <label>
+        <span>{copy.verificationCode}</span>
+        <input name="verificationCode" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="6" pattern="[0-9]{6}" placeholder={copy.verificationCodePlaceholder} />
+      </label>
+
+      <div class="register-grid">
+        <label>
+          <span>{copy.username}</span>
+          <input name="username" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" />
+        </label>
+        <label>
+          <span>{copy.displayName}</span>
+          <input name="displayName" autocomplete="name" required maxlength="80" />
+        </label>
+      </div>
+
+      <div class="register-grid">
+        <label>
+          <span>{copy.password}</span>
+          <input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" />
+          <small>{copy.passwordHint}</small>
+        </label>
+        <label>
+          <span>{copy.confirmPassword}</span>
+          <input name="confirmPassword" type="password" autocomplete="new-password" required minlength="10" maxlength="128" />
+        </label>
+      </div>
+
+      <label class="terms-check">
+        <input name="termsAccepted" type="checkbox" required />
+        <span>{copy.termsConsent}</span>
+      </label>
+
+      <Button variant="primary" type="submit" data-register-submit>{copy.registerSubmit}</Button>
+    </form>
+
+    <p class="register-login">{copy.hasAccount} <button type="button" data-open-login>{copy.loginAction}</button></p>
+  </div>
+</section>
+
+<script>
+  import { localizedApiError } from '../i18n/api-errors'
+  import { toast } from '../lib/toast'
+
+  type AuthResponse = {
+    user?: { userId: string } | null
+    githubEnabled: boolean
+    registrationEnabled: boolean
+  }
+
+  const root = document.querySelector<HTMLElement>('[data-register-page]')
+  if (root) {
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
+    const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
+    const form = root.querySelector<HTMLFormElement>('[data-register-form]')!
+    const sendButton = root.querySelector<HTMLButtonElement>('[data-send-code]')!
+    const submitButton = root.querySelector<HTMLButtonElement>('[data-register-submit]')!
+    const stateMessage = root.querySelector<HTMLElement>('[data-register-state]')!
+    let cooldownTimer: number | undefined
+
+    function continuation(): string | null {
+      const value = new URLSearchParams(window.location.search).get('continue')
+      if (!value) return null
+      try {
+        const url = new URL(value, window.location.origin)
+        return url.origin === window.location.origin && url.pathname === '/api/cloud/v1/oauth/authorize'
+          ? url.href
+          : null
+      } catch {
+        return null
+      }
+    }
+
+    async function responseError(response: Response): Promise<string> {
+      return localizedApiError(response, locale, copy.unavailable)
+    }
+
+    function setAvailable(available: boolean): void {
+      for (const control of form.elements) {
+        if (control instanceof HTMLInputElement || control instanceof HTMLButtonElement) {
+          control.disabled = !available
+        }
+      }
+      stateMessage.hidden = available
+      stateMessage.textContent = available ? '' : copy.registrationUnavailable
+    }
+
+    function startCooldown(): void {
+      let remaining = 60
+      window.clearInterval(cooldownTimer)
+      sendButton.disabled = true
+      sendButton.textContent = `${copy.resendCode} (${remaining}s)`
+      cooldownTimer = window.setInterval(() => {
+        remaining -= 1
+        if (remaining <= 0) {
+          window.clearInterval(cooldownTimer)
+          sendButton.disabled = false
+          sendButton.textContent = copy.resendCode
+          return
+        }
+        sendButton.textContent = `${copy.resendCode} (${remaining}s)`
+      }, 1000)
+    }
+
+    sendButton.addEventListener('click', async () => {
+      const email = form.elements.namedItem('email')
+      if (!(email instanceof HTMLInputElement) || !email.reportValidity()) return
+      const original = sendButton.textContent || copy.sendCode
+      sendButton.disabled = true
+      sendButton.textContent = copy.sendingCode
+      try {
+        const response = await fetch('/api/market/v1/auth/register/challenge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ email: email.value, locale }),
+        })
+        if (!response.ok) throw new Error(await responseError(response))
+        toast.success(copy.codeSent)
+        startCooldown()
+      } catch (reason) {
+        sendButton.disabled = false
+        sendButton.textContent = original
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+      }
+    })
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault()
+      const values = Object.fromEntries(new FormData(form).entries()) as Record<string, FormDataEntryValue>
+      if (values.password !== values.confirmPassword) {
+        toast.error(copy.passwordMismatch)
+        return
+      }
+      const original = submitButton.textContent || copy.registerSubmit
+      submitButton.disabled = true
+      submitButton.textContent = copy.registering
+      try {
+        const response = await fetch('/api/market/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            username: values.username,
+            email: values.email,
+            displayName: values.displayName,
+            password: values.password,
+            verificationCode: values.verificationCode,
+            termsAccepted: values.termsAccepted === 'on',
+          }),
+        })
+        if (!response.ok) throw new Error(await responseError(response))
+        const payload = (await response.json()) as AuthResponse
+        window.dispatchEvent(new CustomEvent('market-auth-changed', { detail: payload }))
+        window.location.assign(continuation() || root.dataset.console || '/')
+      } catch (reason) {
+        toast.error(reason instanceof Error ? reason.message : copy.unavailable)
+        submitButton.disabled = false
+        submitButton.textContent = original
+      }
+    })
+
+    root.querySelector('[data-open-login]')?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('market-auth-required'))
+    })
+
+    fetch('/api/market/v1/auth/me', { headers: { Accept: 'application/json' } })
+      .then(async (response) => response.ok ? response.json() as Promise<AuthResponse> : Promise.reject())
+      .then((payload) => setAvailable(payload.registrationEnabled))
+      .catch(() => setAvailable(false))
+  }
+</script>
+
+<style>
+  .register-page { display: grid; min-height: calc(100vh - 68px); padding: clamp(42px, 7vw, 88px) 20px; place-items: center; }
+  .register-card { width: min(720px, 100%); padding: clamp(28px, 5vw, 48px); }
+  .register-card header { margin-bottom: 30px; text-align: center; }
+  .register-mark { display: grid; width: 44px; height: 44px; margin: 0 auto 14px; place-items: center; border-radius: 12px; color: var(--btn-primary-fg); background: var(--accent); font: 700 .92rem var(--font-mono); }
+  .register-kicker { margin: 0 0 8px; color: var(--accent-bright); font: 600 .68rem var(--font-mono); letter-spacing: .13em; }
+  .register-card h1 { font-size: clamp(1.8rem, 5vw, 2.55rem); letter-spacing: -.04em; }
+  .register-card header > p:last-child { margin: 10px 0 0; color: var(--fg-muted); font-size: .88rem; }
+  form { display: grid; gap: 18px; }
+  label:not(.terms-check) { display: grid; gap: 8px; color: var(--fg); font-size: .8rem; font-weight: 600; }
+  input:not([type='checkbox']) { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; outline: 0; color: var(--fg); background: var(--panel-glass); font: 400 .88rem var(--font-body); }
+  input:not([type='checkbox']):focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px var(--accent-soft); }
+  label small { color: var(--fg-faint); font-weight: 400; }
+  .register-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .verification-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+  .verification-row button { min-width: 116px; border: 1px solid var(--border-strong); border-radius: 10px; color: var(--fg); background: var(--ghost-bg); cursor: pointer; }
+  .verification-row button:hover:not(:disabled) { border-color: var(--border-hover); background: var(--ghost-bg-hover); }
+  button:disabled { cursor: not-allowed; opacity: .6; }
+  .terms-check { display: flex; align-items: flex-start; gap: 10px; color: var(--fg-muted); font-size: .78rem; line-height: 1.55; cursor: pointer; }
+  .terms-check input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--accent); }
+  form > .btn { min-height: 48px; margin-top: 2px; border-radius: 10px; }
+  .register-login { margin: 22px 0 0; color: var(--fg-muted); font-size: .8rem; text-align: center; }
+  .register-login button { padding: 0; border: 0; color: var(--accent-bright); background: transparent; font: inherit; cursor: pointer; }
+  .register-state { margin: 0 0 22px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: 10px; color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, transparent); font-size: .82rem; }
+  @media (max-width: 620px) { .register-grid { grid-template-columns: 1fr; } .verification-row { grid-template-columns: 1fr; } .verification-row button { min-height: 44px; } }
+</style>

@@ -90,6 +90,8 @@ async fn administrator_publishes_versioned_plan_catalog() {
         admin_password: "correct-horse-battery-staple".into(),
         payments: crate::cloud::CloudPaymentConfig::default(),
         cloud_secret_cipher: None,
+        registration_email: None,
+        registration_test_code: Some("123456".into()),
     })
     .unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -184,6 +186,8 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
         admin_password: "configured-admin-password".into(),
         payments: crate::cloud::CloudPaymentConfig::default(),
         cloud_secret_cipher: None,
+        registration_email: None,
+        registration_test_code: Some("123456".into()),
     })
     .unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -208,6 +212,14 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
             .len(),
         1
     );
+    let challenge = client
+        .post(format!("{market_api}/auth/register/challenge"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({"email": "desktop@example.com"}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&challenge, StatusCode::NO_CONTENT);
     let register = client
         .post(format!("{market_api}/auth/register"))
         .header(reqwest::header::ORIGIN, &origin)
@@ -215,7 +227,9 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
             "username": "desktop-user",
             "email": "desktop@example.com",
             "displayName": "Desktop User",
-            "password": "correct-horse-battery-staple"
+            "password": "correct-horse-battery-staple",
+            "verificationCode": "123456",
+            "termsAccepted": true
         }))
         .send()
         .await
@@ -413,6 +427,8 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         admin_password: "configured-admin-password".into(),
         payments: crate::cloud::CloudPaymentConfig::default(),
         cloud_secret_cipher: None,
+        registration_email: None,
+        registration_test_code: Some("123456".into()),
     })
     .unwrap();
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
@@ -460,6 +476,14 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
             .unwrap()
             .starts_with("codey_market_oauth_state=")));
 
+    let challenge = client
+        .post(format!("{api_base_url}/auth/register/challenge"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({"email": "publisher@example.com"}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&challenge, StatusCode::NO_CONTENT);
     let register = client
         .post(format!("{api_base_url}/auth/register"))
         .header(reqwest::header::ORIGIN, &origin)
@@ -467,7 +491,9 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
             "username": "publisher",
             "email": "publisher@example.com",
             "displayName": "Market Publisher",
-            "password": "correct-horse-battery-staple"
+            "password": "correct-horse-battery-staple",
+            "verificationCode": "123456",
+            "termsAccepted": true
         }))
         .send()
         .await
@@ -638,6 +664,14 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
         .unwrap();
     assert!(catalog_before_review.listings.is_empty());
 
+    let challenge = client
+        .post(format!("{api_base_url}/auth/register/challenge"))
+        .header(reqwest::header::ORIGIN, &origin)
+        .json(&serde_json::json!({"email": "reviewer@example.com"}))
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&challenge, StatusCode::NO_CONTENT);
     let register_admin = client
         .post(format!("{api_base_url}/auth/register"))
         .header(reqwest::header::ORIGIN, &origin)
@@ -645,7 +679,9 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
             "username": "reviewer",
             "email": "reviewer@example.com",
             "displayName": "Market Reviewer",
-            "password": "correct-horse-battery-staple"
+            "password": "correct-horse-battery-staple",
+            "verificationCode": "123456",
+            "termsAccepted": true
         }))
         .send()
         .await
