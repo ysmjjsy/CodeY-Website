@@ -336,6 +336,37 @@ async fn desktop_oauth_pkce_links_the_website_account_and_cloud_profile() {
         .unwrap();
     assert_response_status(&token, StatusCode::OK);
     let token = token.json::<crate::cloud::OAuthTokenPair>().await.unwrap();
+    assert!(token
+        .scope
+        .split_whitespace()
+        .any(|scope| scope == "marketplace:publish"));
+    let archive = build_archive();
+    let boundary = "codey-desktop-market-upload-boundary";
+    let mut body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"archive\"; filename=\"desktop.codeypkg\"\r\nContent-Type: application/vnd.codey.package+zip\r\n\r\n"
+    )
+    .into_bytes();
+    body.extend_from_slice(&archive);
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let upload = client
+        .post(format!("{market_api}/uploads"))
+        .header(
+            reqwest::header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={boundary}"),
+        )
+        .bearer_auth(&token.access_token)
+        .body(body)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&upload, StatusCode::CREATED);
+    let submissions = client
+        .get(format!("{market_api}/submissions/mine"))
+        .bearer_auth(&token.access_token)
+        .send()
+        .await
+        .unwrap();
+    assert_response_status(&submissions, StatusCode::OK);
     let cloud_me = client
         .get(format!("{cloud_api}/me"))
         .bearer_auth(&token.access_token)

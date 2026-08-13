@@ -1063,9 +1063,10 @@ async fn complete_test_payment(
 
 const DESKTOP_OAUTH_CLIENT_ID: &str = "codey-desktop";
 const DESKTOP_OAUTH_DEFAULT_SCOPE: &str =
-    "entitlement:read model:invoke model:list profile:read wallet:read";
+    "entitlement:read marketplace:publish model:invoke model:list profile:read wallet:read";
 const DESKTOP_OAUTH_ALLOWED_SCOPES: &[&str] = &[
     "entitlement:read",
+    "marketplace:publish",
     "model:invoke",
     "model:list",
     "profile:read",
@@ -2020,6 +2021,34 @@ fn require_user(state: &AppState, headers: &HeaderMap) -> ApiResult<MarketplaceU
         .ok_or_else(|| ApiError::unauthorized("authentication_required", "Sign in to continue"))
 }
 
+fn require_marketplace_user(state: &AppState, headers: &HeaderMap) -> ApiResult<MarketplaceUser> {
+    if headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("Bearer "))
+    {
+        require_cloud_user(state, headers, "marketplace:publish")
+    } else {
+        require_user(state, headers)
+    }
+}
+
+fn require_marketplace_mutation_user(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> ApiResult<MarketplaceUser> {
+    if headers
+        .get(AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.starts_with("Bearer "))
+    {
+        require_cloud_user(state, headers, "marketplace:publish")
+    } else {
+        require_same_origin(state, headers)?;
+        require_user(state, headers)
+    }
+}
+
 fn require_admin(state: &AppState, headers: &HeaderMap) -> ApiResult<MarketplaceUser> {
     let user = require_user(state, headers)?;
     if !user.is_admin() {
@@ -2125,8 +2154,7 @@ async fn upload(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> ApiResult<(StatusCode, Json<MarketplaceUploadPreview>)> {
-    require_same_origin(&state, &headers)?;
-    let user = require_user(&state, &headers)?;
+    let user = require_marketplace_mutation_user(&state, &headers)?;
     let mut archive_bytes = None;
     while let Some(field) = multipart
         .next_field()
@@ -2169,8 +2197,7 @@ async fn publish(
     Path(upload_id): Path<String>,
     Json(request): Json<PublishMarketplaceUploadRequest>,
 ) -> ApiResult<(StatusCode, Json<MarketplaceSubmission>)> {
-    require_same_origin(&state, &headers)?;
-    let user = require_user(&state, &headers)?;
+    let user = require_marketplace_mutation_user(&state, &headers)?;
     let upload = state.store.upload(&upload_id)?.ok_or_else(|| {
         ApiError::not_found("upload_not_found", "Upload does not exist or has expired")
     })?;
@@ -2232,7 +2259,7 @@ async fn my_submissions(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
 ) -> ApiResult<Json<Vec<MarketplaceSubmission>>> {
-    let user = require_user(&state, &headers)?;
+    let user = require_marketplace_user(&state, &headers)?;
     Ok(Json(state.store.submissions_for_user(&user.user_id)?))
 }
 
