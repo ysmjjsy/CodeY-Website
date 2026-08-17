@@ -8,7 +8,7 @@ CodeY 是帮助你完成任务并交付结果的 AI 工作伙伴。你可以把�
 CodeY 采用本地优先的执行方式。任务由本地守护进程持久化运行，权限显式受控；同一套运行时既服务桌面端，也通过 SDK 服务你的应用。
 
 :::caution[开发阶段]
-CodeY 正处于 `0.3.x` 活跃开发阶段。安装包和版本记录通过 [GitHub Releases](https://github.com/ysmjjsy/CodeY-Releases/releases) 发布。稳定版本发布前，接口和存储格式可能发生变化。
+CodeY 正处于 `0.4.x` 活跃开发阶段。安装包和版本记录通过 [GitHub Releases](https://github.com/ysmjjsy/CodeY-Releases/releases) 发布。稳定版本发布前，接口和存储格式可能发生变化。
 :::
 
 ## 两个入口

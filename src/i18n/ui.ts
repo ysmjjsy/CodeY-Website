@@ -29,7 +29,7 @@ export const ui = {
     'nav.lang.zh': '简体中文',
     'nav.lang.en': 'English',
 
-    'hero.badge': 'v0.3.2 Alpha · 活跃开发中',
+    'hero.badge': 'v0.4.0 Alpha · 活跃开发中',
     'hero.title.line1': '你的 AI 工作伙伴',
     'hero.title.line2': '从目标到结果',
     'hero.sub':
@@ -222,7 +222,7 @@ export const ui = {
     'nav.lang.zh': '简体中文',
     'nav.lang.en': 'English',
 
-    'hero.badge': 'v0.3.2 Alpha · Active development',
+    'hero.badge': 'v0.4.0 Alpha · Active development',
     'hero.title.line1': 'Your AI work partner',
     'hero.title.line2': 'From goal to result',
     'hero.sub':
