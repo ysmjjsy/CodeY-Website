@@ -1,14 +1,17 @@
-/* Starlight 主题定制 — 与 CodeY 桌面端设计 Token 对齐 */
-
+/* Starlight 主题定制 — 与 CodeY 桌面端设计 Token 对齐
+ *
+ * 品牌 accent 两套主题均为 indigo，与 apps/desktop/src/shared/styles/global.css 一致：
+ *   深色 #818cf8 / 浅色 #4f46e5
+ */
 :root {
   --sl-font: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
     system-ui, sans-serif;
   --sl-font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, ui-monospace, monospace;
 
-  /* 深色（默认）：青色 accent，zinc 底 */
-  --sl-color-accent-low: #083344;
-  --sl-color-accent: #06b6d4;
-  --sl-color-accent-high: #a5f3fc;
+  /* 深色（默认）：indigo accent，zinc 底 */
+  --sl-color-accent-low: #312e81;
+  --sl-color-accent: #818cf8;
+  --sl-color-accent-high: #c7d2fe;
   --sl-color-white: #f4f4f5;
   --sl-color-gray-1: #e4e4e7;
   --sl-color-gray-2: #c8c8cd;

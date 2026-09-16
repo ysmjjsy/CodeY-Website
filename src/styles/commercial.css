@@ -4,7 +4,7 @@
   background:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
-    radial-gradient(circle at 50% -10%, var(--accent-glow), transparent 32rem),
+    radial-gradient(circle at 50% -10%, var(--decorative-glow), transparent 32rem),
     var(--bg);
   background-size: 44px 44px, 44px 44px, auto, auto;
 }

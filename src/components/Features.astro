@@ -32,7 +32,7 @@ const { locale } = Astro.props
         <div class="card-visual log-visual" aria-hidden="true">
           <span class="log-line"><i class="log-key">event</i> run_accepted <i class="log-ok">persisted</i></span>
           <span class="log-line"><i class="log-key">event</i> tool_call · idempotency:a91f <i class="log-ok">persisted</i></span>
-          <span class="log-line"><i class="log-key">event</i> daemon_restart → replay <i class="log-cyan">recovered</i></span>
+          <span class="log-line"><i class="log-key">event</i> daemon_restart → replay <i class="log-brand">recovered</i></span>
         </div>
       </article>
 
@@ -213,7 +213,7 @@ const { locale } = Astro.props
     color: var(--success);
   }
 
-  .log-cyan {
+  .log-brand {
     font-style: normal;
     margin-left: auto;
     color: var(--accent-bright);

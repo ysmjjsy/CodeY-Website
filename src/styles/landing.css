@@ -1,4 +1,9 @@
-/* CodeY 官网首页样式 — 品牌 Token 取自桌面端设计系统 */
+/* CodeY 官网首页样式 — 品牌 Token 取自桌面端设计系统
+ *
+ * 品牌主色（--accent*）与桌面端 apps/desktop/src/shared/styles/global.css 对齐：
+ *   浅色 #4f46e5 / 深色 #818cf8（indigo）
+ * 青色（--decorative*）仅用于氛围装饰（辉光、网格、渐变），不再承担品牌语义。
+ */
 
 :root,
 :root[data-theme='dark'] {
@@ -12,12 +17,15 @@
   --fg: #f4f4f5;
   --fg-muted: #a1a1aa;
   --fg-faint: #71717a;
-  --accent: #06b6d4;
-  --accent-bright: #22d3ee;
-  --accent-soft: rgba(6, 182, 212, 0.12);
-  --accent-ring: rgba(6, 182, 212, 0.35);
-  --accent-glow: rgba(6, 182, 212, 0.16);
-  --btn-primary-fg: #06222a;
+  /* 品牌：对齐桌面端深色 primary */
+  --accent: #818cf8;
+  --accent-bright: #a5b4fc;
+  --accent-soft: rgba(129, 140, 248, 0.14);
+  --accent-ring: rgba(129, 140, 248, 0.4);
+  /* 装饰：青色仅用于氛围辉光 */
+  --decorative-glow: rgba(6, 182, 212, 0.16);
+  --accent-glow: rgba(129, 140, 248, 0.14);
+  --btn-primary-fg: #09090b;
   --amber: #f59e0b;
   --amber-soft: rgba(245, 158, 11, 0.12);
   --success: #34d399;
@@ -32,9 +40,10 @@
   --chip-bg: rgba(255, 255, 255, 0.03);
   --ghost-bg: rgba(255, 255, 255, 0.02);
   --ghost-bg-hover: rgba(255, 255, 255, 0.05);
+  --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --font-display: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, ui-monospace, monospace;
@@ -42,7 +51,7 @@
   color-scheme: dark;
 }
 
-/* 浅色：对齐文档侧 indigo accent */
+/* 浅色：对齐桌面端浅色 primary（indigo #4f46e5） */
 :root[data-theme='light'] {
   --bg: #f8f9fa;
   --bg-soft: #f1f5f9;
@@ -54,10 +63,13 @@
   --fg: #1e293b;
   --fg-muted: #59697f;
   --fg-faint: #94a3b8;
+  /* 品牌：对齐桌面端浅色 primary */
   --accent: #4f46e5;
   --accent-bright: #4338ca;
   --accent-soft: rgba(79, 70, 229, 0.1);
   --accent-ring: rgba(79, 70, 229, 0.28);
+  /* 装饰：浅色下使用更深的青色以保证对比度 */
+  --decorative-glow: rgba(8, 145, 178, 0.12);
   --accent-glow: rgba(79, 70, 229, 0.12);
   --btn-primary-fg: #ffffff;
   --amber: #d97706;

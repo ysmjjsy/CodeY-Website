@@ -4,7 +4,7 @@ CodeY 项目官网与官方文档，基于 [Astro](https://astro.build) + [Starl
 
 - 首页：自定义深色科技风落地页（`src/pages/index.astro`）
 - 文档：Starlight 驱动，内容位于 `src/content/docs/docs/`，与主仓库 `docs/` 保持同步
-- 品牌色取自桌面端设计 Token：青色 `#06b6d4`（logo / 深色 accent）、indigo `#4f46e5`（浅色 primary）、琥珀 `#f59e0b`（深色主题点缀）
+- 品牌色以主仓库 `CodeY/apps/desktop/src/shared/styles/global.css` 为准：indigo `#4f46e5`（浅色 primary）、`#818cf8`（深色 primary）；青色 `#06b6d4` 仅作氛围装饰（`--decorative*`），不承担品牌语义
 
 ## 开发
 
