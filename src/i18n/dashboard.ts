@@ -78,7 +78,8 @@ const copy = {
     description: 'Track your submissions, review status, and published releases.',
     templateLibrary: 'Personal library',
     templateList: 'Template list',
-    templateListDescription: 'Each template appears once, with newer versions grouped into the same record.',
+    templateListDescription:
+      'Each template appears once, with newer versions grouped into the same record.',
     templateCountSuffix: 'templates',
     versionCountSuffix: 'versions',
     latestVersion: 'Latest version',

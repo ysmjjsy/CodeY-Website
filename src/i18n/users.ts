@@ -84,7 +84,8 @@ const copy = {
     cannotDisableSelf: 'You cannot disable the current account',
     enableUser: 'Enable user',
     disableUser: 'Disable user',
-    confirmPromote: 'Make {name} an administrator? This grants access to platform management tools.',
+    confirmPromote:
+      'Make {name} an administrator? This grants access to platform management tools.',
     confirmDemote: 'Remove administrator access from {name}?',
     roleUpdated: 'User role updated',
     userEnabled: 'User enabled',

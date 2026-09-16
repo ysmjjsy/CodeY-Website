@@ -6,12 +6,7 @@ interface Props {
   [key: string]: unknown
 }
 
-const {
-  as: Element = 'div',
-  class: className,
-  viewportClass,
-  ...attributes
-} = Astro.props
+const { as: Element = 'div', class: className, viewportClass, ...attributes } = Astro.props
 const hasHeader = Astro.slots.has('header')
 const hasEmpty = Astro.slots.has('empty')
 const hasFooter = Astro.slots.has('footer')

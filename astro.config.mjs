@@ -1,6 +1,7 @@
 // @ts-check
-import { defineConfig } from 'astro/config'
+
 import starlight from '@astrojs/starlight'
+import { defineConfig } from 'astro/config'
 
 export default defineConfig({
   vite: {
@@ -27,9 +28,7 @@ export default defineConfig({
       },
       logo: { src: './src/assets/logo.png', alt: 'CodeY' },
       favicon: '/favicon.png',
-      social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/ysmjjsy/CodeY' },
-      ],
+      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/ysmjjsy/CodeY' }],
       sidebar: [
         {
           label: '开始',

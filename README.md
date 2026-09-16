@@ -15,6 +15,29 @@ pnpm build     # 构建官网和 Market Server
 pnpm start     # 同源提供官网、Market API 和 discovery
 ```
 
+## 质量门禁
+
+本仓库与主仓库 `CodeY/apps/desktop` 使用同一套前端工具链。
+
+```sh
+pnpm check        # 一次跑完下面全部步骤（提交前必须通过）
+pnpm typecheck    # tsc --noEmit
+pnpm check:astro  # astro check（模板与 frontmatter 类型）
+pnpm lint         # biome check .
+pnpm lint:fix     # biome check --write .
+pnpm test         # vitest run
+pnpm build:web    # astro build
+```
+
+约定：
+
+- **Biome 是唯一的 linter 和 formatter。** 不要引入 ESLint、Prettier 或 Stylelint。
+- 格式化设置与主仓库对齐：2 空格缩进、行宽 100、单引号、无分号、尾随逗号。
+- `src/**/*.astro` 关闭了 `noUnusedImports` / `noUnusedVariables`：Biome 不解析 Astro 模板，
+  否则会把模板中真实使用的 import 和 frontmatter 变量误判为未使用。
+- 单元测试与被测源码同目录，命名为 `*.test.ts`，使用 Vitest。
+- CI 在 `pull_request` 与 `main` 分支 push 时运行上述全部检查。
+
 ## 模板市场运行方式
 
 模板市场页面位于 `/market/` 和 `/en/market/`。浏览器始终请求同源地址：

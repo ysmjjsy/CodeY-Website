@@ -54,7 +54,8 @@ const copy = {
     planEffect: '生效方式',
     immediate: '支付完成后立即生效',
     modelsTitle: '统一接入，多厂商模型',
-    modelsDescription: '通过 CodeY 官方网关使用 OpenAI 兼容、Anthropic 与 Gemini 模型。套餐与模型权限分开展示。',
+    modelsDescription:
+      '通过 CodeY 官方网关使用 OpenAI 兼容、Anthropic 与 Gemini 模型。套餐与模型权限分开展示。',
     modelsEyebrow: 'Model catalog',
     searchPlaceholder: '搜索模型名称或 ID',
     allProviders: '全部厂商',
@@ -78,7 +79,8 @@ const copy = {
   },
   en: {
     pricingTitle: 'Choose a plan for actual usage',
-    pricingDescription: 'Plans define monthly credits and model access. Credits are consumed by actual model usage, not seats.',
+    pricingDescription:
+      'Plans define monthly credits and model access. Credits are consumed by actual model usage, not seats.',
     pricingEyebrow: 'CodeY Cloud',
     monthlyCredits: 'credits / natural month',
     free: 'Free',
@@ -100,7 +102,8 @@ const copy = {
     unavailable: 'The plan catalog is temporarily unavailable.',
     retry: 'Reload',
     compareTitle: 'Model coverage',
-    compareDescription: 'Plans only control model access and monthly credits. Calls still consume credits at each model rate.',
+    compareDescription:
+      'Plans only control model access and monthly credits. Calls still consume credits at each model rate.',
     model: 'Model',
     provider: 'Provider',
     capability: 'Capabilities',
@@ -108,7 +111,8 @@ const copy = {
     outputPrice: 'Output / 1M tokens',
     noModels: 'No models configured',
     creditPacks: 'Credit packs',
-    creditPacksDescription: 'Permanent credits do not expire with a plan period. Sign in to purchase.',
+    creditPacksDescription:
+      'Permanent credits do not expire with a plan period. Sign in to purchase.',
     permanentCredits: 'permanent credits',
     buy: 'Buy',
     confirmTitle: 'Confirm plan change',
@@ -118,7 +122,8 @@ const copy = {
     confirmPurchase: 'Confirm and pay',
     cancel: 'Cancel',
     scheduled: 'The plan changes after the current period. No immediate charge.',
-    signedOut: 'Sign in first. Your choice will be restored after sign-in without creating an order.',
+    signedOut:
+      'Sign in first. Your choice will be restored after sign-in without creating an order.',
     noPaymentOffer: 'No payment offer is available for your region.',
     accountUnavailable: 'The credit account could not be loaded. Try again later.',
     paymentPending: 'Order created. Complete payment to continue.',
@@ -129,7 +134,8 @@ const copy = {
     planEffect: 'Effective timing',
     immediate: 'Immediately after payment confirmation',
     modelsTitle: 'One integration, multiple model providers',
-    modelsDescription: 'Use OpenAI-compatible, Anthropic, and Gemini models through the CodeY official gateway. Plans and model access are shown separately.',
+    modelsDescription:
+      'Use OpenAI-compatible, Anthropic, and Gemini models through the CodeY official gateway. Plans and model access are shown separately.',
     modelsEyebrow: 'Model catalog',
     searchPlaceholder: 'Search model name or ID',
     allProviders: 'All providers',

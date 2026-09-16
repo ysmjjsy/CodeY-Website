@@ -3,6 +3,10 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "24.12.0"
+  },
   "scripts": {
     "dev": "node scripts/run-site.mjs dev",
     "dev:web": "astro dev",
@@ -10,7 +14,14 @@
     "build:web": "astro build",
     "build:market": "node scripts/build-site.mjs market",
     "start": "node scripts/run-site.mjs start",
-    "preview": "node scripts/run-site.mjs start"
+    "preview": "node scripts/run-site.mjs start",
+    "typecheck": "tsc --noEmit",
+    "check:astro": "astro check",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm check:astro && pnpm lint && pnpm test && pnpm build:web"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",
@@ -21,6 +32,11 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "shiki": "^4.3.1"
+    "@astrojs/check": "^0.9.10",
+    "@biomejs/biome": "^2.5.13",
+    "jsdom": "^29.1.1",
+    "shiki": "^4.3.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
   }
 }

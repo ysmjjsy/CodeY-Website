@@ -53,12 +53,10 @@ export const ui = {
 
     'download.tag': '下载',
     'download.meta.title': '下载 CodeY — macOS、Windows 与 Linux',
-    'download.meta.description':
-      '下载适用于 macOS、Windows 和 Linux 的最新版 CodeY 安装包。',
+    'download.meta.description': '下载适用于 macOS、Windows 和 Linux 的最新版 CodeY 安装包。',
     'download.title.prefix': '下载',
     'download.title.brand': 'CodeY',
-    'download.desc':
-      '选择适合当前系统和处理器架构的安装包。',
+    'download.desc': '选择适合当前系统和处理器架构的安装包。',
     'download.status.loading': '正在检查最新版本…',
     'download.status.ready': '最新版本 {version} · 发布于 {date}',
     'download.status.empty': '首个公开安装包尚未发布，发布后这里会自动显示。',
@@ -121,8 +119,7 @@ export const ui = {
     'features.sdk.desc':
       'TypeScript、Python、Rust 共用同一份 Schema 与同一条守护进程执行路径，不依赖 Tauri。',
     'features.desktop.title': '在常用桌面系统中工作',
-    'features.desktop.desc':
-      '发布配置覆盖 macOS、Windows 与 Linux，原生电脑操作能力按平台提供。',
+    'features.desktop.desc': '发布配置覆盖 macOS、Windows 与 Linux，原生电脑操作能力按平台提供。',
     'features.i18n.title': '双语界面',
     'features.i18n.desc': '内置简体中文与英文，支持浅色、深色和跟随系统主题。',
 
@@ -148,15 +145,13 @@ export const ui = {
     'arch.cap.agents': '子 Agent · 团队 · 后台',
     'arch.note1': 'UI 生命周期不构成执行权威，桌面端断开或重启不影响任务状态。',
     'arch.note2': '事件先持久化，客户端再投影为会话、进度、文件差异、产物与权限提示。',
-    'arch.note3':
-      '外部副作用不承诺 exactly-once，未知结局显式进入待恢复状态，而不是被静默吞掉。',
+    'arch.note3': '外部副作用不承诺 exactly-once，未知结局显式进入待恢复状态，而不是被静默吞掉。',
 
     'sdk.tag': 'Agent Runtime SDK',
     'sdk.title': '一套运行时，三种语言',
     'sdk.desc':
       'TypeScript、Python、Rust 客户端使用同一份语言无关 Schema 和同一条守护进程执行路径。',
-    'sdk.point1':
-      '`RunHandle.result()` 不需要消费事件迭代器，内部事件泵负责游标恢复与去重。',
+    'sdk.point1': '`RunHandle.result()` 不需要消费事件迭代器，内部事件泵负责游标恢复与去重。',
     'sdk.point2': '密钥只在写入时提交，读取只返回元数据，永远不进入事件、日志或快照。',
     'sdk.point3': '运行时与 SDK 严格成对，清单校验目标、哈希与存储 Schema 范围后才启动。',
     'sdk.link': '阅读 SDK 文档',
@@ -228,7 +223,8 @@ export const ui = {
     'hero.sub':
       'Give CodeY a goal, files, links, or project context. It understands your intent, takes action within your approval boundaries, verifies the work, and clearly delivers the result.',
     'hero.cta': 'Download CodeY',
-    'hero.meta': 'Local-first · Recoverable tasks · Explicit permissions · TypeScript / Python / Rust SDK',
+    'hero.meta':
+      'Local-first · Recoverable tasks · Explicit permissions · TypeScript / Python / Rust SDK',
     'hero.win.title': 'CodeY — Current task',
     'hero.win.status': 'Workspace ready',
     'hero.win.task': 'Organize research and create a project brief',
@@ -250,11 +246,11 @@ export const ui = {
       'Download the latest CodeY installers for macOS, Windows, and Linux.',
     'download.title.prefix': 'Download',
     'download.title.brand': 'CodeY',
-    'download.desc':
-      'Choose the installer for your system and processor architecture.',
+    'download.desc': 'Choose the installer for your system and processor architecture.',
     'download.status.loading': 'Checking the latest release…',
     'download.status.ready': 'Latest {version} · released {date}',
-    'download.status.empty': 'The first public installer has not been released yet. It will appear here automatically.',
+    'download.status.empty':
+      'The first public installer has not been released yet. It will appear here automatically.',
     'download.status.error': 'The latest release could not be loaded. Please try again later.',
     'download.recommended': 'Recommended for this system',
     'download.mac.title': 'macOS',
@@ -262,13 +258,16 @@ export const ui = {
     'download.windows.title': 'Windows',
     'download.windows.desc': 'Supports x64 and ARM64, with EXE or MSI installers when available.',
     'download.linux.title': 'Linux',
-    'download.linux.desc': 'The current release configuration supports x64 with AppImage, DEB, or RPM packages.',
-    'download.platform.unavailable': 'No installer for this platform is included in the current release.',
+    'download.linux.desc':
+      'The current release configuration supports x64 with AppImage, DEB, or RPM packages.',
+    'download.platform.unavailable':
+      'No installer for this platform is included in the current release.',
     'download.arch.arm64': 'ARM64',
     'download.arch.x64': 'x64',
     'download.arch.appleSilicon': 'Apple Silicon',
     'download.arch.intel': 'Intel',
-    'download.trust': 'Installers are provided by the official CodeY release source. This site does not store or proxy files.',
+    'download.trust':
+      'Installers are provided by the official CodeY release source. This site does not store or proxy files.',
     'download.docs': 'Install guide',
     'download.releases': 'Release history',
     'download.history.kicker': 'Release history',
@@ -333,7 +332,8 @@ export const ui = {
     'arch.rs': 'Rust client',
     'arch.ipc': 'Local IPC · Agent Runtime protocol (Unix socket / named pipe)',
     'arch.daemon': 'CodeY daemon',
-    'arch.daemon.sub': 'Task lifecycle · durable scheduling · permissions · recovery · memory · orchestration',
+    'arch.daemon.sub':
+      'Task lifecycle · durable scheduling · permissions · recovery · memory · orchestration',
     'arch.store': 'SQLite task store (WAL)',
     'arch.cap.models': 'Models',
     'arch.cap.tools': 'Tools & execution',
@@ -370,7 +370,8 @@ export const ui = {
       'Build from source to contribute, test unreleased changes, or use a platform without a matching installer. `pnpm dev` builds the daemon sidecar and native runtimes, then starts the desktop app.',
     'start.cta': 'Full setup guide',
     'start.term': 'Build commands',
-    'start.comment': '# After first launch: open a project → configure a model → describe your goal → start a task',
+    'start.comment':
+      '# After first launch: open a project → configure a model → describe your goal → start a task',
 
     'footer.desc': 'An AI work partner that helps you complete tasks and deliver results.',
     'footer.docs': 'Docs',

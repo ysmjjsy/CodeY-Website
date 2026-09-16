@@ -30,9 +30,7 @@ const websiteOrigin = parseOrigin(
   process.env.CODEY_WEBSITE_ORIGIN || websiteListenOrigin,
   'CODEY_WEBSITE_ORIGIN',
 )
-const marketUpstream = new URL(
-  process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787',
-)
+const marketUpstream = new URL(process.env.CODEY_MARKET_UPSTREAM || 'http://127.0.0.1:8787')
 const marketPort = parsePort(
   marketUpstream.port || (marketUpstream.protocol === 'https:' ? '443' : '80'),
   'CODEY_MARKET_UPSTREAM',
@@ -60,28 +58,17 @@ try {
   await waitForMarket()
 
   if (mode === 'dev') {
-    const astroArgs = [
-      astroCli,
-      'dev',
-      '--host',
-      websiteHost,
-      '--port',
-      String(websitePort),
-    ]
+    const astroArgs = [astroCli, 'dev', '--host', websiteHost, '--port', String(websitePort)]
     if (process.env.CODEY_WEBSITE_IGNORE_LOCK === '1') astroArgs.push('--ignore-lock')
-    webProcess = spawn(
-      process.execPath,
-      astroArgs,
-      {
-        cwd: projectRoot,
-        env: {
-          ...process.env,
-          ASTRO_DEV_BACKGROUND: '0',
-          CODEY_MARKET_UPSTREAM: marketUpstream.origin,
-        },
-        stdio: 'inherit',
+    webProcess = spawn(process.execPath, astroArgs, {
+      cwd: projectRoot,
+      env: {
+        ...process.env,
+        ASTRO_DEV_BACKGROUND: '0',
+        CODEY_MARKET_UPSTREAM: marketUpstream.origin,
       },
-    )
+      stdio: 'inherit',
+    })
     webProcess.once('error', fail)
     webProcess.once('exit', (code, signal) => {
       if (!shuttingDown && code !== 0) fail(new Error(`Astro exited (${signal || code})`))
@@ -107,9 +94,7 @@ process.on('SIGTERM', () => void shutdown(0))
 async function startMarketServer() {
   const command = mode === 'dev' ? 'cargo' : marketBinary
   const args =
-    mode === 'dev'
-      ? ['run', '--manifest-path', cargoManifest, '-p', 'codey-market-server']
-      : []
+    mode === 'dev' ? ['run', '--manifest-path', cargoManifest, '-p', 'codey-market-server'] : []
   const child = spawn(command, args, {
     cwd: projectRoot,
     env: {

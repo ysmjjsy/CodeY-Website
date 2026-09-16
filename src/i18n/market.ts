@@ -30,7 +30,8 @@ const copy = {
     loadedPrefix: '已显示',
     loadedSuffix: '个模板',
     emptyTitle: '这里还没有公开模板',
-    emptyDescription: '模板市场正在建设中。成为第一批贡献者，分享你的最佳实践，帮助更多开发者更快完成任务。',
+    emptyDescription:
+      '模板市场正在建设中。成为第一批贡献者，分享你的最佳实践，帮助更多开发者更快完成任务。',
     noResultsTitle: '没有找到匹配的模板',
     noResultsDescription: '换个关键词或清除当前分类，查看市场中的其他模板。',
     clearFilters: '清除筛选',
@@ -104,15 +105,18 @@ const copy = {
   },
   en: {
     metaTitle: 'CodeY Marketplace',
-    metaDescription: 'Discover, inspect, and download CodeY Agent, Agent Team, Workflow, Skill, and MCP templates.',
+    metaDescription:
+      'Discover, inspect, and download CodeY Agent, Agent Team, Workflow, Skill, and MCP templates.',
     eyebrow: 'CodeY Marketplace',
     title: 'Template marketplace',
     discoverTitle: 'Discover reusable CodeY capabilities',
-    description: 'Bring reusable agents, teams, workflows, and capabilities into CodeY to solve real tasks and ship faster.',
+    description:
+      'Bring reusable agents, teams, workflows, and capabilities into CodeY to solve real tasks and ship faster.',
     libraryLabel: 'Reusable capability library',
     categories: 'Categories',
     popularTags: 'Popular tags',
-    artifactNote: 'Every public release is structurally validated and includes a downloadable .codeypkg artifact.',
+    artifactNote:
+      'Every public release is structurally validated and includes a downloadable .codeypkg artifact.',
     upload: 'Upload template',
     searchLabel: 'Search templates',
     searchPlaceholder: 'Search name, summary, tag, or package ID',
@@ -131,13 +135,16 @@ const copy = {
     loadedPrefix: 'Showing',
     loadedSuffix: 'templates',
     emptyTitle: 'No public templates yet',
-    emptyDescription: 'The marketplace is just getting started. Be among the first contributors and help more developers finish tasks faster.',
+    emptyDescription:
+      'The marketplace is just getting started. Be among the first contributors and help more developers finish tasks faster.',
     noResultsTitle: 'No matching templates',
-    noResultsDescription: 'Try another keyword or clear the current category to browse other templates.',
+    noResultsDescription:
+      'Try another keyword or clear the current category to browse other templates.',
     clearFilters: 'Clear filters',
     publishFirst: 'Publish the first template',
     learnPackage: 'Learn about .codeypkg',
-    trustNote: 'Every public template is structurally validated and includes a downloadable .codeypkg artifact for reproducible, safe use.',
+    trustNote:
+      'Every public template is structurally validated and includes a downloadable .codeypkg artifact for reproducible, safe use.',
     newLabel: 'NEW',
     downloads: 'downloads',
     version: 'Version',
@@ -152,16 +159,19 @@ const copy = {
     contentsTab: 'Package contents',
     requirementsTab: 'Permissions & compatibility',
     previewLabel: 'Safe preview',
-    resourcesDescription: 'This package imports the following resources. Expand Skill and MCP resources to inspect their bundled files.',
+    resourcesDescription:
+      'This package imports the following resources. Expand Skill and MCP resources to inspect their bundled files.',
     fileCountSingle: 'file',
     fileCountSuffix: 'files',
     showFiles: 'Show files',
     externalResource: 'External dependency',
-    permissionsDescription: 'Review declared permissions and the supported runtime environment before importing.',
+    permissionsDescription:
+      'Review declared permissions and the supported runtime environment before importing.',
     noResources: 'No resources listed',
     getTemplate: 'Get template',
     downloadTemplate: 'Download and import',
-    downloadHint: 'Import the downloaded file in CodeY. Package structure and compatibility are verified again before import.',
+    downloadHint:
+      'Import the downloaded file in CodeY. Package structure and compatibility are verified again before import.',
     templateInfo: 'Template information',
     versions: 'Versions',
     about: 'About',
@@ -180,11 +190,13 @@ const copy = {
     uploadMetaTitle: 'Upload template · CodeY',
     uploadMetaDescription: 'Upload and publish CodeY .codeypkg template artifacts.',
     uploadTitle: 'Upload a template',
-    uploadDescription: 'Upload a .codeypkg that contains marketplace metadata. Validate the package, review its preview, and submit it for administrator review.',
+    uploadDescription:
+      'Upload a .codeypkg that contains marketplace metadata. Validate the package, review its preview, and submit it for administrator review.',
     stepArchive: '1. Validate artifact',
     stepPublish: '2. Confirm submission',
     archiveLabel: 'CodeY package',
-    archiveHint: 'Only .codeypkg files containing marketplace/listing.json are accepted. The server configures the maximum size.',
+    archiveHint:
+      'Only .codeypkg files containing marketplace/listing.json are accepted. The server configures the maximum size.',
     inspect: 'Upload and validate',
     inspecting: 'Validating…',
     package: 'Package',
@@ -195,7 +207,8 @@ const copy = {
     tagsHint: 'Comma-separated, up to 16 tags.',
     readmeLabel: 'README (Markdown)',
     changelogLabel: 'Release notes',
-    metadataFromPackage: 'The listing details below come from the .codeypkg and cannot be edited during submission.',
+    metadataFromPackage:
+      'The listing details below come from the .codeypkg and cannot be edited during submission.',
     publish: 'Submit for review',
     publishing: 'Submitting…',
     publishedSuccess: 'Submitted for review. It becomes public after administrator approval.',

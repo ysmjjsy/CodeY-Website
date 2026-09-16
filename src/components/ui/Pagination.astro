@@ -16,26 +16,29 @@ const {
   class: className,
   ...attributes
 } = Astro.props
-const copy = locale === 'en'
-  ? {
-      navigation: 'Pagination',
-      previous: 'Previous page',
-      next: 'Next page',
-      perPage: 'Per page',
-      page: 'Page',
-      of: 'of',
-      items: 'items',
-    }
-  : {
-      navigation: '分页',
-      previous: '上一页',
-      next: '下一页',
-      perPage: '每页',
-      page: '第',
-      of: '共',
-      items: '项',
-    }
-const options = [...new Set([...pageSizeOptions, pageSize])].filter((value) => value > 0).sort((a, b) => a - b)
+const copy =
+  locale === 'en'
+    ? {
+        navigation: 'Pagination',
+        previous: 'Previous page',
+        next: 'Next page',
+        perPage: 'Per page',
+        page: 'Page',
+        of: 'of',
+        items: 'items',
+      }
+    : {
+        navigation: '分页',
+        previous: '上一页',
+        next: '下一页',
+        perPage: '每页',
+        page: '第',
+        of: '共',
+        items: '项',
+      }
+const options = [...new Set([...pageSizeOptions, pageSize])]
+  .filter((value) => value > 0)
+  .sort((a, b) => a - b)
 ---
 
 <nav

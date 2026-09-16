@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { commercialCopy } from '../i18n/commercial'
+import type { Locale } from '../i18n/ui'
 import { consolePath, modelsPath } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import Container from './ui/Container.astro'
@@ -125,8 +125,9 @@ const copy = commercialCopy(locale)
   }
   type Selection = { kind: 'plan'; id: string } | { kind: 'topup'; id: string }
 
-  const root = document.querySelector<HTMLElement>('[data-pricing-catalog]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-pricing-catalog]')
+  if (rootEl) {
+    const root = rootEl
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const state = root.querySelector<HTMLElement>('[data-state]')!
@@ -388,15 +389,16 @@ const copy = commercialCopy(locale)
         form.submit()
         return
       }
+      const qrAction = checkout.action
       const link = root.querySelector<HTMLAnchorElement>('[data-payment-link]')!
       const image = root.querySelector<HTMLImageElement>('[data-payment-qr]')!
       const code = root.querySelector<HTMLElement>('[data-payment-code]')!
-      link.href = checkout.action.code_url
-      image.src = checkout.action.image_data_url
+      link.href = qrAction.code_url
+      image.src = qrAction.image_data_url
       image.hidden = false
-      code.textContent = checkout.action.code_url
+      code.textContent = qrAction.code_url
       root.querySelector<HTMLButtonElement>('[data-payment-copy]')!.onclick = () => {
-        void navigator.clipboard.writeText(checkout.action.code_url)
+        void navigator.clipboard.writeText(qrAction.code_url)
           .then(() => toast.success(copy.paymentLinkCopied))
           .catch(() => toast.error(copy.copyFailed))
       }

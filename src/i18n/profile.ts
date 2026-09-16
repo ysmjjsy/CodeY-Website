@@ -47,7 +47,8 @@ const copy = {
   },
   en: {
     title: 'Personal information',
-    description: 'Review your account identity, connected sign-ins, current plan, and credit balance.',
+    description:
+      'Review your account identity, connected sign-ins, current plan, and credit balance.',
     loading: 'Loading personal information…',
     signIn: 'Sign in to your CodeY account first.',
     unavailable: 'Personal information is temporarily unavailable.',
@@ -55,7 +56,8 @@ const copy = {
     roleAdmin: 'Administrator',
     roleUser: 'User',
     profileSection: 'Public profile',
-    profileSectionDescription: 'Your display name appears on your website account and published templates.',
+    profileSectionDescription:
+      'Your display name appears on your website account and published templates.',
     displayName: 'Display name',
     email: 'Email',
     emailHint: 'Used for sign-in and account identification. Optional.',
@@ -63,7 +65,8 @@ const copy = {
     saving: 'Saving…',
     saved: 'Personal information updated.',
     identitySection: 'Account identity',
-    identitySectionDescription: 'These identifiers are maintained by the system and cannot be changed here.',
+    identitySectionDescription:
+      'These identifiers are maintained by the system and cannot be changed here.',
     username: 'Username',
     userId: 'User ID',
     role: 'Account role',
@@ -75,7 +78,8 @@ const copy = {
     notConnected: 'Not connected',
     noEmail: 'No email set',
     planSection: 'Plan and credits',
-    planSectionDescription: 'Review your current benefits and credit balance. Plan credits expire each period; permanent credits do not.',
+    planSectionDescription:
+      'Review your current benefits and credit balance. Plan credits expire each period; permanent credits do not.',
     managePlan: 'Manage plan and credits',
     planLoading: 'Loading plan and credits…',
     planUnavailable: 'Plan and credit information is temporarily unavailable.',

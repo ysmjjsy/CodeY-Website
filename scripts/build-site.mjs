@@ -21,14 +21,7 @@ if (target === 'all' && !existsSync(astroCli)) {
 
 await run(
   'cargo',
-  [
-    'build',
-    '--manifest-path',
-    cargoManifest,
-    '-p',
-    'codey-market-server',
-    '--release',
-  ],
+  ['build', '--manifest-path', cargoManifest, '-p', 'codey-market-server', '--release'],
   {
     ...process.env,
     CARGO_TARGET_DIR: marketTargetDirectory,

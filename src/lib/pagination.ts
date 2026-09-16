@@ -26,7 +26,9 @@ function pageRange(page: number, pageCount: number): Array<number | 'ellipsis'> 
   const pages = new Set([1, pageCount, page - 1, page, page + 1])
   const result: Array<number | 'ellipsis'> = []
   let previous = 0
-  for (const value of [...pages].filter((item) => item > 0 && item <= pageCount).sort((a, b) => a - b)) {
+  for (const value of [...pages]
+    .filter((item) => item > 0 && item <= pageCount)
+    .sort((a, b) => a - b)) {
     if (value - previous > 1) result.push('ellipsis')
     result.push(value)
     previous = value
@@ -39,23 +41,34 @@ export function createPagination(root: HTMLElement | null): PaginationController
     return { set: () => undefined, reset: () => undefined }
   }
 
-  const copy = JSON.parse(root.dataset.copy || '{}') as PaginationCopy
-  const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
-  const summary = root.querySelector<HTMLElement>('[data-pagination-summary]')!
-  const numbers = root.querySelector<HTMLElement>('[data-pagination-numbers]')!
-  const previous = root.querySelector<HTMLButtonElement>('[data-pagination-previous]')!
-  const next = root.querySelector<HTMLButtonElement>('[data-pagination-next]')!
-  const size = root.querySelector<HTMLSelectElement>('[data-pagination-size]')!
-  let current: Required<Pick<PaginationState, 'page' | 'pageSize'>> & Pick<PaginationState, 'totalItems' | 'hasNext'> = {
+  const container = root
+
+  function requireElement<T extends Element>(selector: string): T {
+    const element = container.querySelector<T>(selector)
+    if (!element) throw new Error(`Pagination element not found: ${selector}`)
+    return element
+  }
+
+  const copy = JSON.parse(container.dataset.copy || '{}') as PaginationCopy
+  const locale = container.dataset.locale === 'en' ? 'en' : 'zh-CN'
+  const summary = requireElement<HTMLElement>('[data-pagination-summary]')
+  const numbers = requireElement<HTMLElement>('[data-pagination-numbers]')
+  const previous = requireElement<HTMLButtonElement>('[data-pagination-previous]')
+  const next = requireElement<HTMLButtonElement>('[data-pagination-next]')
+  const size = requireElement<HTMLSelectElement>('[data-pagination-size]')
+  let current: Required<Pick<PaginationState, 'page' | 'pageSize'>> &
+    Pick<PaginationState, 'totalItems' | 'hasNext'> = {
     page: 1,
-    pageSize: Number(root.dataset.pageSize) || 10,
+    pageSize: Number(container.dataset.pageSize) || 10,
   }
 
   function emit(page: number, pageSize = current.pageSize): void {
-    root.dispatchEvent(new CustomEvent<PaginationChange>('pagination:change', {
-      bubbles: true,
-      detail: { page, pageSize },
-    }))
+    container.dispatchEvent(
+      new CustomEvent<PaginationChange>('pagination:change', {
+        bubbles: true,
+        detail: { page, pageSize },
+      }),
+    )
   }
 
   function pageButton(page: number): HTMLButtonElement {
@@ -69,29 +82,34 @@ export function createPagination(root: HTMLElement | null): PaginationController
   }
 
   function render(): void {
-    const hasTotal = typeof current.totalItems === 'number'
-    const pageCount = hasTotal ? Math.max(1, Math.ceil(current.totalItems! / current.pageSize)) : undefined
-    const hasItems = hasTotal ? current.totalItems! > 0 : current.page > 1 || Boolean(current.hasNext)
-    root.hidden = !hasItems
+    const totalItems = current.totalItems
+    const hasTotal = typeof totalItems === 'number'
+    const pageCount = hasTotal ? Math.max(1, Math.ceil(totalItems / current.pageSize)) : undefined
+    const hasItems = hasTotal ? totalItems > 0 : current.page > 1 || Boolean(current.hasNext)
+    container.hidden = !hasItems
     if (!hasItems) return
 
-    if (hasTotal) {
-      const start = Math.min((current.page - 1) * current.pageSize + 1, current.totalItems!)
-      const end = Math.min(current.page * current.pageSize, current.totalItems!)
-      summary.textContent = locale === 'en'
-        ? `${start}–${end} ${copy.of} ${current.totalItems} ${copy.items}`
-        : `${start}–${end} / ${copy.of} ${current.totalItems} ${copy.items}`
-      numbers.replaceChildren(...pageRange(current.page, pageCount!).map((value) => {
-        if (value !== 'ellipsis') return pageButton(value)
-        const ellipsis = document.createElement('span')
-        ellipsis.textContent = '…'
-        ellipsis.setAttribute('aria-hidden', 'true')
-        return ellipsis
-      }))
+    if (hasTotal && pageCount !== undefined) {
+      const start = Math.min((current.page - 1) * current.pageSize + 1, totalItems)
+      const end = Math.min(current.page * current.pageSize, totalItems)
+      summary.textContent =
+        locale === 'en'
+          ? `${start}–${end} ${copy.of} ${totalItems} ${copy.items}`
+          : `${start}–${end} / ${copy.of} ${totalItems} ${copy.items}`
+      numbers.replaceChildren(
+        ...pageRange(current.page, pageCount).map((value) => {
+          if (value !== 'ellipsis') return pageButton(value)
+          const ellipsis = document.createElement('span')
+          ellipsis.textContent = '…'
+          ellipsis.setAttribute('aria-hidden', 'true')
+          return ellipsis
+        }),
+      )
       previous.disabled = current.page <= 1
-      next.disabled = current.page >= pageCount!
+      next.disabled = current.page >= pageCount
     } else {
-      summary.textContent = locale === 'en' ? `${copy.page} ${current.page}` : `${copy.page} ${current.page} 页`
+      summary.textContent =
+        locale === 'en' ? `${copy.page} ${current.page}` : `${copy.page} ${current.page} 页`
       numbers.replaceChildren(pageButton(current.page))
       previous.disabled = current.page <= 1
       next.disabled = !current.hasNext
@@ -106,7 +124,10 @@ export function createPagination(root: HTMLElement | null): PaginationController
   return {
     set(state) {
       const pageSize = state.pageSize || current.pageSize
-      const pageCount = typeof state.totalItems === 'number' ? Math.max(1, Math.ceil(state.totalItems / pageSize)) : undefined
+      const pageCount =
+        typeof state.totalItems === 'number'
+          ? Math.max(1, Math.ceil(state.totalItems / pageSize))
+          : undefined
       current = {
         page: Math.max(1, pageCount ? Math.min(state.page, pageCount) : state.page),
         pageSize,

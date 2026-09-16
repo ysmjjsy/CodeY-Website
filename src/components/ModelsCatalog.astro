@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { commercialCopy } from '../i18n/commercial'
+import type { Locale } from '../i18n/ui'
 import { pricingPath } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import Container from './ui/Container.astro'
@@ -111,8 +111,9 @@ const copy = commercialCopy(locale)
   }
   type Catalog = { models: Model[] }
 
-  const root = document.querySelector<HTMLElement>('[data-models-catalog]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-models-catalog]')
+  if (rootEl) {
+    const root = rootEl
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const state = root.querySelector<HTMLElement>('[data-state]')!

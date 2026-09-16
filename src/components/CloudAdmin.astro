@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { cloudCopy } from '../i18n/cloud'
+import type { Locale } from '../i18n/ui'
 import { providerPresets } from '../lib/provider-presets'
 import Button from './ui/Button.astro'
 import Dialog from './ui/Dialog.astro'
@@ -12,11 +12,24 @@ import Pagination from './ui/Pagination.astro'
 import SectionHeader from './ui/SectionHeader.astro'
 import StateMessage from './ui/StateMessage.astro'
 
-interface Props { locale: Locale; section?: 'models' | 'plans' | 'topups' }
+interface Props {
+  locale: Locale
+  section?: 'models' | 'plans' | 'topups'
+}
 const { locale, section = 'models' } = Astro.props
 const copy = cloudCopy(locale)
-const title = section === 'plans' ? copy.planAdminTitle : section === 'topups' ? copy.topUpAdminTitle : copy.adminTitle
-const description = section === 'plans' ? copy.planAdminDescription : section === 'topups' ? copy.topUpAdminDescription : copy.adminDescription
+const title =
+  section === 'plans'
+    ? copy.planAdminTitle
+    : section === 'topups'
+      ? copy.topUpAdminTitle
+      : copy.adminTitle
+const description =
+  section === 'plans'
+    ? copy.planAdminDescription
+    : section === 'topups'
+      ? copy.topUpAdminDescription
+      : copy.adminDescription
 ---
 
 <section class="admin-shell" data-cloud-admin data-admin-section={section} data-locale={locale} data-copy={JSON.stringify(copy)}>
@@ -209,8 +222,9 @@ const description = section === 'plans' ? copy.planAdminDescription : section ==
   type TopUp = { productId: string; slug: string; displayName: string; description: string; displayNameI18n?: Localized; descriptionI18n?: Localized; creditMicros: number; offers: Offer[] }
   type TopUpCatalog = { revision: number; products: TopUp[] }
 
-  const root = document.querySelector<HTMLElement>('[data-cloud-admin]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-cloud-admin]')
+  if (rootEl) {
+    const root = rootEl
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const section = root.dataset.adminSection || 'models'
@@ -454,7 +468,7 @@ const description = section === 'plans' ? copy.planAdminDescription : section ==
       element.append(text, status, edit); return element
     }
     function cell(...children: Array<Node | string>): HTMLTableCellElement { const value = document.createElement('td'); value.append(...children); return value }
-    function textElement(tag: 'span' | 'strong' | 'code' | 'i', className: string, value: string): HTMLElement { const element = document.createElement(tag); element.className = className; element.textContent = value; return element }
+    function textElement(tag: 'span' | 'strong' | 'code' | 'i' | 'em', className: string, value: string): HTMLElement { const element = document.createElement(tag); element.className = className; element.textContent = value; return element }
     function setLatencyText(element: HTMLElement, latency: number | null | undefined): void { element.classList.toggle('untested', latency == null); element.textContent = latency == null ? copy.notTested : `${latency} ms` }
     function latencyElement(latency: number | null | undefined): HTMLElement { const element = textElement('span', 'latency-value', ''); setLatencyText(element, latency); return element }
     function statusBadge(label: string, tone: 'active' | 'inactive' | 'warning'): HTMLElement { return textElement('span', `config-status ${tone}`, label) }

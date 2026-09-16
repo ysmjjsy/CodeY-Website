@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { marketCopy } from '../i18n/market'
+import type { Locale } from '../i18n/ui'
 import { marketPath } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import Panel from './ui/Panel.astro'
@@ -161,8 +161,9 @@ const apiBase = '/api/market/v1'
     resources: Resource[]
   }
 
-  const root = document.querySelector<HTMLElement>('[data-market-detail]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-market-detail]')
+  if (rootEl) {
+    const root = rootEl
     const apiBase = root.dataset.apiBase || '/api/market/v1'
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>

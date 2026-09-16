@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { cloudCopy } from '../i18n/cloud'
+import type { Locale } from '../i18n/ui'
 import { modelsPath, pricingPath } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import PageHeader from './ui/PageHeader.astro'
@@ -50,8 +50,9 @@ const copy = cloudCopy(locale)
     wallet: { availableCreditMicros: number; reservedCreditMicros: number; expiringCreditMicros: number; permanentCreditMicros: number }
   }
 
-  const root = document.querySelector<HTMLElement>('[data-cloud-overview]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-cloud-overview]')
+  if (rootEl) {
+    const root = rootEl
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const state = root.querySelector<HTMLElement>('[data-state]')!

@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { authCopy } from '../i18n/auth'
+import type { Locale } from '../i18n/ui'
 import { consolePath, registerPath } from '../i18n/utils'
 import Button from './ui/Button.astro'
 import Dialog from './ui/Dialog.astro'
@@ -105,8 +105,9 @@ const registerHref = registerPath(locale)
   }
   type AuthResponse = { user?: User | null; githubEnabled: boolean; registrationEnabled: boolean }
 
-  const root = document.querySelector<HTMLElement>('[data-account-menu]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-account-menu]')
+  if (rootEl) {
+    const root = rootEl
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const dialog = root.querySelector<HTMLDialogElement>('[data-auth-dialog]')!

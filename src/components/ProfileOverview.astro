@@ -1,14 +1,16 @@
 ---
+import { profileCopy } from '../i18n/profile'
 import type { Locale } from '../i18n/ui'
 import { pricingPath } from '../i18n/utils'
-import { profileCopy } from '../i18n/profile'
 import Button from './ui/Button.astro'
 import Field from './ui/Field.astro'
 import PageHeader from './ui/PageHeader.astro'
 import Panel from './ui/Panel.astro'
 import StateMessage from './ui/StateMessage.astro'
 
-interface Props { locale: Locale }
+interface Props {
+  locale: Locale
+}
 
 const { locale } = Astro.props
 const copy = profileCopy(locale)
@@ -155,8 +157,9 @@ const managePlanHref = pricingPath(locale)
     }
   }
 
-  const root = document.querySelector<HTMLElement>('[data-profile-overview]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-profile-overview]')
+  if (rootEl) {
+    const root = rootEl
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const state = root.querySelector<HTMLElement>('[data-state]')!

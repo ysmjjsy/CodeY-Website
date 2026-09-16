@@ -1,6 +1,6 @@
 ---
-import type { Locale } from '../i18n/ui'
 import { dashboardCopy } from '../i18n/dashboard'
+import type { Locale } from '../i18n/ui'
 import { marketPath } from '../i18n/utils'
 import MarketUpload from './MarketUpload.astro'
 import Button from './ui/Button.astro'
@@ -210,8 +210,9 @@ const isReview = initialSection === 'review'
     release?: { listingId: string } | null
   }
 
-  const root = document.querySelector<HTMLElement>('[data-market-dashboard]')
-  if (root) {
+  const rootEl = document.querySelector<HTMLElement>('[data-market-dashboard]')
+  if (rootEl) {
+    const root = rootEl
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
     const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
     const detailBase = root.dataset.detailBase || '/market/item/'
