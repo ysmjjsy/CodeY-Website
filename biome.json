@@ -27,6 +27,17 @@
       "suspicious": {
         "noExplicitAny": "error",
         "noTsIgnore": "error"
+      },
+      "a11y": {
+        "recommended": true
+      },
+      "correctness": {
+        "useExhaustiveDependencies": {
+          "level": "error",
+          "options": {
+            "reportUnnecessaryDependencies": false
+          }
+        }
       }
     }
   },
