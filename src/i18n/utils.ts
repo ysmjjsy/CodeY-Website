@@ -65,3 +65,21 @@ export function consolePath(
 export function switchLocalePath(locale: Locale): string {
   return locale === 'en' ? '/' : '/en/'
 }
+
+/**
+ * Counterpart path for the same page in the other locale, derived from the
+ * current pathname so no page has to hand-maintain its own alternate href
+ * (hand-maintained copies are how the two locale trees drifted apart).
+ *
+ * zh-CN is unprefixed, en is prefixed with `/en`:
+ *   ('zh-CN', '/pricing/')     -> '/en/pricing/'
+ *   ('en',     '/en/pricing/') -> '/pricing/'
+ *   ('en',     '/en/')         -> '/'
+ */
+export function alternateLocalePath(locale: Locale, pathname: string): string {
+  if (locale === 'en') {
+    const stripped = pathname.replace(/^\/en(\/|$)/, '$1')
+    return stripped === '' ? '/' : stripped
+  }
+  return pathname === '/' ? '/en/' : `/en${pathname}`
+}

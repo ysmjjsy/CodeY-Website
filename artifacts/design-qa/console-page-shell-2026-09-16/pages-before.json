@@ -1,0 +1,478 @@
+{
+ "/404.html": {
+  "title": "404 | CodeY",
+  "desc": "An AI work partner that helps you complete tasks and deliver results with local-first execution, recoverable tasks, and explicit permissions.",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/console/": {
+  "title": "个人信息 · CodeY",
+  "desc": "查看账号身份、登录关联、当前套餐和积分余额。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/",
+   "zh-CN=/console/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/console/models/": {
+  "title": "第三方模型 · CodeY",
+  "desc": "配置第三方厂商与官方模型。用户登录 CodeY 桌面端后，可使用当前套餐已授权的模型。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/models/",
+   "zh-CN=/console/models/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/console/plans/": {
+  "title": "套餐管理 · CodeY",
+  "desc": "管理套餐版本、模型权限与支付报价。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/plans/",
+   "zh-CN=/console/plans/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/console/reviews/": {
+  "title": "模板审核 · CodeY",
+  "desc": "查看历史审核结果，集中处理新的模板申请。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/reviews/",
+   "zh-CN=/console/reviews/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/console/templates/": {
+  "title": "模板管理 · CodeY",
+  "desc": "管理已上传的模板和审核状态。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/templates/",
+   "zh-CN=/console/templates/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/console/topups/": {
+  "title": "积分包管理 · CodeY",
+  "desc": "管理永久积分包版本、积分额度与支付报价。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/topups/",
+   "zh-CN=/console/topups/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/console/users/": {
+  "title": "用户管理 · CodeY",
+  "desc": "查看平台注册账户，并管理用户的后台访问权限。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/console/users/",
+   "zh-CN=/console/users/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/docs/architecture/": {
+  "title": "架构 | CodeY",
+  "desc": "CodeY 的进程边界、组件职责、执行流程、持久化恢复语义与 Rust crate 分层。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/contributing/": {
+  "title": "参与贡献 | CodeY",
+  "desc": "通过 GitHub Issue 与 Pull Request 参与 CodeY 开发的流程与约定。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/getting-started/": {
+  "title": "快速开始 | CodeY",
+  "desc": "下载 CodeY 安装包，或从源码构建并运行桌面端。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/intro/": {
+  "title": "什么是 CodeY | CodeY",
+  "desc": "CodeY 是帮助你完成任务并交付结果的 AI 工作伙伴。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/sdk/agent-definitions/": {
+  "title": "Agent 定义与会话 | CodeY",
+  "desc": "AgentDefinition 的不可变修订、提供商配置、运行快照、会话与幂等语义。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/sdk/errors/": {
+  "title": "错误与排查 | CodeY",
+  "desc": "公共错误模型、常见错误码与离线部署排查指引。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/sdk/extensions/": {
+  "title": "扩展、工具与交互 | CodeY",
+  "desc": "附着回调、持久化扩展 sidecar、权限与问题处理、凭据边界。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/sdk/overview/": {
+  "title": "SDK 概览 | CodeY",
+  "desc": "CodeY Agent Runtime SDK 通过本地、语言无关的服务暴露持久化 Agent Harness。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/sdk/public-api/": {
+  "title": "公共 API 覆盖 | CodeY",
+  "desc": "TypeScript、Python 与 Rust 客户端的跨语言 API 覆盖矩阵与有意的边界。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/sdk/runtime-and-recovery/": {
+  "title": "运行时与恢复 | CodeY",
+  "desc": "运行时生命周期、持久化服务、定时自动化、崩溃恢复与并行升级语义。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/security/": {
+  "title": "受控执行与安全 | CodeY",
+  "desc": "CodeY 的能力边界与安全模型：权限模式、沙箱、网络代理与用户批准。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/docs/support/": {
+  "title": "支持与安全策略 | CodeY",
+  "desc": "如何获取帮助、提交问题报告，以及安全漏洞的报告流程。",
+  "lang": "zh-CN",
+  "alts": [],
+  "ogLocale": "zh-CN"
+ },
+ "/download/": {
+  "title": "下载 CodeY — macOS、Windows 与 Linux",
+  "desc": "下载适用于 macOS、Windows 和 Linux 的最新版 CodeY 安装包。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/download/",
+   "zh-CN=/download/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/en/404/": {
+  "title": "404 | CodeY",
+  "desc": "An AI work partner that helps you complete tasks and deliver results with local-first execution, recoverable tasks, and explicit permissions.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/console/": {
+  "title": "Personal information · CodeY",
+  "desc": "Review your account identity, connected sign-ins, current plan, and credit balance.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/",
+   "zh-CN=/console/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/console/models/": {
+  "title": "Third-party models · CodeY",
+  "desc": "Configure third-party providers and official models. After signing in, CodeY Desktop can use the models included in the user's plan.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/models/",
+   "zh-CN=/console/models/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/console/plans/": {
+  "title": "Plan management · CodeY",
+  "desc": "Manage plan versions, model access, and payment offers.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/plans/",
+   "zh-CN=/console/plans/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/console/reviews/": {
+  "title": "Template review · CodeY",
+  "desc": "Browse completed decisions and process new template applications.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/reviews/",
+   "zh-CN=/console/reviews/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/console/templates/": {
+  "title": "Template management · CodeY",
+  "desc": "Manage uploaded templates and their review status.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/templates/",
+   "zh-CN=/console/templates/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/console/topups/": {
+  "title": "Credit pack management · CodeY",
+  "desc": "Manage permanent credit pack versions, credit amounts, and payment offers.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/topups/",
+   "zh-CN=/console/topups/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/console/users/": {
+  "title": "User management · CodeY",
+  "desc": "Review registered accounts and manage access to administration tools.",
+  "lang": "en",
+  "alts": [
+   "en=/en/console/users/",
+   "zh-CN=/console/users/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/docs/architecture/": {
+  "title": "Architecture | CodeY",
+  "desc": "CodeY process boundaries, component ownership, execution flow, persistence and recovery semantics, and Rust crate layering.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/contributing/": {
+  "title": "Contributing | CodeY",
+  "desc": "How to participate in CodeY development through GitHub issues and pull requests.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/getting-started/": {
+  "title": "Getting started | CodeY",
+  "desc": "Download a CodeY installer, or build and run the desktop app from source.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/intro/": {
+  "title": "What is CodeY | CodeY",
+  "desc": "CodeY is an AI work partner that helps you complete tasks and deliver results.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/sdk/agent-definitions/": {
+  "title": "Agent definitions and sessions | CodeY",
+  "desc": "Immutable AgentDefinition revisions, provider profiles, run snapshots, sessions, and idempotency semantics.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/sdk/errors/": {
+  "title": "Errors and troubleshooting | CodeY",
+  "desc": "Public error model, common error codes, and offline deployment troubleshooting.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/sdk/extensions/": {
+  "title": "Extensions, tools, and interactions | CodeY",
+  "desc": "Attached callbacks, durable extension sidecars, permission and question handling, and credential boundaries.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/sdk/overview/": {
+  "title": "SDK overview | CodeY",
+  "desc": "The CodeY Agent Runtime SDK exposes the durable Agent Harness through a local, language-neutral service.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/sdk/public-api/": {
+  "title": "Public API coverage | CodeY",
+  "desc": "Cross-language API coverage matrix for TypeScript, Python, and Rust clients, and intentional boundaries.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/sdk/runtime-and-recovery/": {
+  "title": "Runtime and recovery | CodeY",
+  "desc": "Runtime lifecycle, persistent service, scheduled automations, crash recovery, and side-by-side upgrade semantics.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/security/": {
+  "title": "Controlled execution & security | CodeY",
+  "desc": "CodeY capability boundaries and security model — permission modes, sandbox, network broker, and user approval.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/docs/support/": {
+  "title": "Support and security policy | CodeY",
+  "desc": "How to get help, submit issue reports, and report security vulnerabilities.",
+  "lang": "en",
+  "alts": [],
+  "ogLocale": "en"
+ },
+ "/en/download/": {
+  "title": "Download CodeY for macOS, Windows, and Linux",
+  "desc": "Download the latest CodeY installers for macOS, Windows, and Linux.",
+  "lang": "en",
+  "alts": [
+   "en=/en/download/",
+   "zh-CN=/download/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/": {
+  "title": "CodeY — An AI work partner for getting tasks done",
+  "desc": "Give CodeY a goal, files, links, or project context. It takes action within your approval boundaries, verifies the work, and clearly delivers the result with local-first execution, recoverable tasks, and explicit permissions.",
+  "lang": "en",
+  "alts": [
+   "en=/en/",
+   "zh-CN=/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/market/": {
+  "title": "CodeY Marketplace",
+  "desc": "Discover, inspect, and download CodeY Agent, Agent Team, Workflow, Skill, and MCP templates.",
+  "lang": "en",
+  "alts": [
+   "en=/en/market/",
+   "zh-CN=/market/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/market/item/": {
+  "title": "Template details · CodeY",
+  "desc": "Inspect CodeY template versions, compatibility, and install artifacts.",
+  "lang": "en",
+  "alts": [
+   "en=/en/market/item/",
+   "zh-CN=/market/item/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/market/upload/": {
+  "title": "Redirecting to: /en/market/?upload=1",
+  "desc": "",
+  "lang": "",
+  "alts": [],
+  "ogLocale": ""
+ },
+ "/en/models/": {
+  "title": "One integration, multiple model providers · CodeY",
+  "desc": "Use OpenAI-compatible, Anthropic, and Gemini models through the CodeY official gateway. Plans and model access are shown separately.",
+  "lang": "en",
+  "alts": [
+   "en=/en/models/",
+   "zh-CN=/models/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/pricing/": {
+  "title": "Choose a plan for actual usage · CodeY",
+  "desc": "Plans define monthly credits and model access. Credits are consumed by actual model usage, not seats.",
+  "lang": "en",
+  "alts": [
+   "en=/en/pricing/",
+   "zh-CN=/pricing/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/en/register/": {
+  "title": "Create a CodeY account · CodeY",
+  "desc": "Use either your username or email to sign in.",
+  "lang": "en",
+  "alts": [
+   "en=/en/register/",
+   "zh-CN=/register/"
+  ],
+  "ogLocale": "en_US"
+ },
+ "/": {
+  "title": "CodeY — 帮助你完成任务的 AI 工作伙伴",
+  "desc": "把目标、文件、链接或项目交给 CodeY。它会在授权范围内采取行动、检查结果并清楚交付，支持本地优先执行、可恢复任务与显式权限。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/",
+   "zh-CN=/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/market/": {
+  "title": "CodeY 模板市场",
+  "desc": "发现、查看和下载 CodeY Agent、Agent Team、Workflow、Skill 与 MCP 模板。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/market/",
+   "zh-CN=/market/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/market/item/": {
+  "title": "模板详情 · CodeY",
+  "desc": "查看 CodeY 模板版本、兼容性和安装制品。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/market/item/",
+   "zh-CN=/market/item/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/market/upload/": {
+  "title": "Redirecting to: /market/?upload=1",
+  "desc": "",
+  "lang": "",
+  "alts": [],
+  "ogLocale": ""
+ },
+ "/models/": {
+  "title": "统一接入，多厂商模型 · CodeY",
+  "desc": "通过 CodeY 官方网关使用 OpenAI 兼容、Anthropic 与 Gemini 模型。套餐与模型权限分开展示。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/models/",
+   "zh-CN=/models/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/pricing/": {
+  "title": "按实际使用选择套餐 · CodeY",
+  "desc": "套餐决定每月积分和可用模型。积分按模型实际调用消耗，不绑定席位。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/pricing/",
+   "zh-CN=/pricing/"
+  ],
+  "ogLocale": "zh_CN"
+ },
+ "/register/": {
+  "title": "创建 CodeY 账号 · CodeY",
+  "desc": "注册后可使用用户名或邮箱登录。",
+  "lang": "zh-CN",
+  "alts": [
+   "en=/en/register/",
+   "zh-CN=/register/"
+  ],
+  "ogLocale": "zh_CN"
+ }
+}

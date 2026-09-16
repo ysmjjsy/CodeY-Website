@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  alternateLocalePath,
   consolePath,
   docsBase,
   docsPath,
@@ -73,5 +74,28 @@ describe('locale path helpers', () => {
     expect(consolePath('en')).toBe('/en/console/')
     expect(consolePath('zh-CN', 'models')).toBe('/console/models/')
     expect(consolePath('en', 'users')).toBe('/en/console/users/')
+  })
+})
+
+describe('alternateLocalePath', () => {
+  it('prefixes /en for zh-CN pages', () => {
+    expect(alternateLocalePath('zh-CN', '/')).toBe('/en/')
+    expect(alternateLocalePath('zh-CN', '/pricing/')).toBe('/en/pricing/')
+    expect(alternateLocalePath('zh-CN', '/console/models/')).toBe('/en/console/models/')
+  })
+
+  it('strips the /en prefix for en pages', () => {
+    expect(alternateLocalePath('en', '/en/')).toBe('/')
+    expect(alternateLocalePath('en', '/en/pricing/')).toBe('/pricing/')
+    expect(alternateLocalePath('en', '/en/console/models/')).toBe('/console/models/')
+  })
+
+  it('round-trips every page back to itself', () => {
+    const paths = ['/', '/pricing/', '/console/models/', '/market/item/', '/en/download/']
+    for (const path of paths) {
+      const locale = path === '/en/' || path.startsWith('/en/') ? 'en' : 'zh-CN'
+      const other = locale === 'en' ? 'zh-CN' : 'en'
+      expect(alternateLocalePath(other, alternateLocalePath(locale, path))).toBe(path)
+    }
   })
 })

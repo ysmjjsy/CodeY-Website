@@ -1,15 +1,10 @@
 ---
-import ConsoleShell from '../../components/ConsoleShell.astro'
+import ConsolePage from '../../components/ConsolePage.astro'
 import ProfileOverview from '../../components/ProfileOverview.astro'
-import { profileCopy } from '../../i18n/profile'
-import MarketLayout from '../../layouts/MarketLayout.astro'
 
 const locale = 'zh-CN' as const
-const copy = profileCopy(locale)
 ---
 
-<MarketLayout title={`${copy.title} · CodeY`} description={copy.description} locale={locale} alternateHref="/en/console/">
-  <ConsoleShell locale={locale} activeSection="profile">
-    <ProfileOverview locale={locale} />
-  </ConsoleShell>
-</MarketLayout>
+<ConsolePage locale={locale} section="profile" pathname={Astro.url.pathname}>
+  <ProfileOverview locale={locale} />
+</ConsolePage>

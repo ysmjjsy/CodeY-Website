@@ -1,12 +1,17 @@
 ---
+import CommercialPage from '../../components/CommercialPage.astro'
 import ModelsCatalog from '../../components/ModelsCatalog.astro'
 import { commercialCopy } from '../../i18n/commercial'
-import CommercialLayout from '../../layouts/CommercialLayout.astro'
 
 const locale = 'zh-CN' as const
 const copy = commercialCopy(locale)
 ---
 
-<CommercialLayout title={`${copy.modelsTitle} · CodeY`} description={copy.modelsDescription} locale={locale} alternateHref="/en/models/">
+<CommercialPage
+  locale={locale}
+  title={`${copy.modelsTitle} · CodeY`}
+  description={copy.modelsDescription}
+  pathname={Astro.url.pathname}
+>
   <ModelsCatalog locale={locale} />
-</CommercialLayout>
+</CommercialPage>

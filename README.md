@@ -134,9 +134,29 @@ PKCS#8 私钥，并用 `CODEY_CLOUD_ENTITLEMENT_KEY_ID` 设置稳定的密钥 ID
 | `src/pages/index.astro` | 官网首页 |
 | `src/pages/console/` | 套餐、模板、审核和模型管理控制台 |
 | `src/components/` | 首页各区块组件 |
+| `src/components/*Page.astro` | 各页面族的共享壳（见下） |
 | `src/layouts/LandingLayout.astro` | 首页布局与滚动显现脚本 |
-| `src/styles/landing.css` | 首页设计 Token 与通用样式 |
+| `src/styles/tokens.css` | 设计 Token 真源（色彩、间距、圆角、字体） |
+| `src/styles/landing.css` | 首页通用样式 |
 | `src/styles/starlight.css` | 文档主题定制 |
 | `src/content/docs/docs/` | 中文文档内容 |
 | `astro.config.mjs` | Starlight 侧边栏与站点配置 |
 | `server/market-server` | 官网账号、模板市场、Cloud 商业域、支付和模型网关后端 |
+
+### 多语言页面结构
+
+页面树采用 **平行目录**：中文在根路径（`/console/`），英文在 `/en/` 前缀下
+（`/en/console/`）。每一对页面的差异只有 `locale` 和 alternate 链接，因此共享壳
+（`ConsolePage` / `CommercialPage` / `MarketPage` / `LandingPage`）承担布局与元信息，
+页面文件只负责选内容组件。新增语言时，只需按同样结构新增一套页面文件。
+
+`alternateHref` 一律由 `alternateLocalePath(locale, Astro.url.pathname)` 从当前路径推导，
+不再手写字面量——两套页面此前正是因为各自手写对应路径而逐渐漂移。
+
+**为何不用 `[...locale]/` 动态段**（评估结论，保持现状）：曾实测把 14 个 console 页面
+合并为 `src/pages/[...locale]/` 下的动态路由，Astro 会因此无法按路由切分组件 CSS，
+把各 section 的样式表合并进每个 console 页面，**每页 CSS 体积增加约 20–32 KB**
+（例如 `/console/` 135,863 → 168,521 字节）。收益（少 12 个文件）远小于代价，故放弃。
+此外 Starlight 的 `locales` 配置与 `src/middleware.ts` 的 locale cookie 逻辑都依赖现有
+路径结构。共享壳已消除重复成本：console 页面从每页 15 行降至 10 行，且改动后
+56 个页面的 DOM、资源引用和元信息与原实现完全一致。

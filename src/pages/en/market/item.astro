@@ -1,17 +1,17 @@
 ---
 import MarketDetail from '../../../components/MarketDetail.astro'
+import MarketPage from '../../../components/MarketPage.astro'
 import { marketCopy } from '../../../i18n/market'
-import MarketLayout from '../../../layouts/MarketLayout.astro'
 
 const locale = 'en' as const
 const copy = marketCopy(locale)
 ---
 
-<MarketLayout
+<MarketPage
+  locale={locale}
   title={copy.detailMetaTitle}
   description={copy.detailDescription}
-  locale={locale}
-  alternateHref="/market/item/"
+  pathname={Astro.url.pathname}
 >
   <MarketDetail locale={locale} />
-</MarketLayout>
+</MarketPage>

@@ -1,23 +1,16 @@
 ---
 import Download from '../../components/Download.astro'
-import SiteFooter from '../../components/SiteFooter.astro'
-import SiteNav from '../../components/SiteNav.astro'
+import LandingPage from '../../components/LandingPage.astro'
 import { t } from '../../i18n/utils'
-import LandingLayout from '../../layouts/LandingLayout.astro'
 
 const locale = 'zh-CN' as const
-const alternateHref = '/en/download/'
 ---
 
-<LandingLayout
+<LandingPage
   locale={locale}
   title={t(locale, 'download.meta.title')}
   description={t(locale, 'download.meta.description')}
-  alternateHref={alternateHref}
+  pathname={Astro.url.pathname}
 >
-  <SiteNav locale={locale} alternateHref={alternateHref} />
-  <main>
-    <Download locale={locale} />
-  </main>
-  <SiteFooter locale={locale} />
-</LandingLayout>
+  <Download locale={locale} />
+</LandingPage>

@@ -1,0 +1,42 @@
+---
+import type { Locale } from '../i18n/ui'
+import { alternateLocalePath, t } from '../i18n/utils'
+import LandingLayout from '../layouts/LandingLayout.astro'
+import SiteFooter from './SiteFooter.astro'
+import SiteNav from './SiteNav.astro'
+
+interface Props {
+  locale: Locale
+  /** Defaults to the landing meta copy; the download page passes its own. */
+  title?: string
+  description?: string
+  /** Current pathname; the alternate-locale link is derived from it. */
+  pathname: string
+}
+
+const { locale, title, description, pathname } = Astro.props
+
+const metaTitle = title ?? t(locale, 'meta.title')
+const metaDescription = description ?? t(locale, 'meta.description')
+// Derived rather than hand-written: the two locale copies used to carry their
+// own literal counterpart path, which is exactly how they drifted apart.
+const alternateHref = alternateLocalePath(locale, pathname)
+---
+
+{/*
+  Shared shell for the landing-style pages (home and download): nav, a plain
+  <main>, and the footer. The page passes its own sections through the slot so
+  Astro keeps splitting CSS per route.
+*/}
+<LandingLayout
+  locale={locale}
+  title={metaTitle}
+  description={metaDescription}
+  alternateHref={alternateHref}
+>
+  <SiteNav locale={locale} alternateHref={alternateHref} />
+  <main>
+    <slot />
+  </main>
+  <SiteFooter locale={locale} />
+</LandingLayout>

@@ -1,12 +1,17 @@
 ---
+import CommercialPage from '../../../components/CommercialPage.astro'
 import RegisterAccount from '../../../components/RegisterAccount.astro'
 import { authCopy } from '../../../i18n/auth'
-import CommercialLayout from '../../../layouts/CommercialLayout.astro'
 
 const locale = 'en' as const
 const copy = authCopy(locale)
 ---
 
-<CommercialLayout title={`${copy.registerTitle} · CodeY`} description={copy.registerDescription} locale={locale} alternateHref="/register/">
+<CommercialPage
+  locale={locale}
+  title={`${copy.registerTitle} · CodeY`}
+  description={copy.registerDescription}
+  pathname={Astro.url.pathname}
+>
   <RegisterAccount locale={locale} />
-</CommercialLayout>
+</CommercialPage>

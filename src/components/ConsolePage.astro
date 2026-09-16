@@ -1,0 +1,64 @@
+---
+import { cloudCopy } from '../i18n/cloud'
+import { dashboardCopy } from '../i18n/dashboard'
+import { profileCopy } from '../i18n/profile'
+import type { Locale } from '../i18n/ui'
+import { usersCopy } from '../i18n/users'
+import { alternateLocalePath } from '../i18n/utils'
+import MarketLayout from '../layouts/MarketLayout.astro'
+import ConsoleShell from './ConsoleShell.astro'
+
+export type ConsoleSection =
+  | 'profile'
+  | 'templates'
+  | 'users'
+  | 'reviews'
+  | 'models'
+  | 'plans'
+  | 'topups'
+
+interface Props {
+  locale: Locale
+  section: ConsoleSection
+  /** Current pathname; the alternate-locale link is derived from it. */
+  pathname: string
+}
+
+const { locale, section, pathname } = Astro.props
+
+// Document metadata per section, taken from the copy module that owns it. Only
+// type-only i18n modules are imported here, so this adds no CSS to the page.
+// Titles that do not already carry the brand get the suffix appended, matching
+// the hand-written pages this shell replaces.
+const profile = profileCopy(locale)
+const users = usersCopy(locale)
+const dashboard = dashboardCopy(locale)
+const cloud = cloudCopy(locale)
+
+const meta = {
+  profile: { title: `${profile.title} · CodeY`, description: profile.description },
+  users: { title: `${users.title} · CodeY`, description: users.description },
+  reviews: { title: `${dashboard.reviewTitle} · CodeY`, description: dashboard.reviewDescription },
+  models: { title: `${cloud.adminTitle} · CodeY`, description: cloud.adminDescription },
+  plans: { title: `${cloud.planAdminTitle} · CodeY`, description: cloud.planAdminDescription },
+  topups: { title: `${cloud.topUpAdminTitle} · CodeY`, description: cloud.topUpAdminDescription },
+  templates: { title: dashboard.metaTitle, description: dashboard.metaDescription },
+}[section]
+---
+
+{/*
+  Shared shell for the console pages. The page imports and passes its own content
+  component through the slot rather than this shell importing every section,
+  which keeps Astro's per-route CSS splitting intact: importing all sections here
+  merged their stylesheets into every console page (+20-32 KB of CSS per page).
+*/}
+<MarketLayout
+  title={meta.title}
+  description={meta.description}
+  locale={locale}
+  alternateHref={alternateLocalePath(locale, pathname)}
+>
+  <ConsoleShell locale={locale} activeSection={section}>
+    <slot />
+  </ConsoleShell>
+</MarketLayout>

@@ -3,27 +3,16 @@ import Architecture from '../../components/Architecture.astro'
 import Features from '../../components/Features.astro'
 import GetStarted from '../../components/GetStarted.astro'
 import Hero from '../../components/Hero.astro'
+import LandingPage from '../../components/LandingPage.astro'
 import SdkSection from '../../components/SdkSection.astro'
-import SiteFooter from '../../components/SiteFooter.astro'
-import SiteNav from '../../components/SiteNav.astro'
-import { t } from '../../i18n/utils'
-import LandingLayout from '../../layouts/LandingLayout.astro'
 
 const locale = 'en' as const
 ---
 
-<LandingLayout
-  locale={locale}
-  title={t(locale, 'meta.title')}
-  description={t(locale, 'meta.description')}
->
-  <SiteNav locale={locale} />
-  <main>
-    <Hero locale={locale} />
-    <Features locale={locale} />
-    <Architecture locale={locale} />
-    <SdkSection locale={locale} />
-    <GetStarted locale={locale} />
-  </main>
-  <SiteFooter locale={locale} />
-</LandingLayout>
+<LandingPage locale={locale} pathname={Astro.url.pathname}>
+  <Hero locale={locale} />
+  <Features locale={locale} />
+  <Architecture locale={locale} />
+  <SdkSection locale={locale} />
+  <GetStarted locale={locale} />
+</LandingPage>

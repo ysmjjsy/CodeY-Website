@@ -1,0 +1,29 @@
+---
+import type { Locale } from '../i18n/ui'
+import { alternateLocalePath } from '../i18n/utils'
+import CommercialLayout from '../layouts/CommercialLayout.astro'
+
+interface Props {
+  locale: Locale
+  title: string
+  description: string
+  /** Current pathname; the alternate-locale link is derived from it. */
+  pathname: string
+}
+
+const { locale, title, description, pathname } = Astro.props
+---
+
+{/*
+  Shared shell for the commercial pages (models / pricing / register). The page
+  passes its own content component through the slot so Astro keeps splitting CSS
+  per route.
+*/}
+<CommercialLayout
+  title={title}
+  description={description}
+  locale={locale}
+  alternateHref={alternateLocalePath(locale, pathname)}
+>
+  <slot />
+</CommercialLayout>
