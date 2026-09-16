@@ -66,6 +66,31 @@ CodeY/apps/desktop/src/shared/styles/global.css
 
 官网历史值 `10/14/20px` 已废弃。
 
+## 间距尺度（space）
+
+间距分两层，都定义在 `src/styles/tokens.css`：
+
+| 层 | 形式 | 用途 |
+|---|---|---|
+| 数值刻度 | `--space-N` = `Npx`（2px 基准） | 底层真源，覆盖历史上出现过的全部间距 |
+| 语义刻度 | `--space-2xs…--space-3xl` | 组件按「紧/松」选间距，不关心像素值 |
+
+语义刻度全部指向上面的数值刻度，改数值刻度即可整体调节节奏：
+
+| Token | 指向 | 值 |
+|---|---|---|
+| `--space-2xs` | `--space-4` | `4px` |
+| `--space-xs` | `--space-8` | `8px` |
+| `--space-sm` | `--space-12` | `12px` |
+| `--space-md` | `--space-16` | `16px` |
+| `--space-lg` | `--space-24` | `24px` |
+| `--space-xl` | `--space-32` | `32px` |
+| `--space-2xl` | `--space-48` | `48px` |
+| `--space-3xl` | `--space-64` | `64px` |
+
+新代码优先用语义刻度；只有落在 4px 档位之间、确实没有对应档位时才用数值刻度。
+`gap`/`padding`/`margin` 中的裸 `px` 已清零（`clamp()` 内的流式边界除外，那些不是刻度）。
+
 ## 字体
 
 | 语义 | 官网 Token | 值 |

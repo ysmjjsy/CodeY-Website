@@ -1,0 +1,331 @@
+/* 模板市场 — 上传与发布表单（对话框、字段、预览） */
+
+.market-upload-button {
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+}
+
+.market-select,
+.market-field input,
+.market-field textarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  outline: 0;
+  color: var(--fg);
+  background: var(--surface);
+  font: inherit;
+}
+
+.market-select:focus,
+.market-field input:focus,
+.market-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.market-upload-dialog {
+  width: min(900px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(900px, calc(100vh - 32px));
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+  background: var(--bg);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 0.28);
+}
+
+.market-upload-dialog::backdrop {
+  background: rgb(9 12 22 / 0.68);
+  backdrop-filter: blur(5px);
+}
+
+.market-upload-modal {
+  display: flex;
+  max-height: inherit;
+  flex-direction: column;
+}
+
+.market-upload-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-24) clamp(22px, 4vw, 34px);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
+.market-upload-head h2 {
+  margin-top: var(--space-5);
+  font-size: clamp(1.5rem, 4vw, 2.15rem);
+}
+
+.market-upload-head p {
+  max-width: 720px;
+  margin: var(--space-10) 0 0;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+.market-dialog-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--fg-muted);
+  background: var(--panel-glass);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.market-dialog-close:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.market-upload-content {
+  min-height: 0;
+  padding: clamp(18px, 3vw, 28px);
+  overflow-y: auto;
+}
+
+.market-form-card {
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel-glass);
+  box-shadow: inset 0 1px 0 var(--panel-inset);
+}
+
+.market-form-card + .market-form-card {
+  margin-top: var(--space-18);
+}
+
+.market-form-card h3 {
+  margin-bottom: var(--space-lg);
+  font-size: 1.08rem;
+}
+
+.market-field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.market-field + .market-field {
+  margin-top: var(--space-18);
+}
+
+.market-field label,
+.market-field legend {
+  color: var(--fg);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.market-field input,
+.market-field textarea {
+  padding: var(--space-11) var(--space-12);
+}
+
+.market-field textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.market-field-hint {
+  margin: 0;
+  color: var(--fg-faint);
+  font-size: 0.78rem;
+}
+
+.market-file {
+  padding: var(--space-lg);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+}
+
+.market-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.market-form-actions .btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.market-package-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-18);
+  margin-bottom: var(--space-lg);
+  padding: var(--space-14);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--fg-muted);
+  background: var(--chip-bg);
+  font: 0.78rem/1.5 var(--font-mono);
+}
+
+.market-package-metadata-note {
+  margin: calc(var(--space-8) * -1) 0 var(--space-18);
+}
+
+.market-publication-preview {
+  display: grid;
+  gap: var(--space-18);
+  padding: clamp(18px, 3vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--chip-bg);
+}
+
+.market-publication-heading {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.market-publication-heading h4 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.market-publication-heading p {
+  margin: 0;
+  color: var(--fg-muted);
+  line-height: 1.65;
+}
+
+.market-publication-facts {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr);
+  gap: var(--space-8) var(--space-18);
+  margin: 0;
+}
+
+.market-publication-facts dt {
+  color: var(--fg-faint);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.market-publication-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--fg);
+  font-size: 0.84rem;
+}
+
+.market-markdown-preview {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-14);
+}
+
+.market-markdown-preview summary {
+  color: var(--fg);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.market-markdown-preview pre {
+  max-height: 280px;
+  margin: var(--space-12) 0 0;
+  padding: var(--space-14);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--fg-muted);
+  background: var(--bg);
+  font: 0.78rem/1.6 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.market-resource-options {
+  display: grid;
+  gap: var(--space-10);
+  padding: 0;
+  border: 0;
+}
+
+.market-resource-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--fg-muted);
+  background: var(--chip-bg);
+  cursor: pointer;
+}
+
+.market-resource-option:has(input:checked) {
+  border-color: var(--accent);
+  color: var(--fg);
+  background: var(--accent-soft);
+}
+
+@media (max-width: 680px) {
+.market-upload-button,
+  .market-detail-download {
+    align-self: flex-start;
+  }
+
+.market-upload-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+  }
+
+.market-upload-head {
+    padding: var(--space-20);
+  }
+
+.market-upload-content {
+    padding: var(--space-sm);
+  }
+
+.market-form-card {
+    padding: var(--space-20);
+  }
+
+.market-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+.market-upload-button {
+  min-height: 54px;
+  padding: var(--space-13) var(--space-20);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 760px) {
+.market-upload-button {
+    min-height: 48px;
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+.market-hero-actions .market-upload-button,
+  .market-empty-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

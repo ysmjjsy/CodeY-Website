@@ -1,93 +1,5 @@
-/* CodeY 官网首页样式 — 品牌 Token 取自桌面端设计系统
- *
- * 品牌主色（--accent*）与桌面端 apps/desktop/src/shared/styles/global.css 对齐：
- *   浅色 #4f46e5 / 深色 #818cf8（indigo）
- * 青色（--decorative*）仅用于氛围装饰（辉光、网格、渐变），不再承担品牌语义。
- */
-
-:root,
-:root[data-theme='dark'] {
-  --bg: #09090b;
-  --bg-soft: #0e0e11;
-  --surface: #131316;
-  --surface-raised: #1a1a1e;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --border-hover: rgba(255, 255, 255, 0.28);
-  --fg: #f4f4f5;
-  --fg-muted: #a1a1aa;
-  --fg-faint: #71717a;
-  /* 品牌：对齐桌面端深色 primary */
-  --accent: #818cf8;
-  --accent-bright: #a5b4fc;
-  --accent-soft: rgba(129, 140, 248, 0.14);
-  --accent-ring: rgba(129, 140, 248, 0.4);
-  /* 装饰：青色仅用于氛围辉光 */
-  --decorative-glow: rgba(6, 182, 212, 0.16);
-  --accent-glow: rgba(129, 140, 248, 0.14);
-  --btn-primary-fg: #09090b;
-  --amber: #f59e0b;
-  --amber-soft: rgba(245, 158, 11, 0.12);
-  --success: #34d399;
-  --danger: #f87171;
-  --panel-glass: rgba(19, 19, 22, 0.9);
-  --panel-inset: rgba(255, 255, 255, 0.06);
-  --code-bg: #0c0c0f;
-  --term-bg: #0a0a0d;
-  --shadow-window: 0 24px 64px rgba(0, 0, 0, 0.55);
-  --nav-scrolled-bg: rgba(9, 9, 11, 0.72);
-  --grid-line: rgba(255, 255, 255, 0.035);
-  --chip-bg: rgba(255, 255, 255, 0.03);
-  --ghost-bg: rgba(255, 255, 255, 0.02);
-  --ghost-bg-hover: rgba(255, 255, 255, 0.05);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --font-display: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, ui-monospace, monospace;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  color-scheme: dark;
-}
-
-/* 浅色：对齐桌面端浅色 primary（indigo #4f46e5） */
-:root[data-theme='light'] {
-  --bg: #f8f9fa;
-  --bg-soft: #f1f5f9;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --border: rgba(15, 23, 42, 0.08);
-  --border-strong: rgba(15, 23, 42, 0.14);
-  --border-hover: rgba(15, 23, 42, 0.28);
-  --fg: #1e293b;
-  --fg-muted: #59697f;
-  --fg-faint: #94a3b8;
-  /* 品牌：对齐桌面端浅色 primary */
-  --accent: #4f46e5;
-  --accent-bright: #4338ca;
-  --accent-soft: rgba(79, 70, 229, 0.1);
-  --accent-ring: rgba(79, 70, 229, 0.28);
-  /* 装饰：浅色下使用更深的青色以保证对比度 */
-  --decorative-glow: rgba(8, 145, 178, 0.12);
-  --accent-glow: rgba(79, 70, 229, 0.12);
-  --btn-primary-fg: #ffffff;
-  --amber: #d97706;
-  --amber-soft: rgba(217, 119, 6, 0.1);
-  --success: #059669;
-  --danger: #dc2626;
-  --panel-glass: rgba(255, 255, 255, 0.92);
-  --panel-inset: rgba(15, 23, 42, 0.04);
-  --code-bg: #0f172a;
-  --term-bg: #0f172a;
-  --shadow-window: 0 24px 64px rgba(15, 23, 42, 0.12);
-  --nav-scrolled-bg: rgba(248, 249, 250, 0.82);
-  --grid-line: rgba(15, 23, 42, 0.05);
-  --chip-bg: rgba(15, 23, 42, 0.03);
-  --ghost-bg: rgba(15, 23, 42, 0.02);
-  --ghost-bg-hover: rgba(15, 23, 42, 0.05);
-  color-scheme: light;
-}
+/* CodeY 官网首页样式 — 布局与排版；设计 Token 见 tokens.css */
+@import './tokens.css';
 
 * {
   box-sizing: border-box;
@@ -156,13 +68,13 @@ pre {
 .section-tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   font-family: var(--font-mono);
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   color: var(--accent-bright);
   text-transform: uppercase;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-md);
 }
 
 .section-tag::before {
@@ -181,7 +93,7 @@ pre {
 
 .section-desc {
   color: var(--fg-muted);
-  margin-top: 16px;
+  margin-top: var(--space-md);
   font-size: clamp(0.95rem, 2.2vw, 1.05rem);
   text-wrap: pretty;
 }
@@ -205,12 +117,16 @@ pre {
     scroll-behavior: auto;
   }
 
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  /* `:root:root` doubles the specificity of the universal selector so these
+   * declarations outrank component-level animation/transition rules without
+   * !important. Astro scopes component styles with an attribute selector
+   * (0,1,0); `:root:root *` is (0,2,0) and therefore wins. */
+  :root:root *,
+  :root:root *::before,
+  :root:root *::after {
+    animation-duration: 0.001ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.001ms;
   }
 
   .reveal {

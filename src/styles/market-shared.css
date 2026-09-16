@@ -1,0 +1,6 @@
+/* 模板市场 — 跨页共享规则（全局 [hidden] 等） */
+
+.market-state[hidden][hidden],
+[hidden][hidden] {
+  display: none;
+}

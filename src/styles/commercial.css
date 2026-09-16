@@ -1,6 +1,6 @@
 .commercial-main {
   min-height: 78vh;
-  padding-top: 68px;
+  padding-top: var(--space-68);
   background:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
@@ -22,8 +22,8 @@
 .commercial-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 15px;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-15);
   color: var(--accent-bright);
   font: 600 .72rem/1 var(--font-mono);
   letter-spacing: .12em;
@@ -45,7 +45,7 @@
 
 .commercial-hero p {
   max-width: 660px;
-  margin: 20px auto 0;
+  margin: var(--space-20) auto 0;
   color: var(--fg-muted);
   font-size: clamp(.95rem, 1.5vw, 1.08rem);
   line-height: 1.8;
@@ -54,9 +54,9 @@
 .catalog-state {
   display: grid;
   justify-items: center;
-  gap: 14px;
+  gap: var(--space-14);
   min-height: 140px;
-  margin: 48px 0 0;
+  margin: var(--space-48) 0 0;
   place-content: center;
   color: var(--fg-muted);
   text-align: center;
@@ -70,7 +70,7 @@
 
 .catalog-state .btn {
   min-height: 38px;
-  padding: 8px 15px;
+  padding: var(--space-8) var(--space-15);
 }
 
 .commercial-section {
@@ -81,8 +81,8 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 28px;
-  margin-bottom: 25px;
+  gap: var(--space-28);
+  margin-bottom: var(--space-25);
 }
 
 .commercial-section-head > div {
@@ -95,14 +95,14 @@
 }
 
 .commercial-section-head p {
-  margin: 9px 0 0;
+  margin: var(--space-9) 0 0;
   color: var(--fg-muted);
   font-size: .88rem;
 }
 
 .commercial-panel {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   box-shadow: 0 22px 70px rgb(0 0 0 / .12);
   backdrop-filter: blur(16px);
@@ -115,7 +115,7 @@
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-strong);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   color: var(--fg);
   background: var(--bg);
   box-shadow: 0 28px 90px rgb(0 0 0 / .42);
@@ -127,7 +127,7 @@
 }
 
 .commerce-dialog-card {
-  padding: 28px;
+  padding: var(--space-28);
 }
 
 .commerce-dialog-card h2 {
@@ -135,7 +135,7 @@
 }
 
 .commerce-dialog-card > p {
-  margin: 8px 0 22px;
+  margin: var(--space-8) 0 var(--space-22);
   color: var(--fg-muted);
   font-size: .84rem;
 }
@@ -143,19 +143,19 @@
 .commerce-dialog-actions {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  gap: 10px;
-  margin-top: 22px;
+  gap: var(--space-10);
+  margin-top: var(--space-22);
 }
 
 .commerce-dialog-actions .btn {
   justify-content: center;
   min-height: 44px;
-  padding: 10px 15px;
+  padding: var(--space-10) var(--space-15);
 }
 
 @media (max-width: 680px) {
   .commercial-page {
-    padding-block: 48px 72px;
+    padding-block: var(--space-48) var(--space-72);
   }
 
   .commercial-section-head {
@@ -163,6 +163,6 @@
   }
 
   .commerce-dialog-card {
-    padding: 22px;
+    padding: var(--space-22);
   }
 }

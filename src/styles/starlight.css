@@ -2,7 +2,12 @@
  *
  * 品牌 accent 两套主题均为 indigo，与 apps/desktop/src/shared/styles/global.css 一致：
  *   深色 #818cf8 / 浅色 #4f46e5
+ *
+ * 本文件由 Starlight 的 customCss 单独加载，不经过 LandingLayout，
+ * 因此需要自行引入 Token 层。
  */
+@import './tokens.css';
+
 :root {
   --sl-font: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
     system-ui, sans-serif;
@@ -49,7 +54,7 @@
 }
 
 .site-title img {
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
 }
 
 /* 正文排版微调 */
@@ -58,7 +63,7 @@
 }
 
 .sl-markdown-content code:not(:where(pre code)) {
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
 }
 
 .sl-markdown-content table {

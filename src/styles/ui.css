@@ -9,9 +9,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-xs);
   min-height: 44px;
-  padding: 11px 22px;
+  padding: var(--space-11) var(--space-22);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: inherit;
@@ -25,8 +25,8 @@
 
 .btn-sm {
   min-height: 36px;
-  padding: 7px 13px;
-  border-radius: 9px;
+  padding: var(--space-7) var(--space-13);
+  border-radius: var(--radius-md);
   font-size: .8rem;
 }
 
@@ -73,7 +73,7 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--space-lg);
 }
 
 :where(.ui-page-header__copy) {
@@ -87,7 +87,7 @@
 }
 
 :where(.ui-page-header__copy) > :where(p) {
-  margin: 9px 0 0;
+  margin: var(--space-9) 0 0;
   color: var(--fg-muted);
   font-size: .9rem;
   line-height: 1.7;
@@ -105,13 +105,13 @@
 :where(.ui-empty__actions) {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-10);
 }
 
 :where(.ui-eyebrow) {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   color: var(--accent-bright);
   font: 600 .72rem/1 var(--font-mono);
   letter-spacing: .12em;
@@ -129,7 +129,7 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--space-lg);
 }
 
 :where(.ui-section-header) :where(h2) {
@@ -137,7 +137,7 @@
 }
 
 :where(.ui-section-header) :where(p) {
-  margin: 6px 0 0;
+  margin: var(--space-6) 0 0;
   color: var(--fg-muted);
   font-size: .8rem;
   line-height: 1.6;
@@ -175,8 +175,8 @@
   min-height: 58px;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 10px 14px;
+  gap: var(--space-18);
+  padding: var(--space-10) var(--space-14);
   color: var(--fg-muted);
   background: var(--panel-glass);
 }
@@ -200,11 +200,11 @@
 }
 
 :where(.ui-pagination__controls) {
-  gap: 16px;
+  gap: var(--space-md);
 }
 
 :where(.ui-pagination__size) {
-  gap: 7px;
+  gap: var(--space-7);
   color: var(--fg-faint);
   font-size: .7rem;
   white-space: nowrap;
@@ -212,20 +212,20 @@
 
 :where(.ui-pagination__size select) {
   min-height: 32px;
-  padding: 5px 25px 5px 8px;
+  padding: var(--space-5) var(--space-25) var(--space-5) var(--space-8);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--fg);
   background: var(--bg);
   font: .7rem var(--font-mono);
 }
 
 :where(.ui-pagination__pages) {
-  gap: 5px;
+  gap: var(--space-5);
 }
 
 :where(.ui-pagination__numbers) {
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 :where(.ui-pagination__pages button) {
@@ -235,7 +235,7 @@
   place-items: center;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--fg-muted);
   background: transparent;
   font: .7rem var(--font-mono);
@@ -275,7 +275,7 @@
 :where(.ui-empty) {
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   color: var(--fg-muted);
   text-align: center;
 }
@@ -307,7 +307,7 @@
 
 :where(.ui-field) {
   display: grid;
-  gap: 7px;
+  gap: var(--space-7);
 }
 
 :where(.ui-field) > :where(span:first-child) {
@@ -336,7 +336,7 @@
   :where(.ui-pagination) {
     align-items: stretch;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-xs);
   }
 
   :where(.ui-pagination__controls) {

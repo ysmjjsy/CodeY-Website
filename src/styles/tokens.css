@@ -1,0 +1,165 @@
+/* CodeY 官网设计 Token 层
+ *
+ * 这是全站唯一的 Token 定义处。品牌色以主仓库
+ * CodeY/apps/desktop/src/shared/styles/global.css 为准，
+ * 契约见 BRAND-TOKENS.md。
+ *
+ * 品牌主色（--accent*）：浅色 #4f46e5 / 深色 #818cf8（indigo）
+ * 装饰色（--decorative-glow）：青色，仅用于氛围辉光，不承担品牌语义
+ */
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #09090b;
+  --bg-soft: #0e0e11;
+  --surface: #131316;
+  --surface-raised: #1a1a1e;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-hover: rgba(255, 255, 255, 0.28);
+  --fg: #f4f4f5;
+  --fg-muted: #a1a1aa;
+  --fg-faint: #71717a;
+  /* 品牌：对齐桌面端深色 primary */
+  --accent: #818cf8;
+  --accent-bright: #a5b4fc;
+  --accent-soft: rgba(129, 140, 248, 0.14);
+  --accent-ring: rgba(129, 140, 248, 0.4);
+  /* 装饰：青色仅用于氛围辉光 */
+  --decorative-glow: rgba(6, 182, 212, 0.16);
+  --accent-glow: rgba(129, 140, 248, 0.14);
+  --btn-primary-fg: #09090b;
+  --amber: #f59e0b;
+  --amber-soft: rgba(245, 158, 11, 0.12);
+  --success: #34d399;
+  --danger: #f87171;
+  --panel-glass: rgba(19, 19, 22, 0.9);
+  --panel-inset: rgba(255, 255, 255, 0.06);
+  --code-bg: #0c0c0f;
+  --term-bg: #0a0a0d;
+  --shadow-window: 0 24px 64px rgba(0, 0, 0, 0.55);
+  --nav-scrolled-bg: rgba(9, 9, 11, 0.72);
+  --grid-line: rgba(255, 255, 255, 0.035);
+  --chip-bg: rgba(255, 255, 255, 0.03);
+  --ghost-bg: rgba(255, 255, 255, 0.02);
+  --ghost-bg-hover: rgba(255, 255, 255, 0.05);
+
+  /* 圆角：与桌面端同一套尺度 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* 间距比例尺
+   *
+   * 分两层，两层都在这一个文件里维护：
+   *
+   * 1. 数值刻度（--space-N）：2px 基准，名称直接对应像素值，避免查阅——
+   *    --space-14 就是 14px。它是底层真源，覆盖本站历史上出现过的所有间距。
+   * 2. 语义刻度（--space-2xs…--space-3xl）：4px 节奏的命名档位，供组件按
+   *    「紧/松」而不是按像素值选间距；全部指向上面的数值刻度，因此改数值刻度
+   *    即可整体调节节奏。
+   *
+   * 新代码优先用语义刻度；只有落在 4px 档位之间、确实没有对应档位时才用数值刻度。
+   */
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-3: 3px;
+  --space-4: 4px;
+  --space-5: 5px;
+  --space-6: 6px;
+  --space-7: 7px;
+  --space-8: 8px;
+  --space-9: 9px;
+  --space-10: 10px;
+  --space-11: 11px;
+  --space-12: 12px;
+  --space-13: 13px;
+  --space-14: 14px;
+  --space-15: 15px;
+  --space-16: 16px;
+  --space-17: 17px;
+  --space-18: 18px;
+  --space-19: 19px;
+  --space-20: 20px;
+  --space-22: 22px;
+  --space-23: 23px;
+  --space-24: 24px;
+  --space-25: 25px;
+  --space-26: 26px;
+  --space-28: 28px;
+  --space-30: 30px;
+  --space-32: 32px;
+  --space-34: 34px;
+  --space-36: 36px;
+  --space-40: 40px;
+  --space-42: 42px;
+  --space-44: 44px;
+  --space-45: 45px;
+  --space-48: 48px;
+  --space-52: 52px;
+  --space-56: 56px;
+  --space-64: 64px;
+  --space-66: 66px;
+  --space-68: 68px;
+  --space-70: 70px;
+  --space-72: 72px;
+  --space-80: 80px;
+  --space-88: 88px;
+  --space-96: 96px;
+
+  /* 语义刻度：4px 节奏的命名档位，全部指向数值刻度 */
+  --space-2xs: var(--space-4);
+  --space-xs: var(--space-8);
+  --space-sm: var(--space-12);
+  --space-md: var(--space-16);
+  --space-lg: var(--space-24);
+  --space-xl: var(--space-32);
+  --space-2xl: var(--space-48);
+  --space-3xl: var(--space-64);
+
+  --font-display: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, ui-monospace, monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
+}
+
+/* 浅色：对齐桌面端浅色 primary（indigo #4f46e5） */
+:root[data-theme='light'] {
+  --bg: #f8f9fa;
+  --bg-soft: #f1f5f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --border-hover: rgba(15, 23, 42, 0.28);
+  --fg: #1e293b;
+  --fg-muted: #59697f;
+  --fg-faint: #94a3b8;
+  /* 品牌：对齐桌面端浅色 primary */
+  --accent: #4f46e5;
+  --accent-bright: #4338ca;
+  --accent-soft: rgba(79, 70, 229, 0.1);
+  --accent-ring: rgba(79, 70, 229, 0.28);
+  /* 装饰：浅色下使用更深的青色以保证对比度 */
+  --decorative-glow: rgba(8, 145, 178, 0.12);
+  --accent-glow: rgba(79, 70, 229, 0.12);
+  --btn-primary-fg: #ffffff;
+  --amber: #d97706;
+  --amber-soft: rgba(217, 119, 6, 0.1);
+  --success: #059669;
+  --danger: #dc2626;
+  --panel-glass: rgba(255, 255, 255, 0.92);
+  --panel-inset: rgba(15, 23, 42, 0.04);
+  --code-bg: #0f172a;
+  --term-bg: #0f172a;
+  --shadow-window: 0 24px 64px rgba(15, 23, 42, 0.12);
+  --nav-scrolled-bg: rgba(248, 249, 250, 0.82);
+  --grid-line: rgba(15, 23, 42, 0.05);
+  --chip-bg: rgba(15, 23, 42, 0.03);
+  --ghost-bg: rgba(15, 23, 42, 0.02);
+  --ghost-bg-hover: rgba(15, 23, 42, 0.05);
+  color-scheme: light;
+}
