@@ -187,6 +187,7 @@
   font-size: 0.66rem;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: cannot match an element the higher-specificity selector matches (verified against built DOM) */
 .market-document-toolbar span {
   padding: var(--space-6) var(--space-10);
   border: 1px solid var(--border);
@@ -340,6 +341,7 @@
   font-size: 0.82rem;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: cannot match an element the higher-specificity selector matches (verified against built DOM) */
 .market-resource-body > span {
   color: var(--fg-faint);
   font-size: 0.7rem;
@@ -366,6 +368,7 @@
   list-style: none;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: cannot match an element the higher-specificity selector matches (verified against built DOM) */
 .market-resource-body code {
   color: var(--fg-muted);
   font: 0.68rem var(--font-mono);
@@ -489,6 +492,7 @@
   margin: 0;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: cannot match an element the higher-specificity selector matches (verified against built DOM) */
 .market-facts div {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
