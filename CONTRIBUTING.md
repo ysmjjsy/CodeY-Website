@@ -6,10 +6,34 @@
 提交前必须通过：
 
 ```sh
-pnpm check   # typecheck + astro check + lint + check:styles + test + build
+pnpm check   # typecheck + astro check + lint + check:styles + check:brand + check:scales + check:agent-notes + test + build:web
 ```
 
-CI 在 `pull_request` 和 `main` push 时运行同一组检查。
+CI 在 `pull_request` 和 `main` push 时运行 `pnpm check` 这一个聚合命令，因此本地与 CI 不会漂移。
+不要往 CI 里另写一份步骤清单——列步骤的做法此前已经漂移过一次。
+
+> **跨仓品牌校验在 CI 中降级**：`check:brand` 会读取兄弟仓库
+> `../CodeY/apps/desktop/src/shared/styles/global.css`。`CodeY` 是私有仓库，CI 无法
+> checkout 它，因此该项在 CI 中打印警告并跳过，只运行官网本地的别名与配色校验。
+> 本地开发时两个仓库并列摆放，跨仓比对会真正执行。
+
+## 决策记录
+
+非平凡改动需要在 `.agents/notes/` 下留一篇决策笔记。路径即状态：
+`{lifecycle}/{class}/yyyy-mm-dd-topic.md`，其中 lifecycle 为
+`proposed` / `implemented` / `rejected` / `archived`，class 为
+`feature` / `bug-fix` / `simplification` / `architecture` / `process` / `testing`。
+
+- 改行为、结构、跨仓契约、工具链、测试策略或格式 → 要写；
+- 纯格式化、改名、纯样式、常规内容编辑 → 不写。
+
+每篇笔记首节为 `## Problem`，并必须包含 `## Alternatives considered`：**先写被否方案的
+最强理由，再说明为何不用**——只列缺点属于稻草人，后人会重新提出。`## Consequences`
+要同时写代价与收益。
+
+决定未变、只是事实变了（路径、命名、默认值）时，**就地更新**原笔记，不要新开一篇。
+
+提交前跑 `pnpm check:agent-notes`。
 
 ## CSS 与 `<style>` 块都受检
 
@@ -140,7 +164,7 @@ CSS 规范不允许 `var()` 出现在媒体查询条件里，因此断点**本�
 
 - 不在页面里手写 alternate 路径字面量（`'/en/pricing/'` 这类）——两套页面此前正是这样漂移的。
 - 不让共享壳去 import 所有 section 的内容组件：这会把它们的样式表合并进每个页面，
-  实测每页 CSS 增加 20–32 KB（详见 `artifacts/design-qa/console-page-shell-2026-09-16/`）。
+  实测每页 CSS 增加 20–32 KB。
 - 不引入 `[...locale]/` 动态路由段来替代平行目录树（原因同上，且 Starlight 与中间件
   都依赖现有路径结构）。
 
@@ -151,8 +175,7 @@ CSS 规范不允许 `var()` 出现在媒体查询条件里，因此断点**本�
 - 超过约 400 行的组件按区块拆分，纯函数移入同目录的 `.ts` 模块。
 - 拆分时保持导出面不变；需要兼容旧导入路径时用 `export ... from` 重新导出。
 - 测试与被测源码同目录，命名为 `*.test.ts`，用 Vitest。
-- 视觉类改动产出前后对比证据，放在 `artifacts/design-qa/<主题>-<日期>/`，参照
-  [design-qa.md](./design-qa.md) 的格式（源图、实现图、findings、final result）。
+- 视觉类改动自行留存前后对比证据，但**不要提交进仓库**：此前的 `artifacts/design-qa/` 积累了 28 MB 日期化截图，没有任何代码或门禁依赖它。截图与源图放在仓库之外，`.gitignore` 已阻止这些路径再次进入版本库。
 
 **不应该**
 

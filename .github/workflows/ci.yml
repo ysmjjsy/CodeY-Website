@@ -11,7 +11,7 @@ jobs:
   check:
     name: check
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,9 +21,16 @@ jobs:
         with:
           node-version: 24.12.0
           cache: pnpm
+      # The market server is Rust, and `pnpm check` runs `cargo test
+      # -p codey-market-server`. Without a toolchain here the aggregator cannot
+      # run; before this was added the server's 54 tests were never gated at all.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: server/market-server
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm check:astro
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build:web
+      # Run the same aggregator contributors run locally. Listing steps
+      # individually previously drifted: check:styles, check:brand and
+      # check:scales were in `pnpm check` but missing here, so the cross-repo
+      # brand contract was never enforced in CI.
+      - run: pnpm check

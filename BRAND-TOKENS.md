@@ -171,9 +171,7 @@ clamp 的端点若命中档位则引用对应 Token。官网全站裸 `rem` 字�
 1. 先改 `CodeY/apps/desktop/src/shared/styles/global.css`（权威侧）。
 2. 同步 `CodeY-Website/src/styles/tokens.css`（**唯一**需要改的官网 Token 文件）。
 3. 更新本文件。
-4. 视觉类改动必须产出前后对比证据，见
-   `CodeY-Website/artifacts/design-qa/` 下的 `design-qa.md`。
-5. 两个仓库分别提交（它们是独立的 Git 仓库，无法原子提交）。
+4. 两个仓库分别提交（它们是独立的 Git 仓库，无法原子提交）。
 
 ## 验证
 

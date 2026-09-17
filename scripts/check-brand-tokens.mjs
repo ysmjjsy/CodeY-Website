@@ -38,24 +38,40 @@ function declarationsIn(css, blockPattern) {
 }
 
 if (!existsSync(websiteTokens)) fail(`missing ${websiteTokens}`)
-if (!existsSync(desktopStyles)) fail(`missing ${desktopStyles}`)
+
+// The desktop app lives in a separate (private) repository. When it is not
+// checked out alongside this one — for example in this repository's own CI,
+// which cannot read the private repo — the cross-repository half of the
+// contract cannot be evaluated. Skip it loudly rather than failing, so the
+// website-local checks in `pnpm check` still run.
+const desktopAvailable = existsSync(desktopStyles)
+if (!desktopAvailable) {
+  console.warn(
+    `warning: ${desktopStyles} not found; skipping the cross-repository brand comparison.\n` +
+      '         Check out the CodeY repository alongside this one to verify it.',
+  )
+}
 
 if (problems.length === 0) {
   const website = readFileSync(websiteTokens, 'utf8')
-  const desktop = readFileSync(desktopStyles, 'utf8')
+  const desktop = desktopAvailable ? readFileSync(desktopStyles, 'utf8') : null
 
   // The website declares dark as the default block and light as an override; the
   // desktop uses `:root` for light and `.dark` for dark.
   const websiteDark = declarationsIn(website, /:root\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/)
   const websiteLight = declarationsIn(website, /:root\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/)
-  const desktopLight = declarationsIn(desktop, /\n:root\s*\{([\s\S]*?)\n\}/)
-  const desktopDark = declarationsIn(desktop, /\n\.dark\s*\{([\s\S]*?)\n\}/)
+  const desktopLight = desktop ? declarationsIn(desktop, /\n:root\s*\{([\s\S]*?)\n\}/) : null
+  const desktopDark = desktop ? declarationsIn(desktop, /\n\.dark\s*\{([\s\S]*?)\n\}/) : null
 
   for (const [label, table] of [
     ['website dark block', websiteDark],
     ['website light block', websiteLight],
-    ['desktop :root block', desktopLight],
-    ['desktop .dark block', desktopDark],
+    ...(desktop
+      ? [
+          ['desktop :root block', desktopLight],
+          ['desktop .dark block', desktopDark],
+        ]
+      : []),
   ]) {
     if (!table) fail(`could not parse the ${label}`)
   }
@@ -93,26 +109,29 @@ if (problems.length === 0) {
       fail('website light: --btn-primary-fg is missing (aliased by --primary-foreground)')
     }
 
-    // 3. Brand hex values agree with the desktop source of truth.
-    const brandPairs = [
-      ['light', websiteLight, desktopLight],
-      ['dark', websiteDark, desktopDark],
-    ]
-    for (const [theme, websiteTable, desktopTable] of brandPairs) {
-      const websitePrimary = websiteTable.get('--accent')
-      const desktopPrimary = desktopTable.get('--primary')
-      // The desktop may define --primary as a literal; if it delegates, resolve one hop.
-      let resolved = desktopPrimary
-      if (resolved && resolved.startsWith('var(')) {
-        const name = resolved.slice(4, -1)
-        resolved = desktopTable.get(name)
-      }
-      if (!websitePrimary) fail(`website ${theme}: --accent is missing`)
-      else if (!resolved) fail(`desktop ${theme}: could not resolve --primary`)
-      else if (websitePrimary.toLowerCase() !== resolved.toLowerCase()) {
-        fail(
-          `brand primary mismatch (${theme}): website --accent is ${websitePrimary}, desktop --primary is ${resolved}`,
-        )
+    // 3. Brand hex values agree with the desktop source of truth. Only
+    // meaningful when the desktop repository is checked out alongside this one.
+    if (desktop) {
+      const brandPairs = [
+        ['light', websiteLight, desktopLight],
+        ['dark', websiteDark, desktopDark],
+      ]
+      for (const [theme, websiteTable, desktopTable] of brandPairs) {
+        const websitePrimary = websiteTable.get('--accent')
+        const desktopPrimary = desktopTable.get('--primary')
+        // The desktop may define --primary as a literal; if it delegates, resolve one hop.
+        let resolved = desktopPrimary
+        if (resolved && resolved.startsWith('var(')) {
+          const name = resolved.slice(4, -1)
+          resolved = desktopTable.get(name)
+        }
+        if (!websitePrimary) fail(`website ${theme}: --accent is missing`)
+        else if (!resolved) fail(`desktop ${theme}: could not resolve --primary`)
+        else if (websitePrimary.toLowerCase() !== resolved.toLowerCase()) {
+          fail(
+            `brand primary mismatch (${theme}): website --accent is ${websitePrimary}, desktop --primary is ${resolved}`,
+          )
+        }
       }
     }
 

@@ -4,3 +4,11 @@ dist/
 .codey-market/
 .env.local
 target/
+
+# Retired visual-QA evidence dumps (18 MB + 10 MB of dated screenshots). They had
+# no code, CI, or gate dependency. Visual review evidence now lives outside the
+# repository; do not re-add these paths. Leading slash anchors each rule to the
+# repository root so nested source directories are unaffected.
+/artifacts/
+/qa/
+/design-qa.md
