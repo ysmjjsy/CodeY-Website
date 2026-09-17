@@ -260,7 +260,7 @@ const description =
     font-size: var(--text-xs);
     font-weight: 500;
     cursor: pointer;
-    transition: color 0.16s ease;
+    transition: color var(--duration-fast) ease;
   }
   .model-admin-tabs button::after {
     position: absolute;
@@ -274,8 +274,8 @@ const description =
     opacity: 0;
     transform: scaleX(0.55);
     transition:
-      opacity 0.16s ease,
-      transform 0.16s ease;
+      opacity var(--duration-fast) ease,
+      transform var(--duration-fast) ease;
   }
   .model-admin-tabs button i {
     font-size: var(--text-base);
@@ -502,14 +502,14 @@ const description =
   .provider-model-trigger i {
     color: var(--fg-faint);
     font-size: var(--text-2xs);
-    transition: transform 0.16s ease;
+    transition: transform var(--duration-fast) ease;
   }
   .provider-model-trigger[aria-expanded="true"] i {
     transform: rotate(180deg);
   }
   .provider-model-popover {
     position: fixed;
-    z-index: 40;
+    z-index: var(--z-popover);
     width: min(340px, calc(100vw - 24px));
     max-height: min(380px, calc(100vh - 24px));
     padding: var(--space-13);
@@ -632,8 +632,8 @@ const description =
     border-radius: var(--radius-pill);
     background: var(--chip-bg);
     transition:
-      border-color 0.16s ease,
-      background 0.16s ease;
+      border-color var(--duration-fast) ease,
+      background var(--duration-fast) ease;
   }
   .inline-status-track > span {
     width: 12px;
@@ -642,8 +642,8 @@ const description =
     background: var(--fg-faint);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
     transition:
-      transform 0.16s ease,
-      background 0.16s ease;
+      transform var(--duration-fast) ease,
+      background var(--duration-fast) ease;
   }
   .inline-status-toggle[aria-checked="true"] .inline-status-track {
     border-color: color-mix(in srgb, var(--success) 55%, var(--border));
@@ -742,7 +742,7 @@ const description =
     place-items: center;
     color: var(--fg-faint);
     font-size: var(--text-base);
-    transition: color 0.16s ease;
+    transition: color var(--duration-fast) ease;
   }
   .btn.list-action:hover:not(:disabled) {
     border-color: var(--border);
@@ -1199,7 +1199,7 @@ const description =
   .model-config-editor .dialog-actions {
     position: sticky;
     bottom: -22px;
-    z-index: 1;
+    z-index: var(--z-sticky);
     margin-inline: -22px;
     padding: var(--space-16) var(--space-22) var(--space-22);
     background: var(--bg);
@@ -1207,7 +1207,7 @@ const description =
   .connection-editor .dialog-actions {
     position: sticky;
     bottom: -20px;
-    z-index: 1;
+    z-index: var(--z-sticky);
     margin-inline: -20px;
     padding: var(--space-10) var(--space-20) var(--space-12);
     background: var(--bg);

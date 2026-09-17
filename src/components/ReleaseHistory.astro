@@ -122,9 +122,9 @@ const { locale } = Astro.props
     text-align: left;
     cursor: pointer;
     transition:
-      border-color 0.2s,
-      background 0.2s,
-      color 0.2s;
+      border-color var(--duration-base),
+      background var(--duration-base),
+      color var(--duration-base);
   }
 
   .release-list :global(.release-tab:hover) {
@@ -337,8 +337,8 @@ const { locale } = Astro.props
     font-family: var(--font-mono);
     font-size: var(--text-2xs);
     transition:
-      color 0.2s,
-      background 0.2s;
+      color var(--duration-base),
+      background var(--duration-base);
   }
 
   .release-detail :global(.release-asset:hover) {

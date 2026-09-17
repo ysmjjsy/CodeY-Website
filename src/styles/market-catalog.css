@@ -23,8 +23,8 @@
   font: 500 var(--text-sm) / 1.2 var(--font-body);
   text-align: left;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--duration-fast),
+    background var(--duration-fast);
 }
 
 .market-category:hover,
@@ -67,8 +67,8 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast);
 }
 
 .market-search:focus-within {
@@ -127,9 +127,9 @@
   background: var(--surface);
   box-shadow: none;
   transition:
-    transform 0.18s var(--ease-out),
-    border-color 0.18s,
-    box-shadow 0.18s;
+    transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base),
+    box-shadow var(--duration-base);
 }
 
 .market-card::after {

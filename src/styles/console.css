@@ -94,8 +94,8 @@
   font-size: var(--text-sm);
   font-weight: 500;
   transition:
-    color 0.16s ease,
-    background 0.16s ease;
+    color var(--duration-fast) ease,
+    background var(--duration-fast) ease;
 }
 
 .console-sidebar nav a:hover {

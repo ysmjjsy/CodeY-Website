@@ -168,7 +168,7 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
     color: var(--accent-bright);
     font-weight: 500;
     font-size: var(--text-md);
-    transition: gap 0.2s var(--ease-out);
+    transition: gap var(--duration-base) var(--ease-out);
   }
 
   .sdk-link:hover {
@@ -215,9 +215,9 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
     white-space: nowrap;
     flex-shrink: 0;
     transition:
-      color 0.15s,
-      background 0.15s,
-      border-color 0.15s;
+      color var(--duration-fast),
+      background var(--duration-fast),
+      border-color var(--duration-fast);
   }
 
   .code-tab:hover {

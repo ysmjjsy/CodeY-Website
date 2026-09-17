@@ -408,9 +408,9 @@ const registerHref = registerPath(locale)
     font-size: var(--text-2xl);
     cursor: pointer;
     transition:
-      color 0.15s,
-      border-color 0.15s,
-      background 0.15s;
+      color var(--duration-fast),
+      border-color var(--duration-fast),
+      background var(--duration-fast);
   }
   .auth-close:hover {
     border-color: var(--border);
@@ -465,9 +465,9 @@ const registerHref = registerPath(locale)
     background: var(--panel-glass);
     font: 400 var(--text-base) var(--font-body);
     transition:
-      border-color 0.15s,
-      box-shadow 0.15s,
-      background 0.15s;
+      border-color var(--duration-fast),
+      box-shadow var(--duration-fast),
+      background var(--duration-fast);
   }
   .auth-form input::placeholder {
     color: var(--fg-faint);
@@ -552,9 +552,9 @@ const registerHref = registerPath(locale)
     color: var(--fg);
     background: var(--panel-glass);
     transition:
-      transform 0.15s,
-      border-color 0.15s,
-      background 0.15s;
+      transform var(--duration-fast),
+      border-color var(--duration-fast),
+      background var(--duration-fast);
   }
   .auth-provider:hover > span {
     transform: translateY(-2px);

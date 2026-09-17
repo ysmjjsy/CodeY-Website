@@ -21,11 +21,12 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "vitest run",
-    "check": "pnpm typecheck && pnpm check:astro && pnpm lint && pnpm check:styles && pnpm check:brand && pnpm test && pnpm build:web",
+    "check": "pnpm typecheck && pnpm check:astro && pnpm lint && pnpm check:styles && pnpm check:brand && pnpm check:scales && pnpm test && pnpm build:web",
     "check:styles": "node scripts/check-astro-styles.mjs && node scripts/check-font-sizes.mjs && node scripts/check-astro-styles.test.mjs && node scripts/check-font-sizes.test.mjs",
     "test:styles": "node scripts/check-astro-styles.test.mjs",
     "check:fonts": "node scripts/check-font-sizes.mjs && node scripts/check-font-sizes.test.mjs",
-    "check:brand": "node scripts/check-brand-tokens.mjs && node scripts/check-brand-tokens.test.mjs"
+    "check:brand": "node scripts/check-brand-tokens.mjs && node scripts/check-brand-tokens.test.mjs",
+    "check:scales": "node scripts/check-breakpoints.mjs && node scripts/check-breakpoints.test.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",

@@ -21,11 +21,11 @@
   line-height: 1.2;
   cursor: pointer;
   transition:
-    transform 0.15s var(--ease-out),
-    background 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s,
-    color 0.2s;
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-base),
+    border-color var(--duration-base),
+    box-shadow var(--duration-base),
+    color var(--duration-base);
 }
 
 .btn-sm {

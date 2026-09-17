@@ -24,7 +24,9 @@ pnpm check        # 一次跑完下面全部步骤（提交前必须通过）
 pnpm typecheck    # tsc --noEmit
 pnpm check:astro  # astro check（模板与 frontmatter 类型）
 pnpm lint         # biome check .（含 src/styles/*.css）
-pnpm check:styles # 组件 <style> 块的 CSS 门禁 + 其负向测试
+pnpm check:styles # 组件 <style> 块的 CSS 门禁 + 字号门禁 + 各自负向测试
+pnpm check:brand  # 跨仓库品牌 Token 契约（含桌面端）
+pnpm check:scales # 断点集合 + 减少动效兜底
 pnpm lint:fix     # biome check --write .
 pnpm test         # vitest run
 pnpm build:web    # astro build
