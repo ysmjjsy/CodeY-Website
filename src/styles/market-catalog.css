@@ -21,71 +21,6 @@
   background: var(--surface);
 }
 
-.market-sidebar {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  padding: var(--space-30) var(--space-22) var(--space-34);
-  border-right: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 94%, var(--accent) 6%);
-}
-
-.market-sidebar-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--space-11);
-  padding-inline: var(--space-2xs);
-}
-
-.market-sidebar-logo {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  border-radius: var(--radius-md);
-  box-shadow: 0 8px 20px var(--accent-soft);
-}
-
-.market-sidebar-heading div {
-  display: grid;
-  min-width: 0;
-}
-
-.market-sidebar-heading strong {
-  color: var(--fg);
-  font-size: 0.94rem;
-}
-
-.market-sidebar-heading div span {
-  color: var(--fg-faint);
-  font-size: 0.7rem;
-}
-
-.market-sidebar-tabs {
-  display: flex;
-  gap: var(--space-lg);
-  margin: var(--space-28) var(--space-4) var(--space-14);
-  border-bottom: 1px solid var(--border);
-  color: var(--fg-faint);
-  font-size: 0.78rem;
-}
-
-.market-sidebar-tabs span {
-  position: relative;
-  padding-bottom: var(--space-9);
-}
-
-.market-sidebar-tabs .is-active {
-  color: var(--accent-bright);
-}
-
-.market-sidebar-tabs .is-active::after {
-  position: absolute;
-  inset: auto 0 -1px;
-  height: 2px;
-  content: "";
-  background: var(--accent);
-}
-
 .market-category {
   display: flex;
   align-items: center;
@@ -103,72 +38,6 @@
 .market-category:hover,
 .market-category.is-active {
   color: var(--accent-bright);
-}
-
-.market-category-icon {
-  display: grid;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font: 600 0.58rem / 1 var(--font-mono);
-}
-
-.market-sidebar-section {
-  margin-top: var(--space-30);
-  padding-top: var(--space-23);
-  border-top: 1px solid var(--border);
-}
-
-.market-sidebar-section h2 {
-  margin: 0 0 var(--space-13);
-  color: var(--fg);
-  font-size: 0.78rem;
-}
-
-.market-sidebar-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-}
-
-.market-sidebar-tags button {
-  padding: var(--space-5) var(--space-8);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--fg-muted);
-  background: var(--chip-bg);
-  cursor: pointer;
-  font: 0.66rem / 1 var(--font-mono);
-}
-
-.market-sidebar-tags button:hover {
-  border-color: var(--accent-ring);
-  color: var(--accent-bright);
-}
-
-.market-sidebar-note {
-  display: flex;
-  gap: var(--space-10);
-  margin-top: auto;
-  padding: var(--space-14);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--fg-faint);
-  background: var(--chip-bg);
-}
-
-.market-sidebar-note > span {
-  color: var(--accent-bright);
-}
-
-.market-sidebar-note p {
-  margin: 0;
-  font-size: 0.7rem;
-  line-height: 1.6;
 }
 
 .market-results {
@@ -217,27 +86,6 @@
 .market-search:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.market-search-icon {
-  position: relative;
-  width: 14px;
-  height: 14px;
-  margin-left: var(--space-14);
-  flex: 0 0 auto;
-  border: 1.5px solid var(--fg-faint);
-  border-radius: 50%;
-}
-
-.market-search-icon::after {
-  position: absolute;
-  right: -4px;
-  bottom: -3px;
-  width: 5px;
-  height: 1.5px;
-  content: "";
-  background: var(--fg-faint);
-  transform: rotate(45deg);
 }
 
 .market-search input {
@@ -441,12 +289,6 @@
   margin-right: auto;
 }
 
-.market-publisher-dot {
-  margin-right: var(--space-5);
-  color: var(--accent-bright);
-  font-size: 0.5rem;
-}
-
 .market-state {
   grid-column: 1 / -1;
   border-radius: var(--radius-lg);
@@ -456,12 +298,6 @@
 
 .market-state button {
   margin-top: var(--space-md);
-}
-
-.market-load-more {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--space-28);
 }
 
 @media (max-width: 1180px) {
@@ -479,17 +315,6 @@
     grid-template-columns: 1fr;
   }
 
-  .market-sidebar {
-    padding: var(--space-22) var(--space-20);
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .market-sidebar-tabs,
-  .market-sidebar-note {
-    display: none;
-  }
-
   .market-category-list {
     display: flex;
     margin-top: var(--space-18);
@@ -500,15 +325,6 @@
   .market-category {
     width: auto;
     flex: 0 0 auto;
-  }
-
-  .market-sidebar-section {
-    margin-top: var(--space-md);
-    padding-top: var(--space-14);
-  }
-
-  .market-sidebar-section h2 {
-    display: none;
   }
 }
 
