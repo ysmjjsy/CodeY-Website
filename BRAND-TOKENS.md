@@ -45,6 +45,11 @@ CodeY/apps/desktop/src/shared/styles/global.css
 `.download-glow-cyan`）以及 `commercial.css` 的页面径向辉光。
 不预设未被消费的 `--decorative` / `--decorative-bright`；确有需要时再新增。
 
+终端面板的提示符前景是另一个独立的深色底场景，用 `--term-accent`
+（`#22d3ee`）而不是装饰色或品牌色：终端面板在两种主题下都是深色底
+（`--term-bg`），浅色主题若改用更深的青色会失去对比度，所以该 Token
+只在深色主题定义一次、浅色主题不覆盖。
+
 判定规则：
 
 - 承载**品牌识别**的按钮、链接、选中态、焦点环 → `--accent*`

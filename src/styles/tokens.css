@@ -37,6 +37,9 @@
   --panel-inset: rgba(255, 255, 255, 0.06);
   --code-bg: #0c0c0f;
   --term-bg: #0a0a0d;
+  /* 终端提示符前景。终端面板在两种主题下都是深色底（见浅色主题的 --term-bg），
+   * 所以这里只定义一次，浅色主题不覆盖：用浅色的深青会在深色终端底上失去对比度。 */
+  --term-accent: #22d3ee;
   --shadow-window: 0 24px 64px rgba(0, 0, 0, 0.55);
   --nav-scrolled-bg: rgba(9, 9, 11, 0.72);
   --grid-line: rgba(255, 255, 255, 0.035);
