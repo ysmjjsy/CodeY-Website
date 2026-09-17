@@ -358,7 +358,7 @@ const description =
   .connection-editor { gap: var(--space-10); margin-top: var(--space-14); }
   .connection-editor label:not(.setting-toggle) { gap: var(--space-5); }
   .connection-editor label small { line-height: 1.3; }
-  .connection-editor :is(input:not([type='checkbox']), select) { min-height: 36px; padding-block: 6px; }
+  .connection-editor :is(input:not([type='checkbox']), select) { min-height: 36px; padding-block: var(--space-6); }
   .provider-advanced-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-10) var(--space-12); }
   .provider-advanced-fields > label { min-width: 0; align-content: start; align-self: start; }
   .provider-advanced-fields select:disabled { opacity: .65; cursor: not-allowed; }
@@ -397,9 +397,9 @@ const description =
   .dialog-actions .btn { min-width: 120px; justify-content: center; }
   .model-config-editor .dialog-actions { position: sticky; bottom: -22px; z-index: 1; margin-inline: -22px; padding: var(--space-16) var(--space-22) var(--space-22); background: var(--bg); }
   .connection-editor .dialog-actions { position: sticky; bottom: -20px; z-index: 1; margin-inline: -20px; padding: var(--space-10) var(--space-20) var(--space-12); background: var(--bg); }
-  .provider-dialog-actions .btn { min-width: 0; min-height: 38px; padding-block: 7px; }
+  .provider-dialog-actions .btn { min-width: 0; min-height: 38px; padding-block: var(--space-7); }
   .provider-dialog-actions .btn:first-child { margin-right: auto; }
-  .connection-editor .setting-toggle { min-height: 54px; padding-block: 8px; }
+  .connection-editor .setting-toggle { min-height: 54px; padding-block: var(--space-8); }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   @media (max-width: 900px) { .offer-row { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 680px) {

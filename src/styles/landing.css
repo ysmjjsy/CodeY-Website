@@ -7,7 +7,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 88px;
+  scroll-padding-top: var(--space-88);
   overflow-x: clip;
 }
 
