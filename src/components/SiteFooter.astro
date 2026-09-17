@@ -86,7 +86,7 @@ const { locale } = Astro.props
   .footer-logo {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-10);
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 1.05rem;
@@ -100,17 +100,17 @@ const { locale } = Astro.props
     color: var(--fg-faint);
     font-size: 0.86rem;
     max-width: 30em;
-    margin: 16px 0 0;
+    margin: var(--space-16) 0 0;
   }
 
   .footer-col {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-12);
   }
 
   .footer-col h4 {
-    margin: 0 0 6px;
+    margin: 0 0 var(--space-6);
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--fg);
@@ -148,7 +148,7 @@ const { locale } = Astro.props
   @media (max-width: 520px) {
     .footer-grid {
       grid-template-columns: 1fr;
-      gap: 28px;
+      gap: var(--space-28);
     }
 
     .footer-brand {

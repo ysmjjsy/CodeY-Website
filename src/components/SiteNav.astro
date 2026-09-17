@@ -86,14 +86,14 @@ const downloadHref = downloadPath(locale)
   .nav-inner {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: var(--space-24);
     height: 68px;
   }
 
   .nav-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-10);
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 1.1rem;
@@ -107,7 +107,7 @@ const downloadHref = downloadPath(locale)
 
   .nav-links {
     display: flex;
-    gap: 28px;
+    gap: var(--space-28);
     margin-inline: auto;
   }
 
@@ -124,15 +124,15 @@ const downloadHref = downloadPath(locale)
   .nav-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-10);
     flex-shrink: 0;
     z-index: 2;
   }
 
   .nav-actions .nav-cta {
     min-height: 34px;
-    margin-left: 2px;
-    padding: 6px 13px;
+    margin-left: var(--space-2);
+    padding: var(--space-6) var(--space-13);
     border-radius: var(--radius-md);
     color: var(--btn-primary-fg);
     font-size: 0.8rem;
@@ -216,7 +216,7 @@ const downloadHref = downloadPath(locale)
 
   @media (max-width: 960px) {
     .nav-inner {
-      gap: 12px;
+      gap: var(--space-12);
     }
 
     .nav-actions {
@@ -235,7 +235,7 @@ const downloadHref = downloadPath(locale)
       margin: 0;
       flex-direction: column;
       gap: 0;
-      padding: 12px 0 20px;
+      padding: var(--space-12) 0 var(--space-20);
       background: var(--nav-scrolled-bg);
       backdrop-filter: blur(14px) saturate(160%);
       border-bottom: 1px solid var(--border);
@@ -260,7 +260,7 @@ const downloadHref = downloadPath(locale)
     }
 
     .nav-links a {
-      padding: 14px clamp(16px, 4vw, 24px);
+      padding: var(--space-14) clamp(16px, 4vw, 24px);
       font-size: 1rem;
       color: var(--fg);
       border-top: 1px solid var(--border);
@@ -270,10 +270,10 @@ const downloadHref = downloadPath(locale)
      * border and padding are overridden on source order alone. */
     .nav-links .nav-cta {
       display: inline-flex;
-      margin: 16px clamp(16px, 4vw, 24px) 4px;
+      margin: var(--space-16) clamp(16px, 4vw, 24px) var(--space-4);
       justify-content: center;
       border-top: none;
-      padding: 12px 24px;
+      padding: var(--space-12) var(--space-24);
       font-size: 0.92rem;
     }
 
@@ -312,7 +312,7 @@ const downloadHref = downloadPath(locale)
     }
 
     .nav-actions {
-      gap: 6px;
+      gap: var(--space-6);
     }
 
     .nav-actions :global(.theme-toggle select) {

@@ -86,23 +86,30 @@
   --space-18: 18px;
   --space-19: 19px;
   --space-20: 20px;
+  --space-21: 21px;
   --space-22: 22px;
   --space-23: 23px;
   --space-24: 24px;
   --space-25: 25px;
   --space-26: 26px;
+  --space-27: 27px;
   --space-28: 28px;
   --space-30: 30px;
   --space-32: 32px;
   --space-34: 34px;
   --space-36: 36px;
+  --space-38: 38px;
   --space-40: 40px;
   --space-42: 42px;
   --space-44: 44px;
   --space-45: 45px;
+  --space-46: 46px;
   --space-48: 48px;
+  --space-50: 50px;
   --space-52: 52px;
+  --space-54: 54px;
   --space-56: 56px;
+  --space-60: 60px;
   --space-64: 64px;
   --space-66: 66px;
   --space-68: 68px;
@@ -111,6 +118,11 @@
   --space-80: 80px;
   --space-88: 88px;
   --space-96: 96px;
+  --space-112: 112px;
+  --space-116: 116px;
+  --space-120: 120px;
+  --space-140: 140px;
+  --space-172: 172px;
 
   /* 语义刻度：4px 节奏的命名档位，全部指向数值刻度 */
   --space-2xs: var(--space-4);

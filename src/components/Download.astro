@@ -186,7 +186,7 @@ const docsHref = docsPath(locale, 'getting-started')
     display: flex;
     align-items: end;
     justify-content: space-between;
-    gap: 28px;
+    gap: var(--space-28);
     margin-bottom: clamp(28px, 5vw, 48px);
   }
 
@@ -202,15 +202,15 @@ const docsHref = docsPath(locale, 'getting-started')
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 12px;
+    gap: var(--space-12);
   }
 
   .release-status {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: var(--space-9);
     min-height: 40px;
-    padding: 8px 14px;
+    padding: var(--space-8) var(--space-14);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-pill);
     color: var(--fg-muted);
@@ -262,11 +262,11 @@ const docsHref = docsPath(locale, 'getting-started')
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--space-8);
   }
 
   .platform-chips span {
-    padding: 5px 12px;
+    padding: var(--space-5) var(--space-12);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
     color: var(--fg-faint);
@@ -278,7 +278,7 @@ const docsHref = docsPath(locale, 'getting-started')
   .download-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
+    gap: var(--space-16);
   }
 
   .download-card {
@@ -321,8 +321,8 @@ const docsHref = docsPath(locale, 'getting-started')
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 22px;
+    gap: var(--space-16);
+    margin-bottom: var(--space-22);
   }
 
   .platform-icon {
@@ -338,7 +338,7 @@ const docsHref = docsPath(locale, 'getting-started')
   }
 
   .recommended-badge {
-    padding: 4px 10px;
+    padding: var(--space-4) var(--space-10);
     border: 1px solid var(--accent-ring);
     border-radius: var(--radius-pill);
     color: var(--accent-bright);
@@ -356,7 +356,7 @@ const docsHref = docsPath(locale, 'getting-started')
   .download-card > p:not(.platform-unavailable) {
     flex: 1;
     min-height: 3.2em;
-    margin: 8px 0 24px;
+    margin: var(--space-8) 0 var(--space-24);
     color: var(--fg-muted);
     font-size: 0.88rem;
   }
@@ -364,7 +364,7 @@ const docsHref = docsPath(locale, 'getting-started')
   .asset-actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-8);
     margin-top: auto;
   }
 
@@ -427,7 +427,7 @@ const docsHref = docsPath(locale, 'getting-started')
   }
 
   .platform-unavailable {
-    margin: 12px 0 0;
+    margin: var(--space-12) 0 0;
     color: var(--fg-faint);
     font-size: 0.76rem;
   }
@@ -436,16 +436,16 @@ const docsHref = docsPath(locale, 'getting-started')
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: var(--space-20);
     margin-top: clamp(28px, 4vw, 40px);
-    padding-top: 22px;
+    padding-top: var(--space-22);
     border-top: 1px solid var(--border);
   }
 
   .download-trust {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-8);
     margin: 0;
     color: var(--fg-faint);
     font-size: 0.78rem;
@@ -460,7 +460,7 @@ const docsHref = docsPath(locale, 'getting-started')
   .download-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-8);
   }
 
   .download-links :global(.btn) {
@@ -509,7 +509,7 @@ const docsHref = docsPath(locale, 'getting-started')
 
   @media (max-width: 480px) {
     .download-section {
-      padding-top: 116px;
+      padding-top: var(--space-116);
     }
 
     .release-status {

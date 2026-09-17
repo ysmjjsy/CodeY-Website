@@ -94,7 +94,7 @@ const { locale } = Astro.props
   .tier {
     display: flex;
     justify-content: center;
-    gap: 14px;
+    gap: var(--space-14);
   }
 
   .tier-clients {
@@ -105,11 +105,11 @@ const { locale } = Astro.props
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
     background: var(--surface);
-    padding: 14px 20px;
+    padding: var(--space-14) var(--space-20);
     text-align: center;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-2);
   }
 
   .node-client {
@@ -132,7 +132,7 @@ const { locale } = Astro.props
     display: flex;
     justify-content: center;
     position: relative;
-    padding: 26px 0;
+    padding: var(--space-26) 0;
   }
 
   .connector::before {
@@ -159,14 +159,14 @@ const { locale } = Astro.props
     background: var(--bg-soft);
     border: 1px solid var(--accent-ring);
     border-radius: var(--radius-pill);
-    padding: 4px 14px;
+    padding: var(--space-4) var(--space-14);
   }
 
   .node-daemon {
     flex-direction: row;
     align-items: center;
-    gap: 24px;
-    padding: 20px 28px;
+    gap: var(--space-24);
+    padding: var(--space-20) var(--space-28);
     border-color: var(--accent-ring);
     background: linear-gradient(180deg, var(--accent-soft), transparent);
     box-shadow: 0 0 40px var(--accent-glow);
@@ -175,7 +175,7 @@ const { locale } = Astro.props
   .daemon-main {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-4);
     text-align: left;
   }
 
@@ -191,13 +191,13 @@ const { locale } = Astro.props
   .daemon-store {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-8);
     font-family: var(--font-mono);
     font-size: 0.74rem;
     color: var(--fg-muted);
     border: 1px dashed var(--border-strong);
     border-radius: var(--radius-md);
-    padding: 10px 14px;
+    padding: var(--space-10) var(--space-14);
     white-space: normal;
   }
 
@@ -210,12 +210,12 @@ const { locale } = Astro.props
     color: var(--fg-muted);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    padding: 8px 20px;
+    padding: var(--space-8) var(--space-20);
     background: var(--surface);
   }
 
   .arch-notes {
-    margin: 48px 0 0;
+    margin: var(--space-48) 0 0;
     padding: 0;
     list-style: none;
     display: flex;
@@ -227,7 +227,7 @@ const { locale } = Astro.props
   .arch-notes li {
     color: var(--fg-muted);
     font-size: 0.92rem;
-    padding: 14px 0 14px 26px;
+    padding: var(--space-14) 0 var(--space-14) var(--space-26);
     border-top: 1px solid var(--border);
     position: relative;
   }
@@ -255,10 +255,10 @@ const { locale } = Astro.props
 
     .node-daemon {
       flex-direction: column;
-      gap: 14px;
+      gap: var(--space-14);
       text-align: center;
       width: 100%;
-      padding: 18px 20px;
+      padding: var(--space-18) var(--space-20);
     }
 
     .daemon-main {
@@ -266,16 +266,16 @@ const { locale } = Astro.props
     }
 
     .tier-caps {
-      gap: 10px;
+      gap: var(--space-10);
     }
 
     .cap {
-      padding: 8px 14px;
+      padding: var(--space-8) var(--space-14);
       font-size: 0.8rem;
     }
 
     .arch-notes {
-      margin-top: 36px;
+      margin-top: var(--space-36);
     }
   }
 </style>

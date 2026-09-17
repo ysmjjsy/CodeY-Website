@@ -126,7 +126,7 @@ const { locale } = Astro.props
   .bento {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 16px;
+    gap: var(--space-16);
   }
 
   .card {
@@ -160,13 +160,13 @@ const { locale } = Astro.props
     color: var(--accent-bright);
     background: var(--accent-soft);
     border: 1px solid var(--accent-ring);
-    margin-bottom: 18px;
+    margin-bottom: var(--space-18);
   }
 
   .card h3 {
     font-size: 1.08rem;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-8);
   }
 
   .card p {
@@ -178,22 +178,22 @@ const { locale } = Astro.props
 
   .card-visual {
     margin-top: auto;
-    padding-top: 22px;
+    padding-top: var(--space-22);
   }
 
   .log-visual {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-6);
     font-family: var(--font-mono);
     font-size: 0.72rem;
   }
 
   .log-line {
     display: flex;
-    gap: 8px;
+    gap: var(--space-8);
     align-items: center;
-    padding: 6px 10px;
+    padding: var(--space-6) var(--space-10);
     border-radius: var(--radius-sm);
     background: var(--ghost-bg);
     border: 1px solid var(--border);
@@ -221,13 +221,13 @@ const { locale } = Astro.props
 
   .mode-visual {
     display: flex;
-    gap: 8px;
+    gap: var(--space-8);
     flex-wrap: wrap;
   }
 
   .mode-chip {
     font-size: 0.78rem;
-    padding: 5px 14px;
+    padding: var(--space-5) var(--space-14);
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-strong);
     color: var(--fg-muted);
@@ -253,7 +253,7 @@ const { locale } = Astro.props
   @media (max-width: 640px) {
     .bento {
       grid-template-columns: 1fr;
-      gap: 12px;
+      gap: var(--space-12);
     }
 
     .card,

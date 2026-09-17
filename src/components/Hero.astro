@@ -119,8 +119,8 @@ const downloadHref = downloadPath(locale)
 <style>
   .hero {
     position: relative;
-    padding-top: 172px;
-    padding-bottom: 120px;
+    padding-top: var(--space-172);
+    padding-bottom: var(--space-120);
     overflow: hidden;
   }
 
@@ -139,16 +139,16 @@ const downloadHref = downloadPath(locale)
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
-    gap: 64px;
+    gap: var(--space-64);
     align-items: center;
   }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    margin: 0 0 24px;
-    padding: 6px 14px;
+    gap: var(--space-8);
+    margin: 0 0 var(--space-24);
+    padding: var(--space-6) var(--space-14);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-pill);
     font-size: 0.8rem;
@@ -180,18 +180,18 @@ const downloadHref = downloadPath(locale)
     color: var(--fg-muted);
     font-size: clamp(0.98rem, 2.4vw, 1.08rem);
     max-width: 34em;
-    margin: 24px 0 36px;
+    margin: var(--space-24) 0 var(--space-36);
     text-wrap: pretty;
   }
 
   .hero-actions {
     display: flex;
-    gap: 14px;
+    gap: var(--space-14);
     flex-wrap: wrap;
   }
 
   .hero-meta {
-    margin-top: 28px;
+    margin-top: var(--space-28);
     font-family: var(--font-mono);
     font-size: 0.78rem;
     color: var(--fg-faint);
@@ -218,8 +218,8 @@ const downloadHref = downloadPath(locale)
   .win-titlebar {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 12px 16px;
+    gap: var(--space-7);
+    padding: var(--space-12) var(--space-16);
     border-bottom: 1px solid var(--border);
     background: var(--ghost-bg);
   }
@@ -233,7 +233,7 @@ const downloadHref = downloadPath(locale)
   }
 
   .win-title {
-    margin-left: 10px;
+    margin-left: var(--space-10);
     font-size: 0.78rem;
     color: var(--fg-faint);
   }
@@ -242,7 +242,7 @@ const downloadHref = downloadPath(locale)
     margin-left: auto;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-6);
     font-size: 0.72rem;
     color: var(--fg-muted);
     font-family: var(--font-mono);
@@ -286,8 +286,8 @@ const downloadHref = downloadPath(locale)
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
-    padding-top: 18px;
+    gap: var(--space-14);
+    padding-top: var(--space-18);
     border-right: 1px solid var(--border);
   }
 
@@ -304,14 +304,14 @@ const downloadHref = downloadPath(locale)
   }
 
   .win-main {
-    padding: 18px 20px;
+    padding: var(--space-18) var(--space-20);
   }
 
   .task-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 14px;
+    padding-bottom: var(--space-14);
     border-bottom: 1px solid var(--border);
   }
 
@@ -323,11 +323,11 @@ const downloadHref = downloadPath(locale)
   .task-state {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-6);
     font-size: 0.74rem;
     font-family: var(--font-mono);
     color: var(--accent-bright);
-    padding: 3px 10px;
+    padding: var(--space-3) var(--space-10);
     border-radius: var(--radius-pill);
     background: var(--accent-soft);
   }
@@ -335,14 +335,14 @@ const downloadHref = downloadPath(locale)
   .timeline {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding-top: 16px;
+    gap: var(--space-12);
+    padding-top: var(--space-16);
   }
 
   .tl-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-10);
     font-size: 0.82rem;
     color: var(--fg-muted);
     opacity: 0;
@@ -392,7 +392,7 @@ const downloadHref = downloadPath(locale)
     background: var(--ghost-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 8px 12px;
+    padding: var(--space-8) var(--space-12);
   }
 
   .tl-prompt {
@@ -418,41 +418,41 @@ const downloadHref = downloadPath(locale)
     color: var(--success);
     font-family: var(--font-mono);
     font-size: 0.76rem;
-    margin-left: 8px;
+    margin-left: var(--space-8);
   }
 
   .diff-del {
     color: var(--danger);
     font-family: var(--font-mono);
     font-size: 0.76rem;
-    margin-left: 4px;
+    margin-left: var(--space-4);
   }
 
   .tl-item-perm {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: var(--space-10);
     border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
     background: var(--amber-soft);
     border-radius: var(--radius-md);
-    padding: 10px 12px;
+    padding: var(--space-10) var(--space-12);
   }
 
   .perm-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-10);
   }
 
   .perm-actions {
     display: flex;
-    gap: 8px;
-    padding-left: 30px;
+    gap: var(--space-8);
+    padding-left: var(--space-30);
   }
 
   .perm-btn {
     font-size: 0.72rem;
-    padding: 3px 14px;
+    padding: var(--space-3) var(--space-14);
     border-radius: var(--radius-sm);
   }
 
@@ -509,24 +509,24 @@ const downloadHref = downloadPath(locale)
 
   @media (max-width: 920px) {
     .hero {
-      padding-top: 140px;
-      padding-bottom: 80px;
+      padding-top: var(--space-140);
+      padding-bottom: var(--space-80);
     }
 
     .hero-grid {
       grid-template-columns: 1fr;
-      gap: 48px;
+      gap: var(--space-48);
     }
   }
 
   @media (max-width: 640px) {
     .hero {
-      padding-top: 112px;
-      padding-bottom: 64px;
+      padding-top: var(--space-112);
+      padding-bottom: var(--space-64);
     }
 
     .hero-grid {
-      gap: 40px;
+      gap: var(--space-40);
     }
 
     .hero-badge {
@@ -546,8 +546,8 @@ const downloadHref = downloadPath(locale)
 
     .win-titlebar {
       flex-wrap: wrap;
-      gap: 8px;
-      row-gap: 8px;
+      gap: var(--space-8);
+      row-gap: var(--space-8);
     }
 
     .win-status {
@@ -566,12 +566,12 @@ const downloadHref = downloadPath(locale)
     }
 
     .win-main {
-      padding: 14px 14px 16px;
+      padding: var(--space-14) var(--space-14) var(--space-16);
     }
 
     .task-head {
       flex-wrap: wrap;
-      gap: 10px;
+      gap: var(--space-10);
     }
 
     .tl-item-cmd {
