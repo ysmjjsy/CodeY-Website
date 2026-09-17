@@ -11,6 +11,24 @@ interface Props {
 
 const { locale } = Astro.props
 
+// Shiki paints the theme background as an inline style on `<pre>`, which no
+// stylesheet rule can outrank regardless of specificity. The code panels already
+// sit on the component's own surface, so drop just the background declaration
+// here and let the theme foreground and token colours through untouched.
+const stripPreBackground = {
+  pre(node: { properties?: Record<string, unknown> }) {
+    const properties = node.properties
+    const style = properties?.style
+    if (!properties || typeof style !== 'string') return
+    const kept = style
+      .split(';')
+      .map((declaration) => declaration.trim())
+      .filter((declaration) => declaration && !/^background(-color)?\s*:/i.test(declaration))
+    if (kept.length) properties.style = kept.join(';')
+    else delete properties.style
+  },
+}
+
 const tsCode = `import { CodeY } from '@codey/agent-sdk'
 
 // ${t(locale, 'sdk.comment.start')}
@@ -93,13 +111,13 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
         <button class="code-tab" role="tab" aria-selected="false" data-tab="rs">Rust</button>
       </div>
       <div class="code-panel is-active" data-panel="ts" role="tabpanel">
-        <Code code={tsCode} lang="ts" theme={githubDark} />
+        <Code code={tsCode} lang="ts" theme={githubDark} transformers={[stripPreBackground]} />
       </div>
       <div class="code-panel" data-panel="py" role="tabpanel" hidden>
-        <Code code={pyCode} lang="python" theme={githubDark} />
+        <Code code={pyCode} lang="python" theme={githubDark} transformers={[stripPreBackground]} />
       </div>
       <div class="code-panel" data-panel="rs" role="tabpanel" hidden>
-        <Code code={rsCode} lang="rust" theme={githubDark} />
+        <Code code={rsCode} lang="rust" theme={githubDark} transformers={[stripPreBackground]} />
       </div>
     </div>
   </Container>
@@ -221,7 +239,7 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
   .code-panel :global(pre) {
     margin: 0;
     padding: 16px 18px;
-    background: transparent !important;
+    background: transparent;
     font-size: 0.82rem;
     line-height: 1.75;
     overflow-x: auto;

@@ -118,8 +118,8 @@ pre {
   }
 
   /* `:root:root` doubles the specificity of the universal selector so these
-   * declarations outrank component-level animation/transition rules without
-   * !important. Astro scopes component styles with an attribute selector
+   * declarations outrank component-level animation/transition rules without an
+   * override flag. Astro scopes component styles with an attribute selector
    * (0,1,0); `:root:root *` is (0,2,0) and therefore wins. */
   :root:root *,
   :root:root *::before,

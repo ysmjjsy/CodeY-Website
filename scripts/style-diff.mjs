@@ -50,5 +50,5 @@ for (const [p, c] of [...byProp.entries()].sort((x, y) => y[1] - x[1])) {
   console.log(`  ${String(c).padStart(5)}  ${p}`)
 }
 console.log('\nsamples:')
-for (const s of samples) console.log('  ' + s)
+for (const s of samples) console.log(`  ${s}`)
 process.exit(1)

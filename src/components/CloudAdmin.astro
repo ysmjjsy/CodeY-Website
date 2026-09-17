@@ -1096,8 +1096,13 @@ const description =
   .model-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .model-field-wide { grid-column: 1 / -1; }
   .capability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .capability-grid label { display: flex !important; min-height: 42px; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--fg) !important; background: var(--bg); cursor: pointer; }
-  .capability-grid input { width: 16px !important; height: 16px; min-height: 0 !important; padding: 0 !important; accent-color: var(--accent); }
+  /* Scoped to `.model-config-editor` to match the specificity of the generic
+   * `.model-config-editor label:not(.setting-toggle)` rule above; this block comes
+   * later in the same file, so it wins on source order alone. */
+  .model-config-editor .capability-grid label { display: flex; min-height: 42px; grid-template-columns: auto 1fr; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--fg); background: var(--bg); cursor: pointer; }
+  /* Same scoping; the generic input rule excludes `[type='checkbox']`, so these
+   * checkbox overrides only need to outrank it on source order. */
+  .model-config-editor .capability-grid input { width: 16px; height: 16px; min-height: 0; padding: 0; accent-color: var(--accent); }
   .checks, .model-access > div { display: flex; flex-wrap: wrap; gap: 15px; }
   .check { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; }
   .model-access, .offer-editor { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }

@@ -266,12 +266,14 @@ const downloadHref = downloadPath(locale)
       border-top: 1px solid var(--border);
     }
 
+    /* (0,2,0) outranks the `.nav-links a` sibling rule above, so the button's
+     * border and padding are overridden on source order alone. */
     .nav-links .nav-cta {
       display: inline-flex;
       margin: 16px clamp(16px, 4vw, 24px) 4px;
       justify-content: center;
-      border-top: none !important;
-      padding: 12px 24px !important;
+      border-top: none;
+      padding: 12px 24px;
       font-size: 0.92rem;
     }
 

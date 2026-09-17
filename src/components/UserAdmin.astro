@@ -419,7 +419,9 @@ const copy = usersCopy(locale)
   .user-badge.admin { border-color: var(--accent-ring); color: var(--accent-bright); background: var(--accent-soft); }
   .user-badge.github { color: var(--fg); }
   .user-badge.self { border-color: color-mix(in srgb, var(--success) 30%, var(--border)); color: var(--success); background: color-mix(in srgb, var(--success) 8%, var(--chip-bg)); }
-  .user-date { color: var(--fg-faint) !important; white-space: nowrap; }
+  /* `.user-table td` (0,1,1) sets the shared cell colour; scoping to the table
+   * makes this (0,2,0) so the date stays faint on specificity alone. */
+  .user-table .user-date { color: var(--fg-faint); white-space: nowrap; }
   .user-role-action { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid transparent; border-radius: 8px; color: var(--fg-muted); background: transparent; font: inherit; font-size: .71rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
   .user-role-action i { color: var(--fg-faint); font-size: .88rem; }
   .user-role-action:hover:not(:disabled) { border-color: var(--border); color: var(--fg); background: var(--ghost-bg); }
