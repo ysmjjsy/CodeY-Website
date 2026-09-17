@@ -4,9 +4,12 @@
   background:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
-    radial-gradient(circle at 50% -10%, var(--decorative-glow), transparent 32rem),
-    var(--bg);
-  background-size: 44px 44px, 44px 44px, auto, auto;
+    radial-gradient(circle at 50% -10%, var(--decorative-glow), transparent 32rem), var(--bg);
+  background-size:
+    44px 44px,
+    44px 44px,
+    auto,
+    auto;
 }
 
 .commercial-page {
@@ -25,29 +28,29 @@
   gap: var(--space-xs);
   margin-bottom: var(--space-15);
   color: var(--accent-bright);
-  font: 600 .72rem/1 var(--font-mono);
-  letter-spacing: .12em;
+  font: 600 0.72rem / 1 var(--font-mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .commercial-eyebrow::before {
   width: 20px;
   height: 1px;
-  content: '';
+  content: "";
   background: var(--accent);
 }
 
 .commercial-hero h1 {
   font-size: clamp(2.25rem, 6vw, 4.3rem);
   line-height: 1.05;
-  letter-spacing: -.055em;
+  letter-spacing: -0.055em;
 }
 
 .commercial-hero p {
   max-width: 660px;
   margin: var(--space-20) auto 0;
   color: var(--fg-muted);
-  font-size: clamp(.95rem, 1.5vw, 1.08rem);
+  font-size: clamp(0.95rem, 1.5vw, 1.08rem);
   line-height: 1.8;
 }
 
@@ -91,20 +94,20 @@
 
 .commercial-section-head h2 {
   font-size: clamp(1.55rem, 3vw, 2.35rem);
-  letter-spacing: -.035em;
+  letter-spacing: -0.035em;
 }
 
 .commercial-section-head p {
   margin: var(--space-9) 0 0;
   color: var(--fg-muted);
-  font-size: .88rem;
+  font-size: 0.88rem;
 }
 
 .commercial-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
-  box-shadow: 0 22px 70px rgb(0 0 0 / .12);
+  box-shadow: 0 22px 70px rgb(0 0 0 / 0.12);
   backdrop-filter: blur(16px);
 }
 
@@ -118,11 +121,11 @@
   border-radius: var(--radius-xl);
   color: var(--fg);
   background: var(--bg);
-  box-shadow: 0 28px 90px rgb(0 0 0 / .42);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 0.42);
 }
 
 .commerce-dialog::backdrop {
-  background: rgb(4 6 12 / .72);
+  background: rgb(4 6 12 / 0.72);
   backdrop-filter: blur(7px);
 }
 
@@ -137,7 +140,7 @@
 .commerce-dialog-card > p {
   margin: var(--space-8) 0 var(--space-22);
   color: var(--fg-muted);
-  font-size: .84rem;
+  font-size: 0.84rem;
 }
 
 .commerce-dialog-actions {

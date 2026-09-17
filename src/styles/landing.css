@@ -1,5 +1,5 @@
 /* CodeY 官网首页样式 — 布局与排版；设计 Token 见 tokens.css */
-@import './tokens.css';
+@import "./tokens.css";
 
 * {
   box-sizing: border-box;
@@ -78,7 +78,7 @@ pre {
 }
 
 .section-tag::before {
-  content: '';
+  content: "";
   width: 20px;
   height: 1px;
   background: var(--accent);
@@ -103,7 +103,9 @@ pre {
 .reveal {
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+  transition:
+    opacity 0.7s var(--ease-out),
+    transform 0.7s var(--ease-out);
   transition-delay: var(--reveal-delay, 0s);
 }
 

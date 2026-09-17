@@ -16,28 +16,33 @@
   border-radius: var(--radius-md);
   color: inherit;
   font: inherit;
-  font-size: .92rem;
+  font-size: 0.92rem;
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
-  transition: transform .15s var(--ease-out), background .2s, border-color .2s, box-shadow .2s, color .2s;
+  transition:
+    transform 0.15s var(--ease-out),
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s;
 }
 
 .btn-sm {
   min-height: 36px;
   padding: var(--space-7) var(--space-13);
   border-radius: var(--radius-md);
-  font-size: .8rem;
+  font-size: 0.8rem;
 }
 
 .btn:active:not(:disabled) {
-  transform: scale(.98);
+  transform: scale(0.98);
 }
 
 .btn:disabled,
-.btn[aria-disabled='true'] {
+.btn[aria-disabled="true"] {
   cursor: not-allowed;
-  opacity: .48;
+  opacity: 0.48;
 }
 
 .btn-primary {
@@ -83,13 +88,13 @@
 :where(.ui-page-header) :where(h1) {
   font-size: clamp(1.8rem, 4vw, 2.5rem);
   line-height: 1.15;
-  letter-spacing: -.035em;
+  letter-spacing: -0.035em;
 }
 
 :where(.ui-page-header__copy) > :where(p) {
   margin: var(--space-9) 0 0;
   color: var(--fg-muted);
-  font-size: .9rem;
+  font-size: 0.9rem;
   line-height: 1.7;
 }
 
@@ -113,15 +118,15 @@
   align-items: center;
   gap: var(--space-xs);
   color: var(--accent-bright);
-  font: 600 .72rem/1 var(--font-mono);
-  letter-spacing: .12em;
+  font: 600 0.72rem / 1 var(--font-mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 :where(.ui-eyebrow)::before {
   width: 20px;
   height: 1px;
-  content: '';
+  content: "";
   background: var(--accent);
 }
 
@@ -139,7 +144,7 @@
 :where(.ui-section-header) :where(p) {
   margin: var(--space-6) 0 0;
   color: var(--fg-muted);
-  font-size: .8rem;
+  font-size: 0.8rem;
   line-height: 1.6;
 }
 
@@ -187,7 +192,7 @@
 
 :where(.ui-pagination__summary) {
   margin: 0;
-  font: .7rem var(--font-mono);
+  font: 0.7rem var(--font-mono);
   white-space: nowrap;
 }
 
@@ -206,7 +211,7 @@
 :where(.ui-pagination__size) {
   gap: var(--space-7);
   color: var(--fg-faint);
-  font-size: .7rem;
+  font-size: 0.7rem;
   white-space: nowrap;
 }
 
@@ -217,7 +222,7 @@
   border-radius: var(--radius-md);
   color: var(--fg);
   background: var(--bg);
-  font: .7rem var(--font-mono);
+  font: 0.7rem var(--font-mono);
 }
 
 :where(.ui-pagination__pages) {
@@ -238,7 +243,7 @@
   border-radius: var(--radius-md);
   color: var(--fg-muted);
   background: transparent;
-  font: .7rem var(--font-mono);
+  font: 0.7rem var(--font-mono);
   cursor: pointer;
 }
 
@@ -248,7 +253,7 @@
   background: var(--ghost-bg);
 }
 
-:where(.ui-pagination__pages button[aria-current='page']) {
+:where(.ui-pagination__pages button[aria-current="page"]) {
   border-color: var(--accent-ring);
   color: var(--accent-bright);
   background: var(--accent-soft);
@@ -256,7 +261,7 @@
 
 :where(.ui-pagination__pages button:disabled) {
   cursor: not-allowed;
-  opacity: .35;
+  opacity: 0.35;
 }
 
 :where(.ui-pagination__pages button:focus-visible),
@@ -297,11 +302,11 @@
   background: var(--bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
-  box-shadow: 0 28px 90px rgb(0 0 0 / .42);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 0.42);
 }
 
 :where(.ui-dialog)::backdrop {
-  background: rgb(4 6 12 / .72);
+  background: rgb(4 6 12 / 0.72);
   backdrop-filter: blur(7px);
 }
 
@@ -312,13 +317,13 @@
 
 :where(.ui-field) > :where(span:first-child) {
   color: var(--fg-muted);
-  font-size: .78rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 
 :where(.ui-field) > :where(small) {
   color: var(--fg-faint);
-  font-size: .72rem;
+  font-size: 0.72rem;
 }
 
 @media (max-width: 680px) {

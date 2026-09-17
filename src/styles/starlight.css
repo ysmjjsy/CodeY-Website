@@ -6,12 +6,13 @@
  * 本文件由 Starlight 的 customCss 单独加载，不经过 LandingLayout，
  * 因此需要自行引入 Token 层。
  */
-@import './tokens.css';
+@import "./tokens.css";
 
 :root {
-  --sl-font: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    system-ui, sans-serif;
-  --sl-font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, ui-monospace, monospace;
+  --sl-font:
+    "Space Grotesk Variable", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+    sans-serif;
+  --sl-font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, ui-monospace, monospace;
 
   /* 深色（默认）：indigo accent，zinc 底 */
   --sl-color-accent-low: #312e81;
@@ -31,7 +32,7 @@
 }
 
 /* 浅色：对齐桌面端浅色主题的 indigo primary */
-:root[data-theme='light'] {
+:root[data-theme="light"] {
   --sl-color-accent-low: #e0e7ff;
   --sl-color-accent: #4f46e5;
   --sl-color-accent-high: #312e81;

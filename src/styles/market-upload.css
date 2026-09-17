@@ -177,7 +177,7 @@
   border-radius: var(--radius-md);
   color: var(--fg-muted);
   background: var(--chip-bg);
-  font: 0.78rem/1.5 var(--font-mono);
+  font: 0.78rem / 1.5 var(--font-mono);
 }
 
 .market-package-metadata-note {
@@ -250,7 +250,7 @@
   border-radius: var(--radius-md);
   color: var(--fg-muted);
   background: var(--bg);
-  font: 0.78rem/1.6 var(--font-mono);
+  font: 0.78rem / 1.6 var(--font-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -281,29 +281,29 @@
 }
 
 @media (max-width: 680px) {
-.market-upload-button,
+  .market-upload-button,
   .market-detail-download {
     align-self: flex-start;
   }
 
-.market-upload-dialog {
+  .market-upload-dialog {
     width: calc(100vw - 16px);
     max-height: calc(100vh - 16px);
   }
 
-.market-upload-head {
+  .market-upload-head {
     padding: var(--space-20);
   }
 
-.market-upload-content {
+  .market-upload-content {
     padding: var(--space-sm);
   }
 
-.market-form-card {
+  .market-form-card {
     padding: var(--space-20);
   }
 
-.market-form-actions {
+  .market-form-actions {
     align-items: stretch;
     flex-direction: column;
   }
@@ -316,14 +316,14 @@
 }
 
 @media (max-width: 760px) {
-.market-upload-button {
+  .market-upload-button {
     min-height: 48px;
     align-self: flex-start;
   }
 }
 
 @media (max-width: 480px) {
-.market-hero-actions .market-upload-button,
+  .market-hero-actions .market-upload-button,
   .market-empty-actions .btn {
     width: 100%;
     justify-content: center;

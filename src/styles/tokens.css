@@ -9,7 +9,7 @@
  */
 
 :root,
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --bg: #09090b;
   --bg-soft: #0e0e11;
   --surface: #131316;
@@ -134,15 +134,18 @@
   --space-2xl: var(--space-48);
   --space-3xl: var(--space-64);
 
-  --font-display: 'Space Grotesk Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, ui-monospace, monospace;
+  --font-display:
+    "Space Grotesk Variable", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+    sans-serif;
+  --font-body:
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, ui-monospace, monospace;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
 
 /* 浅色：对齐桌面端浅色 primary（indigo #4f46e5） */
-:root[data-theme='light'] {
+:root[data-theme="light"] {
   --bg: #f8f9fa;
   --bg-soft: #f1f5f9;
   --surface: #ffffff;
