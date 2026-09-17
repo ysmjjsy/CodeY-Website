@@ -1,9 +1,22 @@
+.DS_Store
+Thumbs.db
 node_modules/
 dist/
 .astro/
 .codey-market/
 .env.local
 target/
+
+# Editor and OS scratch files. None of these are project state, and no tracked
+# file uses these extensions, so a blanket rule is safe here.
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+*.log
 
 # Retired visual-QA evidence dumps (18 MB + 10 MB of dated screenshots). They had
 # no code, CI, or gate dependency. Visual review evidence now lives outside the
