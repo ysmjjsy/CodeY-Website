@@ -1,0 +1,447 @@
+---
+import type { Locale } from '../i18n/ui'
+import { t } from '../i18n/utils'
+
+interface Props {
+  locale: Locale
+}
+
+const { locale } = Astro.props
+---
+
+  <div class="hero-visual" aria-hidden="true">
+    <div class="hero-window">
+      <div class="win-titlebar">
+        <span class="win-dot"></span>
+        <span class="win-dot"></span>
+        <span class="win-dot"></span>
+        <span class="win-title">{t(locale, 'hero.win.title')}</span>
+        <span class="win-status">
+          <span class="status-dot status-dot-green"></span>
+          {t(locale, 'hero.win.status')}
+        </span>
+      </div>
+      <div class="win-body">
+        <div class="win-sidebar">
+          <span class="side-icon is-active"></span>
+          <span class="side-icon"></span>
+          <span class="side-icon"></span>
+          <span class="side-icon"></span>
+        </div>
+        <div class="win-main">
+          <div class="task-head">
+            <span class="task-name">{t(locale, 'hero.win.task')}</span>
+            <span class="task-state">
+              <span class="status-dot status-dot-brand pulse"></span>
+              {t(locale, 'hero.win.running')}
+            </span>
+          </div>
+          <div class="timeline">
+            <div class="tl-item" style="--i: 0">
+              <span class="tl-icon tl-icon-ok">
+                <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 6.5 4.8 9 10 3.5"></path>
+                </svg>
+              </span>
+              <span class="tl-text">{t(locale, 'hero.win.plan')}</span>
+            </div>
+            <div class="tl-item tl-item-cmd" style="--i: 1">
+              <span class="tl-prompt">✓</span>
+              <code>{t(locale, 'hero.win.check')}</code>
+              <span class="tl-pass">{t(locale, 'hero.win.pass')}</span>
+            </div>
+            <div class="tl-item" style="--i: 2">
+              <span class="tl-icon tl-icon-file">
+                <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 1h4l2.5 2.5V11H3z"></path>
+                </svg>
+              </span>
+              <span class="tl-text">
+                <code class="tl-path">{t(locale, 'hero.win.artifact')}</code>
+                <span class="diff-add">{t(locale, 'hero.win.artifactStatus')}</span>
+              </span>
+            </div>
+            <div class="tl-item tl-item-perm" style="--i: 3">
+              <div class="perm-row">
+                <span class="tl-icon tl-icon-perm">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M6 1 2 2.6v3.2c0 2.5 1.7 4.3 4 5.2 2.3-.9 4-2.7 4-5.2V2.6z"></path>
+                  </svg>
+                </span>
+                <span class="tl-text"
+                  >{t(locale, 'hero.win.perm')} <code class="tl-path">{t(locale, 'hero.win.target')}</code></span
+                >
+              </div>
+              <div class="perm-actions">
+                <span class="perm-btn perm-allow">{t(locale, 'hero.win.allow')}</span>
+                <span class="perm-btn perm-deny">{t(locale, 'hero.win.deny')}</span>
+              </div>
+            </div>
+            <div class="tl-item tl-item-typing" style="--i: 4">
+              <span class="tl-text">{t(locale, 'hero.win.typing')}</span>
+              <span class="caret"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-glow hero-glow-cyan"></div>
+    <div class="hero-glow hero-glow-amber"></div>
+  </div>
+
+<style>
+  .hero-visual {
+    position: relative;
+  }
+
+  .hero-window {
+    position: relative;
+    z-index: 1;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    background: var(--panel-glass);
+    backdrop-filter: blur(8px);
+    box-shadow:
+      inset 0 1px 0 var(--panel-inset),
+      var(--shadow-window);
+    overflow: hidden;
+  }
+
+  .win-titlebar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-7);
+    padding: var(--space-12) var(--space-16);
+    border-bottom: 1px solid var(--border);
+    background: var(--ghost-bg);
+  }
+
+  .win-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--fg-faint);
+    opacity: 0.45;
+  }
+
+  .win-title {
+    margin-left: var(--space-10);
+    font-size: 0.78rem;
+    color: var(--fg-faint);
+  }
+
+  .win-status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6);
+    font-size: 0.72rem;
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .status-dot-green {
+    background: var(--success);
+  }
+
+  .status-dot-brand {
+    background: var(--accent-bright);
+  }
+
+  .pulse {
+    animation: dot-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes dot-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .win-body {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    min-height: 330px;
+  }
+
+  .win-sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-14);
+    padding-top: var(--space-18);
+    border-right: 1px solid var(--border);
+  }
+
+  .side-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--ghost-bg-hover);
+  }
+
+  .side-icon.is-active {
+    background: var(--accent-soft);
+    outline: 1px solid var(--accent-ring);
+  }
+
+  .win-main {
+    padding: var(--space-18) var(--space-20);
+  }
+
+  .task-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: var(--space-14);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .task-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+
+  .task-state {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6);
+    font-size: 0.74rem;
+    font-family: var(--font-mono);
+    color: var(--accent-bright);
+    padding: var(--space-3) var(--space-10);
+    border-radius: var(--radius-pill);
+    background: var(--accent-soft);
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    padding-top: var(--space-16);
+  }
+
+  .tl-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+    font-size: 0.82rem;
+    color: var(--fg-muted);
+    opacity: 0;
+    animation: tl-in 0.6s var(--ease-out) forwards;
+    animation-delay: calc(0.35s + var(--i) * 0.45s);
+  }
+
+  @keyframes tl-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .tl-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+  }
+
+  .tl-icon-ok {
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+  }
+
+  .tl-icon-file {
+    color: var(--accent-bright);
+    background: var(--accent-soft);
+  }
+
+  .tl-icon-perm {
+    color: var(--amber);
+    background: var(--amber-soft);
+  }
+
+  .tl-item-cmd {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    background: var(--ghost-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-8) var(--space-12);
+  }
+
+  .tl-prompt {
+    color: var(--accent-bright);
+  }
+
+  .tl-item-cmd code {
+    color: var(--fg);
+  }
+
+  .tl-pass {
+    margin-left: auto;
+    color: var(--success);
+    font-size: 0.72rem;
+  }
+
+  .tl-path {
+    color: var(--fg);
+    font-size: 0.78rem;
+  }
+
+  .diff-add {
+    color: var(--success);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    margin-left: var(--space-8);
+  }
+
+  .diff-del {
+    color: var(--danger);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    margin-left: var(--space-4);
+  }
+
+  .tl-item-perm {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-10);
+    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    background: var(--amber-soft);
+    border-radius: var(--radius-md);
+    padding: var(--space-10) var(--space-12);
+  }
+
+  .perm-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+  }
+
+  .perm-actions {
+    display: flex;
+    gap: var(--space-8);
+    padding-left: var(--space-30);
+  }
+
+  .perm-btn {
+    font-size: 0.72rem;
+    padding: var(--space-3) var(--space-14);
+    border-radius: var(--radius-sm);
+  }
+
+  .perm-allow {
+    background: var(--amber);
+    color: #1a1205;
+    font-weight: 600;
+  }
+
+  .perm-deny {
+    border: 1px solid var(--border-strong);
+    color: var(--fg-muted);
+  }
+
+  .tl-item-typing {
+    font-size: 0.8rem;
+  }
+
+  .caret {
+    width: 7px;
+    height: 15px;
+    background: var(--accent-bright);
+    animation: caret-blink 1s steps(1) infinite;
+  }
+
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  .hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+  }
+
+  .hero-glow-cyan {
+    width: 420px;
+    height: 420px;
+    top: -120px;
+    right: -80px;
+    background: var(--decorative-glow);
+  }
+
+  .hero-glow-amber {
+    width: 260px;
+    height: 260px;
+    bottom: -80px;
+    left: -60px;
+    background: var(--amber-soft);
+  }
+
+@media (max-width: 640px) {
+    .win-titlebar {
+      flex-wrap: wrap;
+      gap: var(--space-8);
+      row-gap: var(--space-8);
+    }
+    .win-status {
+      margin-left: 0;
+      width: 100%;
+      order: 3;
+    }
+    .win-body {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+    .win-sidebar {
+      display: none;
+    }
+    .win-main {
+      padding: var(--space-14) var(--space-14) var(--space-16);
+    }
+    .task-head {
+      flex-wrap: wrap;
+      gap: var(--space-10);
+    }
+    .tl-item-cmd {
+      flex-wrap: wrap;
+    }
+    .tl-pass {
+      margin-left: 0;
+    }
+    .perm-actions {
+      padding-left: 0;
+    }
+    .hero-glow-cyan {
+      width: 280px;
+      height: 280px;
+      top: -80px;
+      right: -100px;
+    }
+    .hero-glow-amber {
+      width: 180px;
+      height: 180px;
+    }
+  }
+</style>
