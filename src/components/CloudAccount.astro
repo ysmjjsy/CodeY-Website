@@ -338,7 +338,7 @@ const copy = cloudCopy(locale)
   .cloud-head > p:last-child {
     margin: var(--space-9) 0 0;
     color: var(--fg-muted);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
   }
   .cloud-state {
     margin: var(--space-32) 0;
@@ -365,10 +365,10 @@ const copy = cloudCopy(locale)
   .summary-card span,
   .current-plan span {
     color: var(--fg-muted);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
   .summary-card strong {
-    font: 600 1.65rem var(--font-mono);
+    font: 600 var(--text-4xl) var(--font-mono);
   }
   .summary-card-primary {
     border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
@@ -394,7 +394,7 @@ const copy = cloudCopy(locale)
     margin-bottom: var(--space-18);
   }
   .section-title h2 {
-    font-size: 1.45rem;
+    font-size: var(--text-3xl);
   }
   .catalog-grid {
     display: grid;
@@ -419,23 +419,23 @@ const copy = cloudCopy(locale)
     border-color: var(--accent);
   }
   .catalog-card h3 {
-    font-size: 1.16rem;
+    font-size: var(--text-xl);
   }
   .catalog-card p {
     min-height: 3em;
     margin: var(--space-8) 0 0;
     color: var(--fg-muted);
-    font-size: 0.84rem;
+    font-size: var(--text-sm);
     line-height: 1.6;
   }
   .catalog-card > strong {
-    font: 600 1.55rem var(--font-mono);
+    font: 600 var(--text-3xl) var(--font-mono);
   }
   .catalog-card strong small {
     display: block;
     margin-top: var(--space-5);
     color: var(--fg-muted);
-    font: 400 0.72rem var(--font-body);
+    font: 400 var(--text-xs) var(--font-body);
   }
   .status-badge {
     position: absolute;
@@ -445,7 +445,7 @@ const copy = cloudCopy(locale)
     border-radius: var(--radius-pill);
     color: var(--accent-bright);
     background: var(--accent-soft);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
   }
   .status-badge.scheduled {
     top: 47px;
@@ -458,7 +458,7 @@ const copy = cloudCopy(locale)
   .offer-list::before {
     content: attr(data-verb);
     color: var(--fg-faint);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
   .offer-list .btn {
     width: 100%;
@@ -479,7 +479,7 @@ const copy = cloudCopy(locale)
   }
   .payment-dialog h2 {
     margin: 0 var(--space-30) var(--space-22) 0;
-    font-size: 1.1rem;
+    font-size: var(--text-xl);
     line-height: 1.5;
   }
   .payment-dialog img {
@@ -504,7 +504,7 @@ const copy = cloudCopy(locale)
     margin-top: var(--space-16);
     overflow: auto;
     color: var(--fg-faint);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
     overflow-wrap: anywhere;
   }
   .dialog-close {

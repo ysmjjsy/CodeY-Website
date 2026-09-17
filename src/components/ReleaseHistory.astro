@@ -60,7 +60,7 @@ const { locale } = Astro.props
     margin: 0 0 var(--space-8);
     color: var(--accent-bright);
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -74,7 +74,7 @@ const { locale } = Astro.props
     max-width: 640px;
     margin: var(--space-8) 0 0;
     color: var(--fg-muted);
-    font-size: 0.88rem;
+    font-size: var(--text-base);
   }
 
   .release-count {
@@ -85,7 +85,7 @@ const { locale } = Astro.props
     color: var(--fg-faint);
     background: var(--ghost-bg);
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
   }
 
   .release-browser {
@@ -145,7 +145,7 @@ const { locale } = Astro.props
 
   .release-list :global(.release-tab-version) {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     font-weight: 600;
   }
 
@@ -153,7 +153,7 @@ const { locale } = Astro.props
     grid-column: 1;
     color: var(--fg-faint);
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
   }
 
   .release-list :global(.release-tab-badge) {
@@ -165,7 +165,7 @@ const { locale } = Astro.props
     color: var(--accent-bright);
     background: var(--accent-soft);
     font-family: var(--font-mono);
-    font-size: 0.6rem;
+    font-size: var(--text-2xs);
   }
 
   .release-row-skeleton {
@@ -200,7 +200,7 @@ const { locale } = Astro.props
 
   .release-detail :global(.release-version) {
     font-family: var(--font-mono);
-    font-size: 1.15rem;
+    font-size: var(--text-xl);
     font-weight: 600;
   }
 
@@ -211,7 +211,7 @@ const { locale } = Astro.props
     color: var(--accent-bright);
     background: var(--accent-soft);
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: var(--text-2xs);
   }
 
   .release-detail :global(.release-date) {
@@ -219,14 +219,14 @@ const { locale } = Astro.props
     margin-top: var(--space-6);
     color: var(--fg-faint);
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
   }
 
   .release-detail :global(.release-package-count) {
     flex: none;
     color: var(--fg-faint);
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
   }
 
   .release-detail :global(.release-content-section) {
@@ -240,18 +240,18 @@ const { locale } = Astro.props
     margin: 0 0 var(--space-14);
     color: var(--fg);
     font-family: var(--font-display);
-    font-size: 0.92rem;
+    font-size: var(--text-md);
     font-weight: 600;
   }
 
   .release-detail :global(.release-content-title i) {
     color: var(--accent-bright);
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
 
   .release-detail :global(.release-notes) {
     color: var(--fg-muted);
-    font-size: 0.84rem;
+    font-size: var(--text-sm);
     line-height: 1.75;
   }
 
@@ -259,7 +259,7 @@ const { locale } = Astro.props
     margin: var(--space-20) 0 var(--space-8);
     color: var(--fg);
     font-family: var(--font-display);
-    font-size: 0.88rem;
+    font-size: var(--text-base);
     font-weight: 600;
   }
 
@@ -285,7 +285,7 @@ const { locale } = Astro.props
   .release-detail :global(.release-empty) {
     margin: 0;
     color: var(--fg-faint);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
   }
 
   .release-detail :global(.release-assets-grid) {
@@ -310,13 +310,13 @@ const { locale } = Astro.props
     margin-bottom: var(--space-8);
     color: var(--fg);
     font-family: var(--font-display);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     font-weight: 600;
   }
 
   .release-detail :global(.release-platform-name i) {
     color: var(--accent-bright);
-    font-size: 0.95rem;
+    font-size: var(--text-md);
   }
 
   .release-detail :global(.release-asset-list) {
@@ -335,7 +335,7 @@ const { locale } = Astro.props
     color: var(--fg-muted);
     background: var(--ghost-bg);
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     transition:
       color 0.2s,
       background 0.2s;

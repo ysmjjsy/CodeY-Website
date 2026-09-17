@@ -22,8 +22,9 @@
     "format": "biome format --write .",
     "test": "vitest run",
     "check": "pnpm typecheck && pnpm check:astro && pnpm lint && pnpm check:styles && pnpm test && pnpm build:web",
-    "check:styles": "node scripts/check-astro-styles.mjs && node scripts/check-astro-styles.test.mjs",
-    "test:styles": "node scripts/check-astro-styles.test.mjs"
+    "check:styles": "node scripts/check-astro-styles.mjs && node scripts/check-font-sizes.mjs && node scripts/check-astro-styles.test.mjs && node scripts/check-font-sizes.test.mjs",
+    "test:styles": "node scripts/check-astro-styles.test.mjs",
+    "check:fonts": "node scripts/check-font-sizes.mjs && node scripts/check-font-sizes.test.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",

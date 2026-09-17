@@ -396,7 +396,7 @@ const copy = usersCopy(locale)
     border-radius: var(--radius-lg);
     color: var(--fg-muted);
     background: var(--panel-glass);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
   }
   .user-admin-content {
     display: grid;
@@ -426,15 +426,15 @@ const copy = usersCopy(locale)
     align-items: center;
     gap: var(--space-8);
     color: var(--fg-muted);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
   }
   .user-stats article i {
     color: var(--fg-faint);
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
   .user-stats article strong {
     color: var(--fg);
-    font: 600 1.65rem / 1 var(--font-display);
+    font: 600 var(--text-4xl) / 1 var(--font-display);
     letter-spacing: -0.04em;
   }
   .user-toolbar {
@@ -452,7 +452,7 @@ const copy = usersCopy(locale)
     top: 50%;
     left: 12px;
     color: var(--fg-faint);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     transform: translateY(-50%);
     pointer-events: none;
   }
@@ -466,7 +466,7 @@ const copy = usersCopy(locale)
     color: var(--fg);
     background: var(--bg);
     font: inherit;
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
   }
   .user-search input {
     padding: var(--space-8) var(--space-12) var(--space-8) var(--space-36);
@@ -481,7 +481,7 @@ const copy = usersCopy(locale)
   }
   .user-filter > span {
     color: var(--fg-faint);
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
   }
   .user-filter select {
@@ -514,7 +514,7 @@ const copy = usersCopy(locale)
     padding: var(--space-10) var(--space-14);
     color: var(--fg-faint);
     background: var(--chip-bg);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     white-space: nowrap;
   }
@@ -522,7 +522,7 @@ const copy = usersCopy(locale)
     padding: var(--space-13) var(--space-14);
     border-top: 1px solid var(--border);
     color: var(--fg-muted);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     vertical-align: middle;
   }
   .user-table th:nth-child(1) {
@@ -568,14 +568,14 @@ const copy = usersCopy(locale)
   .user-name-line strong {
     overflow: hidden;
     color: var(--fg);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .user-identity > div > span {
     overflow: hidden;
     color: var(--fg-faint);
-    font: 0.68rem var(--font-mono);
+    font: var(--text-2xs) var(--font-mono);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -591,7 +591,7 @@ const copy = usersCopy(locale)
     border-radius: var(--radius-md);
     color: var(--accent-bright);
     background: var(--accent-soft);
-    font: 600 0.75rem var(--font-display);
+    font: 600 var(--text-xs) var(--font-display);
   }
   .user-avatar img {
     position: absolute;
@@ -624,7 +624,7 @@ const copy = usersCopy(locale)
     border-radius: var(--radius-pill);
     color: var(--fg-muted);
     background: var(--chip-bg);
-    font-size: 0.66rem;
+    font-size: var(--text-2xs);
     line-height: 1;
     white-space: nowrap;
   }
@@ -658,14 +658,14 @@ const copy = usersCopy(locale)
     color: var(--fg-muted);
     background: transparent;
     font: inherit;
-    font-size: 0.71rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
   }
   .user-role-action i {
     color: var(--fg-faint);
-    font-size: 0.88rem;
+    font-size: var(--text-base);
   }
   .user-role-action:hover:not(:disabled) {
     border-color: var(--border);
@@ -740,7 +740,7 @@ const copy = usersCopy(locale)
     background: var(--success);
   }
   .inline-status-label {
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     white-space: nowrap;
   }
   .user-empty {
@@ -751,16 +751,16 @@ const copy = usersCopy(locale)
   .user-empty > i {
     margin-bottom: var(--space-8);
     color: var(--fg-faint);
-    font-size: 1.6rem;
+    font-size: var(--text-3xl);
   }
   .user-empty strong {
-    font-size: 0.86rem;
+    font-size: var(--text-base);
   }
   .user-empty p {
     max-width: 440px;
     margin: var(--space-6) 0 0;
     color: var(--fg-muted);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     line-height: 1.55;
   }
   .user-sr-only {
@@ -794,7 +794,7 @@ const copy = usersCopy(locale)
       padding: var(--space-13) var(--space-15);
     }
     .user-stats article strong {
-      font-size: 1.35rem;
+      font-size: var(--text-2xl);
     }
     .user-toolbar {
       grid-template-columns: 1fr 1fr;

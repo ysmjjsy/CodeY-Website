@@ -207,13 +207,13 @@ const isReview = initialSection === 'review'
     max-width: 680px;
     margin: var(--space-10) 0 0;
     color: var(--fg-muted);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     line-height: 1.65;
   }
   .dashboard-eyebrow {
     margin: 0;
     color: var(--accent-bright);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
@@ -260,15 +260,15 @@ const isReview = initialSection === 'review'
   }
   .dashboard-summary span {
     color: var(--fg-faint);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .dashboard-summary strong {
     color: var(--fg);
-    font: 600 0.88rem var(--font-mono);
+    font: 600 var(--text-base) var(--font-mono);
   }
   .dashboard-summary-primary strong {
     order: -1;
-    font-size: 1.35rem;
+    font-size: var(--text-2xl);
   }
   .dashboard-dot {
     width: 7px;
@@ -310,18 +310,18 @@ const isReview = initialSection === 'review'
   .dashboard-panel-head h2,
   .dashboard-section-heading h2 {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
   .dashboard-panel-head p,
   .dashboard-section-heading p {
     margin: var(--space-5) 0 0;
     color: var(--fg-faint);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
   }
   .dashboard-panel-head > span,
   .dashboard-section-heading > span {
     color: var(--fg-faint);
-    font: 0.72rem var(--font-mono);
+    font: var(--text-xs) var(--font-mono);
     white-space: nowrap;
   }
   .dashboard-table-wrap {
@@ -331,7 +331,7 @@ const isReview = initialSection === 'review'
     width: 100%;
     min-width: 820px;
     border-collapse: collapse;
-    font-size: 0.79rem;
+    font-size: var(--text-sm);
   }
   .dashboard-review-table {
     min-width: 960px;
@@ -341,7 +341,7 @@ const isReview = initialSection === 'review'
     border-bottom: 1px solid var(--border);
     color: var(--fg-faint);
     background: var(--chip-bg);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     text-align: left;
     white-space: nowrap;
@@ -381,7 +381,7 @@ const isReview = initialSection === 'review'
     border-radius: var(--radius-md);
     color: var(--accent-bright);
     background: var(--accent-soft);
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
   .dashboard-template-cell > div {
     display: grid;
@@ -391,14 +391,14 @@ const isReview = initialSection === 'review'
   .dashboard-template-cell strong,
   .dashboard-table td > strong {
     color: var(--fg);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     font-weight: 600;
   }
   .dashboard-template-cell span,
   .dashboard-table td > span:not(.dashboard-status) {
     display: block;
     color: var(--fg-faint);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
   .dashboard-template-summary {
     max-width: 460px;
@@ -409,7 +409,7 @@ const isReview = initialSection === 'review'
   .dashboard-template-cell code {
     overflow: hidden;
     color: var(--fg-faint);
-    font: 0.66rem var(--font-mono);
+    font: var(--text-2xs) var(--font-mono);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -422,7 +422,7 @@ const isReview = initialSection === 'review'
   }
   .dashboard-template-table td:nth-child(2) span {
     color: var(--fg-faint);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
   }
   .dashboard-status {
     display: inline-flex;
@@ -430,7 +430,7 @@ const isReview = initialSection === 'review'
     padding: var(--space-5) var(--space-9);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
-    font: 0.67rem var(--font-mono);
+    font: var(--text-2xs) var(--font-mono);
     white-space: nowrap;
   }
   .dashboard-status.is-pending {
@@ -454,16 +454,16 @@ const isReview = initialSection === 'review'
     align-items: center;
     gap: var(--space-5);
     color: var(--accent-bright);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 600;
   }
   .dashboard-row-action i {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
   }
   .dashboard-mono {
     max-width: 250px;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
     overflow-wrap: anywhere;
   }
   .dashboard-review-note-cell {
@@ -488,7 +488,7 @@ const isReview = initialSection === 'review'
     border-radius: var(--radius-md);
     color: var(--fg-faint);
     background: transparent;
-    font: 500 0.76rem var(--font-body);
+    font: 500 var(--text-xs) var(--font-body);
     cursor: pointer;
   }
   .dashboard-review-tabs button:hover,
@@ -506,13 +506,13 @@ const isReview = initialSection === 'review'
     border-radius: var(--radius-pill);
     color: var(--btn-primary-fg);
     background: var(--accent);
-    font: 600 0.65rem var(--font-mono);
+    font: 600 var(--text-2xs) var(--font-mono);
   }
   .dashboard-review-button {
     min-height: 34px;
     gap: var(--space-6);
     padding: var(--space-7) var(--space-10);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     white-space: nowrap;
   }
   .dashboard-review-dialog {
@@ -545,12 +545,12 @@ const isReview = initialSection === 'review'
   }
   .dashboard-review-dialog h2 {
     margin: var(--space-5) 0 0;
-    font-size: 1.35rem;
+    font-size: var(--text-2xl);
   }
   .dashboard-review-dialog header p:last-child {
     margin: var(--space-7) 0 0;
     color: var(--fg-muted);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     line-height: 1.55;
   }
   .dashboard-dialog-close {
@@ -589,19 +589,19 @@ const isReview = initialSection === 'review'
   }
   .dashboard-review-detail dt {
     color: var(--fg-faint);
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
   }
   .dashboard-review-detail dd {
     margin: var(--space-5) 0 0;
     color: var(--fg-muted);
-    font: 0.72rem / 1.5 var(--font-mono);
+    font: var(--text-xs) / 1.5 var(--font-mono);
     overflow-wrap: anywhere;
   }
   .dashboard-review-note {
     display: grid;
     gap: var(--space-8);
     color: var(--fg);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     font-weight: 600;
   }
   .dashboard-review-note textarea {

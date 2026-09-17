@@ -54,6 +54,27 @@
   --radius-xl: 16px;
   --radius-pill: 999px;
 
+  /* 字号比例尺
+   *
+   * 11 档，以 1/16rem 为基准，数值取整到整数像素（16px 根字号下）。
+   * 与桌面端 `--text-*` 的区别在场景：桌面端是高密度 UI 面板，官网是阅读页，
+   * 因此档位更宽、上限更高。两者不共享数值，但都属于「有尺度且被消费」。
+   *
+   * 显示级标题（hero / section title）用 `clamp()` 做流体排版，不套用档位；
+   * clamp 的端点若命中档位则引用对应 Token。
+   */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 0.875rem; /* 14px */
+  --text-md: 0.9375rem; /* 15px */
+  --text-lg: 1rem; /* 16px */
+  --text-xl: 1.125rem; /* 18px */
+  --text-2xl: 1.25rem; /* 20px */
+  --text-3xl: 1.5rem; /* 24px */
+  --text-4xl: 1.75rem; /* 28px */
+  --text-5xl: 2rem; /* 32px */
+
   /* 间距比例尺
    *
    * 分两层，两层都在这一个文件里维护：

@@ -15,7 +15,7 @@
   gap: var(--space-7);
   margin: 0 0 var(--space-18);
   color: var(--fg-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .market-back:hover {
@@ -53,7 +53,7 @@
   border-radius: var(--radius-lg);
   color: var(--accent-bright);
   background: var(--accent-soft);
-  font: 700 0.78rem / 1 var(--font-mono);
+  font: 700 var(--text-xs) / 1 var(--font-mono);
 }
 
 .market-detail-heading {
@@ -80,14 +80,14 @@
   border-radius: var(--radius-sm);
   color: var(--accent-bright);
   background: var(--accent-soft);
-  font: 600 0.63rem / 1 var(--font-mono);
+  font: 600 var(--text-2xs) / 1 var(--font-mono);
 }
 
 .market-detail-summary {
   max-width: 940px;
   margin: var(--space-7) 0 0;
   color: var(--fg-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 
@@ -97,7 +97,7 @@
   gap: var(--space-8) var(--space-14);
   margin-top: var(--space-9);
   color: var(--fg-faint);
-  font: 0.65rem / 1.3 var(--font-mono);
+  font: var(--text-2xs) / 1.3 var(--font-mono);
 }
 
 .market-detail-meta > span {
@@ -115,7 +115,7 @@
   min-height: 38px;
   padding: var(--space-9) var(--space-14);
   border-radius: var(--radius-md);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -136,7 +136,7 @@
   background: transparent;
   cursor: pointer;
   white-space: nowrap;
-  font: 500 0.78rem / 1 var(--font-body);
+  font: 500 var(--text-xs) / 1 var(--font-body);
 }
 
 .market-detail-tabs button.is-active {
@@ -157,7 +157,7 @@
   padding: var(--space-1) var(--space-5);
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
-  font: 0.62rem / 1 var(--font-mono);
+  font: var(--text-2xs) / 1 var(--font-mono);
 }
 
 .market-detail-workspace {
@@ -184,7 +184,7 @@
   margin-inline: calc(var(--space-28) * -1);
   padding: var(--space-16) var(--space-20) var(--space-10);
   color: var(--fg-faint);
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
 }
 
 .market-document-toolbar span {
@@ -205,7 +205,7 @@
 
 .market-readme {
   color: var(--fg-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   line-height: 1.78;
   overflow-wrap: anywhere;
 }
@@ -225,15 +225,15 @@
 }
 
 .market-readme h1 {
-  font-size: 1.55rem;
+  font-size: var(--text-3xl);
 }
 
 .market-readme h2 {
-  font-size: 1.22rem;
+  font-size: var(--text-2xl);
 }
 
 .market-readme h3 {
-  font-size: 1rem;
+  font-size: var(--text-lg);
 }
 
 .market-readme p,
@@ -263,7 +263,7 @@
   border-radius: var(--radius-md);
   color: #d4d4d8;
   background: var(--code-bg);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .market-readme pre code {
@@ -293,13 +293,13 @@
 }
 
 .market-document-section-head h2 {
-  font-size: 1.45rem;
+  font-size: var(--text-3xl);
 }
 
 .market-document-section-head > p:last-child {
   margin: var(--space-9) 0 0;
   color: var(--fg-muted);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
 }
 
 .market-resource-list,
@@ -321,7 +321,7 @@
   border-radius: var(--radius-md);
   color: var(--fg-muted);
   background: var(--surface);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .market-resource-item {
@@ -337,12 +337,12 @@
 
 .market-resource-body strong {
   color: var(--fg);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .market-resource-body > span {
   color: var(--fg-faint);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
 }
 
 .market-resource-body details {
@@ -354,7 +354,7 @@
 .market-resource-body summary {
   width: max-content;
   color: var(--accent-bright);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -368,7 +368,7 @@
 
 .market-resource-body code {
   color: var(--fg-muted);
-  font: 0.68rem var(--font-mono);
+  font: var(--text-2xs) var(--font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -381,7 +381,7 @@
   border-radius: var(--radius-sm);
   color: var(--success);
   background: color-mix(in srgb, var(--success) 10%, transparent);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
 }
 
 .market-compatibility-summary {
@@ -391,7 +391,7 @@
 }
 
 .market-compatibility-summary h2 {
-  font-size: 1rem;
+  font-size: var(--text-lg);
 }
 
 .market-compatibility-summary dl {
@@ -410,13 +410,13 @@
 
 .market-compatibility-summary dt {
   color: var(--fg-faint);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
 }
 
 .market-compatibility-summary dd {
   margin: var(--space-4) 0 0;
   color: var(--fg);
-  font: 0.7rem / 1.4 var(--font-mono);
+  font: var(--text-2xs) / 1.4 var(--font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -440,7 +440,7 @@
   gap: var(--space-xs);
   margin: 0 0 var(--space-16);
   color: var(--fg);
-  font-size: 0.88rem;
+  font-size: var(--text-base);
 }
 
 .market-detail-side-card h2 span {
@@ -450,7 +450,7 @@
 .market-side-kicker {
   margin: 0 0 var(--space-4);
   color: var(--accent-bright);
-  font: 600 0.64rem / 1.2 var(--font-mono);
+  font: 600 var(--text-2xs) / 1.2 var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -459,12 +459,12 @@
   display: block;
   margin-bottom: var(--space-7);
   color: var(--fg-muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .market-select {
   padding: var(--space-9) var(--space-11);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .market-install-card .btn {
@@ -473,13 +473,13 @@
   margin-top: var(--space-sm);
   padding: var(--space-10) var(--space-14);
   border-radius: var(--radius-md);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .market-install-note {
   margin: var(--space-12) 0 0;
   color: var(--fg-faint);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   line-height: 1.55;
 }
 
@@ -503,13 +503,13 @@
 
 .market-facts dt {
   color: var(--fg-faint);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
 }
 
 .market-facts dd {
   margin: 0;
   color: var(--fg-muted);
-  font: 0.68rem / 1.45 var(--font-mono);
+  font: var(--text-2xs) / 1.45 var(--font-mono);
   text-align: right;
   overflow-wrap: anywhere;
 }

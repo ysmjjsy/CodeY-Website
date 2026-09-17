@@ -356,7 +356,7 @@ const managePlanHref = pricingPath(locale)
     background: var(--accent);
     background-position: center;
     background-size: cover;
-    font-size: 1.15rem;
+    font-size: var(--text-xl);
     font-weight: 700;
   }
   .profile-heading {
@@ -367,14 +367,14 @@ const managePlanHref = pricingPath(locale)
   .profile-heading strong {
     overflow: hidden;
     color: var(--fg);
-    font-size: 1.08rem;
+    font-size: var(--text-xl);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .profile-heading span {
     overflow: hidden;
     color: var(--fg-muted);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -384,7 +384,7 @@ const managePlanHref = pricingPath(locale)
     border-radius: var(--radius-pill);
     color: var(--fg-muted);
     background: var(--bg);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     white-space: nowrap;
   }
@@ -404,13 +404,13 @@ const managePlanHref = pricingPath(locale)
   .profile-benefits-head h2 {
     margin: 0;
     color: var(--fg);
-    font-size: 0.92rem;
+    font-size: var(--text-md);
   }
   .profile-benefits-head p {
     max-width: 620px;
     margin: var(--space-6) 0 0;
     color: var(--fg-muted);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     line-height: 1.55;
   }
   .profile-benefits-head .btn {
@@ -426,7 +426,7 @@ const managePlanHref = pricingPath(locale)
     border: 1px dashed var(--border);
     border-radius: var(--radius-lg);
     color: var(--fg-muted);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .profile-benefits-content {
     display: grid;
@@ -453,7 +453,7 @@ const managePlanHref = pricingPath(locale)
     border-radius: var(--radius-lg);
     color: var(--accent-bright);
     background: var(--accent-soft);
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
   .profile-plan-copy {
     display: grid;
@@ -463,18 +463,18 @@ const managePlanHref = pricingPath(locale)
   .profile-plan-copy > span,
   .profile-scheduled-plan span {
     color: var(--fg-muted);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
   }
   .profile-plan-copy strong {
     overflow: hidden;
     color: var(--fg);
-    font-size: 0.94rem;
+    font-size: var(--text-md);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .profile-plan-copy small {
     color: var(--fg-faint);
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
   }
   .profile-scheduled-plan {
     grid-column: 1 / -1;
@@ -487,7 +487,7 @@ const managePlanHref = pricingPath(locale)
   }
   .profile-scheduled-plan strong {
     color: var(--fg);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
   .profile-credit-summary {
     display: grid;
@@ -508,7 +508,7 @@ const managePlanHref = pricingPath(locale)
   }
   .profile-credit-summary dt {
     color: var(--fg-muted);
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
   }
   .profile-credit-summary dd {
     display: flex;
@@ -520,12 +520,12 @@ const managePlanHref = pricingPath(locale)
   .profile-credit-summary strong {
     overflow: hidden;
     color: var(--fg);
-    font: 600 1.05rem var(--font-mono);
+    font: 600 var(--text-lg) var(--font-mono);
     text-overflow: ellipsis;
   }
   .profile-credit-summary dd span {
     color: var(--fg-faint);
-    font-size: 0.64rem;
+    font-size: var(--text-2xs);
   }
   .profile-grid {
     display: grid;
@@ -548,12 +548,12 @@ const managePlanHref = pricingPath(locale)
   .profile-section-head h2 {
     margin: 0;
     color: var(--fg);
-    font-size: 0.92rem;
+    font-size: var(--text-md);
   }
   .profile-section-head p {
     margin: var(--space-6) 0 0;
     color: var(--fg-muted);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     line-height: 1.55;
   }
   .profile-editor form {
@@ -571,7 +571,7 @@ const managePlanHref = pricingPath(locale)
     color: var(--fg);
     background: var(--bg);
     font: inherit;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
   }
   .profile-editor input:focus {
     border-color: var(--accent);
@@ -596,19 +596,19 @@ const managePlanHref = pricingPath(locale)
   }
   .profile-details dt {
     color: var(--fg-muted);
-    font-size: 0.73rem;
+    font-size: var(--text-xs);
   }
   .profile-details dd {
     min-width: 0;
     margin: 0;
     overflow-wrap: anywhere;
     color: var(--fg);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     text-align: right;
   }
   .profile-details code {
     color: var(--fg-muted);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
   }
   .connection-row {
     display: grid;
@@ -627,25 +627,25 @@ const managePlanHref = pricingPath(locale)
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg);
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
   .connection-row > div {
     display: grid;
     gap: var(--space-3);
   }
   .connection-row strong {
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
   .connection-row div span {
     color: var(--fg-muted);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
   }
   .connection-status {
     padding: var(--space-5) var(--space-8);
     border-radius: var(--radius-pill);
     color: var(--fg-faint);
     background: var(--chip-bg);
-    font-size: 0.66rem;
+    font-size: var(--text-2xs);
     white-space: nowrap;
   }
   .connection-status.is-connected {

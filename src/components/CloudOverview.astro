@@ -115,7 +115,7 @@ const copy = cloudCopy(locale)
   .overview-head p {
     margin: var(--space-10) 0 0;
     color: var(--fg-muted);
-    font-size: 0.88rem;
+    font-size: var(--text-base);
   }
   .overview-actions {
     display: flex;
@@ -153,10 +153,10 @@ const copy = cloudCopy(locale)
   .summary-card span,
   .plan-summary span {
     color: var(--fg-muted);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
   .summary-card strong {
-    font: 600 1.5rem var(--font-mono);
+    font: 600 var(--text-3xl) var(--font-mono);
   }
   .summary-card-primary {
     border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
@@ -179,7 +179,7 @@ const copy = cloudCopy(locale)
     align-items: center;
     gap: var(--space-7);
     color: var(--accent-bright);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     white-space: nowrap;
   }
   @media (max-width: 900px) {

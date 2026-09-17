@@ -119,12 +119,12 @@ const { locale } = Astro.props
 
   .node-title {
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: var(--text-md);
   }
 
   .node-sub {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--fg-faint);
   }
 
@@ -154,7 +154,7 @@ const { locale } = Astro.props
     position: relative;
     align-self: center;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: var(--accent-bright);
     background: var(--bg-soft);
     border: 1px solid var(--accent-ring);
@@ -180,12 +180,12 @@ const { locale } = Astro.props
   }
 
   .daemon-main .node-title {
-    font-size: 1.05rem;
+    font-size: var(--text-lg);
   }
 
   .daemon-main .node-sub {
     color: var(--fg-muted);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
 
   .daemon-store {
@@ -193,7 +193,7 @@ const { locale } = Astro.props
     align-items: center;
     gap: var(--space-8);
     font-family: var(--font-mono);
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     color: var(--fg-muted);
     border: 1px dashed var(--border-strong);
     border-radius: var(--radius-md);
@@ -206,7 +206,7 @@ const { locale } = Astro.props
   }
 
   .cap {
-    font-size: 0.84rem;
+    font-size: var(--text-sm);
     color: var(--fg-muted);
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
@@ -226,7 +226,7 @@ const { locale } = Astro.props
 
   .arch-notes li {
     color: var(--fg-muted);
-    font-size: 0.92rem;
+    font-size: var(--text-md);
     padding: var(--space-14) 0 var(--space-14) var(--space-26);
     border-top: 1px solid var(--border);
     position: relative;
@@ -271,7 +271,7 @@ const { locale } = Astro.props
 
     .cap {
       padding: var(--space-8) var(--space-14);
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
     }
 
     .arch-notes {

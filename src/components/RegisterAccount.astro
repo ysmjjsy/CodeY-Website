@@ -227,12 +227,12 @@ const copy = authCopy(locale)
     border-radius: var(--radius-lg);
     color: var(--btn-primary-fg);
     background: var(--accent);
-    font: 700 0.92rem var(--font-mono);
+    font: 700 var(--text-md) var(--font-mono);
   }
   .register-kicker {
     margin: 0 0 var(--space-8);
     color: var(--accent-bright);
-    font: 600 0.68rem var(--font-mono);
+    font: 600 var(--text-2xs) var(--font-mono);
     letter-spacing: 0.13em;
   }
   .register-card h1 {
@@ -242,7 +242,7 @@ const copy = authCopy(locale)
   .register-card header > p:last-child {
     margin: var(--space-10) 0 0;
     color: var(--fg-muted);
-    font-size: 0.88rem;
+    font-size: var(--text-base);
   }
   form {
     display: grid;
@@ -252,7 +252,7 @@ const copy = authCopy(locale)
     display: grid;
     gap: var(--space-8);
     color: var(--fg);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     font-weight: 600;
   }
   input:not([type="checkbox"]) {
@@ -264,7 +264,7 @@ const copy = authCopy(locale)
     outline: 0;
     color: var(--fg);
     background: var(--panel-glass);
-    font: 400 0.88rem var(--font-body);
+    font: 400 var(--text-base) var(--font-body);
   }
   input:not([type="checkbox"]):focus {
     border-color: var(--accent);
@@ -306,7 +306,7 @@ const copy = authCopy(locale)
     align-items: flex-start;
     gap: var(--space-10);
     color: var(--fg-muted);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     line-height: 1.55;
     cursor: pointer;
   }
@@ -324,7 +324,7 @@ const copy = authCopy(locale)
   .register-login {
     margin: var(--space-22) 0 0;
     color: var(--fg-muted);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     text-align: center;
   }
   .register-login button {
@@ -342,7 +342,7 @@ const copy = authCopy(locale)
     border-radius: var(--radius-md);
     color: var(--danger);
     background: color-mix(in srgb, var(--danger) 7%, transparent);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
   }
   @media (max-width: 620px) {
     .register-grid {

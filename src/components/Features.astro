@@ -167,7 +167,7 @@ const { locale } = Astro.props
   }
 
   .card h3 {
-    font-size: 1.08rem;
+    font-size: var(--text-xl);
     font-weight: 600;
     margin-bottom: var(--space-8);
   }
@@ -175,7 +175,7 @@ const { locale } = Astro.props
   .card p {
     margin: 0;
     color: var(--fg-muted);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
     line-height: 1.7;
   }
 
@@ -189,7 +189,7 @@ const { locale } = Astro.props
     flex-direction: column;
     gap: var(--space-6);
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
 
   .log-line {
@@ -229,7 +229,7 @@ const { locale } = Astro.props
   }
 
   .mode-chip {
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     padding: var(--space-5) var(--space-14);
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-strong);

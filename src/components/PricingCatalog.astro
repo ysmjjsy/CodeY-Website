@@ -522,7 +522,7 @@ const copy = commercialCopy(locale)
   }
   .pricing-page .commercial-hero p {
     margin: var(--space-8) 0 0;
-    font-size: 0.9rem;
+    font-size: var(--text-base);
   }
   .plan-grid {
     display: grid;
@@ -558,7 +558,7 @@ const copy = commercialCopy(locale)
     border-radius: var(--radius-pill);
     color: var(--btn-primary-fg);
     background: var(--accent);
-    font: 600 0.67rem / 1 var(--font-body);
+    font: 600 var(--text-2xs) / 1 var(--font-body);
   }
   .plan-badge.current {
     color: var(--success);
@@ -569,12 +569,12 @@ const copy = commercialCopy(locale)
     padding-right: var(--space-50);
   }
   .plan-name {
-    font: 600 1.15rem / 1.3 var(--font-display);
+    font: 600 var(--text-xl) / 1.3 var(--font-display);
   }
   .plan-card header p {
     margin: var(--space-8) 0 0;
     color: var(--fg-muted);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     line-height: 1.6;
   }
   .plan-price {
@@ -582,13 +582,13 @@ const copy = commercialCopy(locale)
     margin-top: var(--space-16);
   }
   .plan-price strong {
-    font: 600 1.75rem / 1 var(--font-display);
+    font: 600 var(--text-4xl) / 1 var(--font-display);
     letter-spacing: -0.04em;
   }
   .plan-price small {
     margin-left: var(--space-8);
     color: var(--fg-faint);
-    font: 400 0.72rem var(--font-body);
+    font: 400 var(--text-xs) var(--font-body);
   }
   .plan-credit {
     display: flex;
@@ -598,11 +598,11 @@ const copy = commercialCopy(locale)
     border-block: 1px solid var(--border);
   }
   .plan-credit b {
-    font: 600 1.14rem var(--font-mono);
+    font: 600 var(--text-xl) var(--font-mono);
   }
   .plan-credit span {
     color: var(--fg-faint);
-    font-size: 0.73rem;
+    font-size: var(--text-xs);
   }
   .plan-features {
     flex: 1;
@@ -610,13 +610,13 @@ const copy = commercialCopy(locale)
   }
   .plan-features > span {
     color: var(--fg-faint);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
   .plan-features .model-summary {
     min-height: 2.5em;
     margin: var(--space-5) 0 0;
     color: var(--fg-muted);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     line-height: 1.45;
   }
   .plan-features ul {
@@ -630,7 +630,7 @@ const copy = commercialCopy(locale)
     display: flex;
     align-items: center;
     gap: var(--space-8);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
   }
   .plan-features i {
     color: var(--accent-bright);
@@ -651,7 +651,7 @@ const copy = commercialCopy(locale)
     gap: var(--space-6);
     margin-top: var(--space-12);
     color: var(--fg-faint);
-    font-size: 0.66rem;
+    font-size: var(--text-2xs);
     text-align: center;
   }
   .section-link {
@@ -687,21 +687,21 @@ const copy = commercialCopy(locale)
     padding: var(--space-12) var(--space-17);
     border-bottom: 1px solid var(--border);
     color: var(--fg-muted);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
   }
   .coverage-row > span strong {
     color: var(--fg);
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
   }
   .coverage-row > span small {
     color: var(--fg-faint);
-    font: 0.68rem var(--font-mono);
+    font: var(--text-2xs) var(--font-mono);
   }
   .coverage-head > span {
     min-height: 46px;
     color: var(--fg-faint);
     background: var(--chip-bg);
-    font-size: 0.67rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     text-transform: uppercase;
   }
@@ -726,26 +726,26 @@ const copy = commercialCopy(locale)
     padding: var(--space-22);
   }
   .credit-pack h3 {
-    font-size: 1rem;
+    font-size: var(--text-lg);
   }
   .credit-pack p {
     margin: var(--space-7) 0 0;
     color: var(--fg-muted);
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
   }
   .credit-pack > strong {
-    font: 600 1.15rem var(--font-mono);
+    font: 600 var(--text-xl) var(--font-mono);
   }
   .credit-pack > strong small {
     display: block;
     margin-top: var(--space-3);
     color: var(--fg-faint);
-    font: 400 0.65rem var(--font-body);
+    font: 400 var(--text-2xs) var(--font-body);
   }
   .credit-pack > span {
     align-self: center;
     color: var(--fg-muted);
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
   }
   .credit-pack .btn {
     grid-column: 1 / -1;
@@ -769,10 +769,10 @@ const copy = commercialCopy(locale)
   }
   .purchase-summary span {
     color: var(--fg-faint);
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
   }
   .purchase-summary strong {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     text-align: right;
   }
   .payment-options {
@@ -785,7 +785,7 @@ const copy = commercialCopy(locale)
   .payment-options legend {
     margin-bottom: var(--space-8);
     color: var(--fg-faint);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
   .payment-options label {
     display: grid;
@@ -803,7 +803,7 @@ const copy = commercialCopy(locale)
   }
   .payment-options span,
   .payment-options strong {
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
   .checkout-dialog img {
     display: block;
@@ -828,7 +828,7 @@ const copy = commercialCopy(locale)
     margin-top: var(--space-14);
     overflow: auto;
     color: var(--fg-faint);
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     overflow-wrap: anywhere;
   }
   .commerce-dialog-actions.single {
