@@ -38,6 +38,22 @@ pnpm build:web    # astro build
 - 单元测试与被测源码同目录，命名为 `*.test.ts`，使用 Vitest。
 - CI 在 `pull_request` 与 `main` 分支 push 时运行上述全部检查。
 
+### 可访问性（a11y）
+
+Biome 的 `a11y` 规则组与 `correctness.useExhaustiveDependencies` 已显式开启
+（见 `biome.json`），与主仓库 `apps/desktop/biome.json` 对齐；`pnpm lint` 必须零告警。
+
+**关于 axe / Playwright（原计划 3B-3）：不引入。** 理由如下：
+
+| 项 | 实测 |
+|---|---|
+| 本仓库是否已有 Playwright | **没有**。`package.json` 的 devDependencies 无 `@playwright/test`；`scripts/style-snapshot.mjs` 是借用主仓库 `CodeY/apps/desktop/node_modules/@playwright/test` 的开发期工具，不是本仓库依赖 |
+| 引入成本 | 需新增 `@playwright/test` + 浏览器下载，并维护一套 e2e 配置，违反原计划 §7.5「不引入新依赖」（第二部分计划 §6.5 明确无例外条款） |
+| 收益 | 本仓库页面是静态 Astro + 少量渐进增强脚本，Biome 的静态 a11y 规则已覆盖模板层的角色/名称/键盘问题；axe 主要补充运行时 DOM 检查 |
+| 结论 | 静态规则先行；若将来确需运行时 a11y 回归，再单独评估并作为独立计划提出 |
+
+桌面端的 axe 覆盖仍在 `CodeY/apps/desktop/e2e/task-workspace-accessibility.spec.ts`，不受此结论影响。
+
 ## 模板市场运行方式
 
 模板市场页面位于 `/market/` 和 `/en/market/`。浏览器始终请求同源地址：
