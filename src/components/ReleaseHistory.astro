@@ -121,7 +121,10 @@ const { locale } = Astro.props
     font: inherit;
     text-align: left;
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, color 0.2s;
+    transition:
+      border-color 0.2s,
+      background 0.2s,
+      color 0.2s;
   }
 
   .release-list :global(.release-tab:hover) {
@@ -129,7 +132,7 @@ const { locale } = Astro.props
     background: var(--ghost-bg-hover);
   }
 
-  .release-list :global(.release-tab[aria-selected='true']) {
+  .release-list :global(.release-tab[aria-selected="true"]) {
     border-color: var(--accent-ring);
     color: var(--fg);
     background: var(--accent-soft);
@@ -333,7 +336,9 @@ const { locale } = Astro.props
     background: var(--ghost-bg);
     font-family: var(--font-mono);
     font-size: 0.65rem;
-    transition: color 0.2s, background 0.2s;
+    transition:
+      color 0.2s,
+      background 0.2s;
   }
 
   .release-detail :global(.release-asset:hover) {

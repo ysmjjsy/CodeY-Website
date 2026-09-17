@@ -6,10 +6,36 @@
 提交前必须通过：
 
 ```sh
-pnpm check   # typecheck + astro check + lint + test + build
+pnpm check   # typecheck + astro check + lint + check:styles + test + build
 ```
 
 CI 在 `pull_request` 和 `main` push 时运行同一组检查。
+
+## CSS 与 `<style>` 块都受检
+
+样式分两处存放，**两处都有门禁**：
+
+| 位置 | 由谁检查 |
+|---|---|
+| `src/styles/*.css` | `pnpm lint`（Biome 直接解析） |
+| 组件内的 `<style>` 块 | `pnpm check:styles` |
+
+Biome **不解析 `.astro` 的 `<style>` 块**——把它写进 `files.includes` 也不会生效。
+因此 `scripts/check-astro-styles.mjs` 把每个块提取成临时 `.css`、把 Astro 专有的
+`:global(...)` 还原成普通选择器、调用同一份 `biome.json` 规则集，再把行号映射回
+`.astro` 源文件。脚本自身的负向测试在 `scripts/check-astro-styles.test.mjs`
+（注入违规必须报错、行号必须准确、`:global()` 不得误报），由 `check:styles` 一并运行。
+
+### 关于 `noDescendingSpecificity`
+
+该规则在 `biome.json` 中**显式关闭**。它只在「后写的低特异性选择器可能被先写的高特异性
+选择器覆盖」时才有意义，而这要求两者能命中同一元素。本仓库全部 42 处（37 处在
+`<style>` 块、5 处在 `src/styles/*.css`）都**经过构建产物实测**：在全部 55 个页面上，
+没有任何一对能命中同一元素，即精确率为 0%。为此加 42 条 `biome-ignore` 只会制造噪声。
+若将来引入真实冲突，重新开启该规则即可。
+
+> 注意：`biome.json` 里**不能写多行 `//` 注释**——它会让配置解析失败并静默退回默认规则集，
+> 表现为规则关闭不生效。该规则的关闭理由因此记录在本文件，而不是配置内联。
 
 ## 应该 / 不应该
 

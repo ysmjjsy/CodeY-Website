@@ -146,7 +146,7 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
   }
 
   .sdk-points li::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 4px;
     top: 22px;
@@ -214,7 +214,10 @@ const point1Parts = t(locale, 'sdk.point1').split(/(`[^`]+`)/g)
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
-    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    transition:
+      color 0.15s,
+      background 0.15s,
+      border-color 0.15s;
   }
 
   .code-tab:hover {

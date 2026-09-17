@@ -23,7 +23,8 @@ pnpm start     # 同源提供官网、Market API 和 discovery
 pnpm check        # 一次跑完下面全部步骤（提交前必须通过）
 pnpm typecheck    # tsc --noEmit
 pnpm check:astro  # astro check（模板与 frontmatter 类型）
-pnpm lint         # biome check .
+pnpm lint         # biome check .（含 src/styles/*.css）
+pnpm check:styles # 组件 <style> 块的 CSS 门禁 + 其负向测试
 pnpm lint:fix     # biome check --write .
 pnpm test         # vitest run
 pnpm build:web    # astro build
@@ -33,6 +34,9 @@ pnpm build:web    # astro build
 
 - **Biome 是唯一的 linter 和 formatter。** 不要引入 ESLint、Prettier 或 Stylelint。
 - 格式化设置与主仓库对齐：2 空格缩进、行宽 100、单引号、无分号、尾随逗号。
+- **样式分两处、两处都受检**：`src/styles/*.css` 由 `pnpm lint` 覆盖；组件 `<style>` 块
+  Biome 不解析，由 `pnpm check:styles` 提取后检查（详见
+  [CONTRIBUTING.md](./CONTRIBUTING.md#css-与-style-块都受检)）。
 - `src/**/*.astro` 关闭了 `noUnusedImports` / `noUnusedVariables`：Biome 不解析 Astro 模板，
   否则会把模板中真实使用的 import 和 frontmatter 变量误判为未使用。
 - 单元测试与被测源码同目录，命名为 `*.test.ts`，使用 Vitest。

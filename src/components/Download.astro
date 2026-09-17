@@ -230,19 +230,19 @@ const docsHref = docsPath(locale, 'getting-started')
     animation: release-pulse 1.8s ease-in-out infinite;
   }
 
-  .release-status[data-release-state='ready'] .release-dot {
+  .release-status[data-release-state="ready"] .release-dot {
     background: var(--success);
     box-shadow: 0 0 8px var(--success);
     animation: none;
   }
 
-  .release-status[data-release-state='empty'] .release-dot {
+  .release-status[data-release-state="empty"] .release-dot {
     background: var(--fg-faint);
     box-shadow: none;
     animation: none;
   }
 
-  .release-status[data-release-state='error'] .release-dot {
+  .release-status[data-release-state="error"] .release-dot {
     background: var(--danger);
     box-shadow: none;
     animation: none;
@@ -289,9 +289,7 @@ const docsHref = docsPath(locale, 'getting-started')
     padding: clamp(22px, 3vw, 30px);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    background:
-      linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)),
-      var(--surface);
+    background: linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)), var(--surface);
     box-shadow: inset 0 1px 0 var(--panel-inset);
     transition:
       transform 0.25s var(--ease-out),
@@ -309,8 +307,7 @@ const docsHref = docsPath(locale, 'getting-started')
     border-color: var(--accent-ring);
     background:
       radial-gradient(ellipse 90% 70% at 100% 0%, var(--accent-glow), transparent 55%),
-      linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)),
-      var(--surface);
+      linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)), var(--surface);
     box-shadow:
       inset 0 1px 0 var(--panel-inset),
       0 0 0 1px var(--accent-ring),
@@ -382,9 +379,9 @@ const docsHref = docsPath(locale, 'getting-started')
     animation: skeleton-shine 1.4s ease-in-out infinite;
   }
 
-  .download-section[data-release-state='ready'] .asset-skeleton,
-  .download-section[data-release-state='empty'] .asset-skeleton,
-  .download-section[data-release-state='error'] .asset-skeleton {
+  .download-section[data-release-state="ready"] .asset-skeleton,
+  .download-section[data-release-state="empty"] .asset-skeleton,
+  .download-section[data-release-state="error"] .asset-skeleton {
     display: none;
   }
 

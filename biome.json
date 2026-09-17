@@ -45,6 +45,9 @@
             "reportUnnecessaryDependencies": false
           }
         }
+      },
+      "style": {
+        "noDescendingSpecificity": "off"
       }
     }
   },

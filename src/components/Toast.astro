@@ -113,7 +113,7 @@ const copy =
   }
 
   .codey-toast::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 12px auto 12px 0;
     width: 3px;
@@ -122,19 +122,19 @@ const copy =
     box-shadow: 0 0 18px color-mix(in srgb, var(--toast-tone) 42%, transparent);
   }
 
-  .codey-toast[data-variant='success'] {
+  .codey-toast[data-variant="success"] {
     --toast-tone: var(--success);
   }
 
-  .codey-toast[data-variant='error'] {
+  .codey-toast[data-variant="error"] {
     --toast-tone: var(--danger);
   }
 
-  .codey-toast[data-variant='warning'] {
+  .codey-toast[data-variant="warning"] {
     --toast-tone: var(--amber);
   }
 
-  .codey-toast[data-variant='info'] {
+  .codey-toast[data-variant="info"] {
     --toast-tone: var(--accent);
   }
 
@@ -194,7 +194,9 @@ const copy =
     border: 0;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: color 0.15s, background-color 0.15s;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
   }
 
   .codey-toast-close:hover {

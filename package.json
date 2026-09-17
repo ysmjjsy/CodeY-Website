@@ -21,7 +21,9 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "vitest run",
-    "check": "pnpm typecheck && pnpm check:astro && pnpm lint && pnpm test && pnpm build:web"
+    "check": "pnpm typecheck && pnpm check:astro && pnpm lint && pnpm check:styles && pnpm test && pnpm build:web",
+    "check:styles": "node scripts/check-astro-styles.mjs && node scripts/check-astro-styles.test.mjs",
+    "test:styles": "node scripts/check-astro-styles.test.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",
