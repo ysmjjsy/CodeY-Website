@@ -11,17 +11,49 @@
 CodeY/apps/desktop/src/shared/styles/global.css
 ```
 
-官网 `CodeY-Website/src/styles/landing.css` 与 `src/styles/starlight.css` 必须与之对齐，
+官网的 Token 层是 `CodeY-Website/src/styles/tokens.css`，必须与之对齐，
 不得各自定义不同的品牌主色。
+
+> **文档修订（2026-09-17）**：本节此前写的是「官网 `landing.css` 与 `starlight.css` 必须与之对齐」。
+> Token 已在 2B-1 阶段从 `landing.css` 迁到独立的 `tokens.css`；`landing.css` 现在只有布局与排版
+> （146 行，0 个 Token 定义），`starlight.css` 通过 `@import './tokens.css'` 引入。目标文件已更正。
+
+## 命名契约与别名
+
+两侧语义相同的 Token **不要求拼写相同**，契约要求的是「同名可寻址」：
+需要改品牌色时，在两个仓库都能用同一个名字找到它。
+
+官网历史拼写是 `--accent*`，全站有数百处引用。为避免无收益的巨大 diff，
+官网在 `tokens.css` 中补上契约名，**定义为现有 Token 的别名**——名字统一了，
+字面量仍只有一处，改品牌色依然只改 `--accent`：
+
+| 契约名 | 官网别名指向 | 桌面端 |
+|---|---|---|
+| `--primary` | `var(--accent)` | 字面量 `#4f46e5` / `#818cf8` |
+| `--primary-foreground` | `var(--btn-primary-fg)` | 字面量 |
+| `--ring` | `var(--accent)` | `var(--primary)` |
+| `--accent-decorative` | `var(--decorative-glow)` | **未定义**（见下） |
+
+> **`--accent-decorative` 在桌面端不存在，这是有意的。** 第二轮审计把「计划要求两仓库统一
+> 该名字、但两仓库都没实现」记为缺口。复核后确认：桌面端**没有任何装饰色消费者**
+> （`global.css` 中 0 处 `radial-gradient`/`linear-gradient`，也无 glow 类 Token），
+> 而它的 `--info: #06b6d4` 是**信息语义色**（用于状态图表），不是装饰色。
+> 因此正确的做法不是「在桌面端凭空加一个没人用的装饰 Token」，而是：
+> 契约名只在**有该语义的一侧**（官网）存在，并在本文件说明原因。
 
 ## 品牌色（brand）
 
 | 语义 | 桌面端 Token | 官网 Token | 浅色 | 深色 |
 |---|---|---|---|---|
-| 品牌主色 | `--primary` | `--accent` | `#4f46e5` | `#818cf8` |
-| 品牌前景 | `--primary-foreground` | `--btn-primary-fg` | `#ffffff` | `#09090b` |
-| 焦点环 | `--ring` | `--accent-ring` | `#4f46e5` | `#818cf8` |
-| 品牌浅底 | `--accent-soft` | `--accent-soft` | `#eef2ff` | `#22243a` |
+| 品牌主色 | `--primary` | `--accent`（别名 `--primary`） | `#4f46e5` | `#818cf8` |
+| 品牌前景 | `--primary-foreground` | `--btn-primary-fg`（别名同上） | `#ffffff` | `#09090b` |
+| 焦点环 | `--ring` | `--ring`（别名 → `--accent`） | `#4f46e5` | `#818cf8` |
+| 品牌浅底 | `--accent-soft` | `--accent-soft` | 见下 | 见下 |
+
+> **`--accent-soft` 两侧同名但形式不同，替换时不可假设等价。**
+> 桌面端是**实色**（浅 `#eef2ff` / 深 `#22243a`）；官网是**半透明叠色**
+> （浅 `rgba(79, 70, 229, 0.1)` / 深 `rgba(129, 140, 248, 0.14)`）。
+> 本文件此前把桌面端的值填进了官网那一列，已更正。
 
 官网另有两个派生的品牌阶：
 
@@ -39,7 +71,7 @@ CodeY/apps/desktop/src/shared/styles/global.css
 
 | 语义 | 官网 Token | 浅色 | 深色 |
 |---|---|---|---|
-| 装饰辉光 | `--decorative-glow` | `rgba(8, 145, 178, 0.12)` | `rgba(6, 182, 212, 0.16)` |
+| 装饰辉光 | `--decorative-glow`（契约名 `--accent-decorative`） | `rgba(8, 145, 178, 0.12)` | `rgba(6, 182, 212, 0.16)` |
 
 当前唯一的装饰色消费者是首页与下载页的**氛围辉光**（`.hero-glow-cyan`、
 `.download-glow-cyan`）以及 `commercial.css` 的页面径向辉光。
@@ -104,10 +136,40 @@ CodeY/apps/desktop/src/shared/styles/global.css
 | 正文 | `--font-body` | `'PingFang SC', …` |
 | 等宽 | `--font-mono` | `'JetBrains Mono Variable', …` |
 
+## 字号尺度（text）
+
+两侧**都有**字号尺度，但**数值不同**，因为场景不同：
+
+| | 桌面端 | 官网 |
+|---|---|---|
+| 场景 | 高密度 UI 面板 | 阅读型页面（营销页 + 文档） |
+| 档位 | 6 个：`--text-nano…--text-reading`（9–15px） | 11 个：`--text-2xs…--text-5xl`（11–32px） |
+| 消费方式 | Tailwind 工具类，组件层 0 处裸 `font-size` | `var(--text-*)`，全站 0 处裸 `rem` 字号 |
+
+契约要求的是「两侧都有尺度、都被消费」，而非数值一致。官网的 11 档：
+
+| Token | rem | px |
+|---|---|---|
+| `--text-2xs` | 0.6875 | 11 |
+| `--text-xs` | 0.75 | 12 |
+| `--text-sm` | 0.8125 | 13 |
+| `--text-base` | 0.875 | 14 |
+| `--text-md` | 0.9375 | 15 |
+| `--text-lg` | 1 | 16 |
+| `--text-xl` | 1.125 | 18 |
+| `--text-2xl` | 1.25 | 20 |
+| `--text-3xl` | 1.5 | 24 |
+| `--text-4xl` | 1.75 | 28 |
+| `--text-5xl` | 2 | 32 |
+
+显示级标题（hero / section title）用 `clamp()` 做流体排版，不套用档位；
+clamp 的端点若命中档位则引用对应 Token。官网全站裸 `rem` 字号已清零，
+由 `scripts/check-font-sizes.mjs` 守卫。
+
 ## 变更流程
 
 1. 先改 `CodeY/apps/desktop/src/shared/styles/global.css`（权威侧）。
-2. 同步 `CodeY-Website/src/styles/landing.css` 与 `starlight.css`。
+2. 同步 `CodeY-Website/src/styles/tokens.css`（**唯一**需要改的官网 Token 文件）。
 3. 更新本文件。
 4. 视觉类改动必须产出前后对比证据，见
    `CodeY-Website/artifacts/design-qa/` 下的 `design-qa.md`。
@@ -115,10 +177,19 @@ CodeY/apps/desktop/src/shared/styles/global.css
 
 ## 验证
 
+品牌色的**值**由脚本跨仓库校验，不依赖人工核对：
+
 ```sh
+# 官网：契约名齐备且指向正确、品牌十六进制与桌面端一致、字号无裸 rem
+cd CodeY-Website && pnpm check:brand
+
 # 桌面端：无裸调色板类、无任意值
 node CodeY/scripts/check-design-tokens.mjs
-
-# 官网：Token 已对齐（应命中 indigo，不应命中作为品牌色的 cyan）
-grep -n "818cf8\|4f46e5" CodeY-Website/src/styles/landing.css
 ```
+
+`pnpm check:brand` 会断言：
+
+- 四个契约名（`--primary` / `--primary-foreground` / `--ring` / `--accent-decorative`）
+  在官网均已定义；
+- 品牌主色的浅色 `#4f46e5`、深色 `#818cf8` 与桌面端 `global.css` 中的值逐字相等；
+- `cyan` 未作为品牌色出现在 `landing.css` / `tokens.css` 的品牌 Token 上。

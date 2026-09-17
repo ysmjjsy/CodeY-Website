@@ -25,6 +25,20 @@
   --accent-bright: #a5b4fc;
   --accent-soft: rgba(129, 140, 248, 0.14);
   --accent-ring: rgba(129, 140, 248, 0.4);
+  /* 契约别名（BRAND-TOKENS.md）
+   *
+   * 桌面端把品牌主色叫 `--primary`，本仓库历史上叫 `--accent`，两侧同名 Token 只有 11 个。
+   * 契约要求的是「同名可寻址」，不是「唯一拼写」——全站已有数百处 `var(--accent*)` 引用，
+   * 改名会产生巨大 diff 而无功能收益。因此这里补上契约名，定义为现有 Token 的别名：
+   * 名字统一了、字面量仍只有一处，改品牌色依然只改 `--accent`。 */
+  --primary: var(--accent);
+  --primary-foreground: var(--btn-primary-fg);
+  /* 焦点环：桌面端 `--ring` 是主色实色，本仓库另有 `--accent-ring`（半透明描边）。
+   * 契约名指向主色实色，与桌面端语义一致；`--accent-ring` 保留为官网特有的柔和描边。 */
+  --ring: var(--accent);
+  /* 装饰色：契约名为 `--accent-decorative`。本仓库用 `--decorative-glow` 承载同一语义
+   * （青色只用于氛围辉光，不承担品牌识别）。 */
+  --accent-decorative: var(--decorative-glow);
   /* 装饰：青色仅用于氛围辉光 */
   --decorative-glow: rgba(6, 182, 212, 0.16);
   --accent-glow: rgba(129, 140, 248, 0.14);
@@ -182,6 +196,15 @@
   --accent-bright: #4338ca;
   --accent-soft: rgba(79, 70, 229, 0.1);
   --accent-ring: rgba(79, 70, 229, 0.28);
+  /* 契约别名：必须在本主题重新声明。
+   * `var()` 在自定义属性里是「按使用处解析」，但被引用的 `--accent` / `--btn-primary-fg` /
+   * `--decorative-glow` 都在本块被覆盖，若别名只在深色块定义，浅色下它们仍会解析到
+   * 本块的浅色值——语义上正确。重新声明是为了让 `check:brand` 的两个主题都能独立断言，
+   * 也让「主题块自包含」这一点在读代码时可见。 */
+  --primary: var(--accent);
+  --primary-foreground: var(--btn-primary-fg);
+  --ring: var(--accent);
+  --accent-decorative: var(--decorative-glow);
   /* 装饰：浅色下使用更深的青色以保证对比度 */
   --decorative-glow: rgba(8, 145, 178, 0.12);
   --accent-glow: rgba(79, 70, 229, 0.12);
