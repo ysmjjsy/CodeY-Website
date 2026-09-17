@@ -666,7 +666,7 @@ const isReview = initialSection === 'review'
   .dashboard-template-table th:first-child { width: 48%; }
   .dashboard-review-table th:first-child, .dashboard-pending-table th:first-child { width: 34%; }
   .dashboard-template-cell { display: flex; min-width: 250px; align-items: center; gap: 12px; }
-  .dashboard-template-mark { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--accent-bright); background: var(--accent-soft); font-size: 1rem; }
+  .dashboard-template-mark { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--accent-bright); background: var(--accent-soft); font-size: 1rem; }
   .dashboard-template-cell > div { display: grid; min-width: 0; gap: 3px; }
   .dashboard-template-cell strong, .dashboard-table td > strong { color: var(--fg); font-size: .82rem; font-weight: 600; }
   .dashboard-template-cell span, .dashboard-table td > span:not(.dashboard-status) { display: block; color: var(--fg-faint); font-size: .72rem; }
@@ -675,7 +675,7 @@ const isReview = initialSection === 'review'
   .dashboard-template-table td:nth-child(2) { white-space: nowrap; }
   .dashboard-template-table td:nth-child(2) strong { display: block; margin-bottom: 4px; }
   .dashboard-template-table td:nth-child(2) span { color: var(--fg-faint); font-size: .68rem; }
-  .dashboard-status { display: inline-flex; align-items: center; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; font: .67rem var(--font-mono); white-space: nowrap; }
+  .dashboard-status { display: inline-flex; align-items: center; padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius-pill); font: .67rem var(--font-mono); white-space: nowrap; }
   .dashboard-status.is-pending { border-color: color-mix(in srgb, var(--accent) 25%, var(--border)); color: var(--accent-bright); background: var(--accent-soft); }
   .dashboard-status.is-approved { color: var(--success); background: color-mix(in srgb, var(--success) 9%, transparent); }
   .dashboard-status.is-rejected { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
@@ -684,19 +684,19 @@ const isReview = initialSection === 'review'
   .dashboard-row-action i { font-size: .85rem; }
   .dashboard-mono { max-width: 250px; font-family: var(--font-mono); font-size: .68rem; overflow-wrap: anywhere; }
   .dashboard-review-note-cell { max-width: 280px; line-height: 1.55; }
-  .dashboard-review-tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 11px; background: var(--chip-bg); }
-  .dashboard-review-tabs button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 7px 10px; border: 0; border-radius: 8px; color: var(--fg-faint); background: transparent; font: 500 .76rem var(--font-body); cursor: pointer; }
+  .dashboard-review-tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--chip-bg); }
+  .dashboard-review-tabs button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; padding: 7px 10px; border: 0; border-radius: var(--radius-md); color: var(--fg-faint); background: transparent; font: 500 .76rem var(--font-body); cursor: pointer; }
   .dashboard-review-tabs button:hover, .dashboard-review-tabs button.is-active { color: var(--fg); background: var(--panel-glass); box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
-  .dashboard-review-tabs strong { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 5px; border-radius: 999px; color: var(--btn-primary-fg); background: var(--accent); font: 600 .65rem var(--font-mono); }
+  .dashboard-review-tabs strong { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 5px; border-radius: var(--radius-pill); color: var(--btn-primary-fg); background: var(--accent); font: 600 .65rem var(--font-mono); }
   .dashboard-review-button { min-height: 34px; gap: 6px; padding: 7px 10px; font-size: .72rem; white-space: nowrap; }
-  .dashboard-review-dialog { width: min(720px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 14px; color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / .28); }
+  .dashboard-review-dialog { width: min(720px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; padding: 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / .28); }
   .dashboard-review-dialog::backdrop { background: rgb(9 12 22 / .68); backdrop-filter: blur(5px); }
   .dashboard-review-dialog-content { max-height: inherit; padding: 26px; overflow-y: auto; }
   .dashboard-review-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; }
   .dashboard-review-dialog h2 { margin: 5px 0 0; font-size: 1.35rem; }
   .dashboard-review-dialog header p:last-child { margin: 7px 0 0; color: var(--fg-muted); font-size: .82rem; line-height: 1.55; }
   .dashboard-dialog-close { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: 50%; color: var(--fg-muted); background: var(--panel-glass); cursor: pointer; }
-  .dashboard-review-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 22px 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chip-bg); }
+  .dashboard-review-detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 22px 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--chip-bg); }
   .dashboard-review-detail div { min-width: 0; padding: 13px 15px; border-top: 1px solid var(--border); }
   .dashboard-review-detail div:nth-child(-n + 2) { border-top: 0; }
   .dashboard-review-detail div:nth-child(even) { border-left: 1px solid var(--border); }

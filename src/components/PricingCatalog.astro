@@ -510,10 +510,10 @@ const copy = commercialCopy(locale)
   .pricing-page .commercial-hero h1 { font-size: clamp(2rem, 4vw, 2.65rem); line-height: 1.12; letter-spacing: -.045em; }
   .pricing-page .commercial-hero p { margin: 8px 0 0; font-size: .9rem; }
   .plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
-  .plan-card { position: relative; display: flex; min-height: 430px; flex-direction: column; padding: 25px 27px 21px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 18px 50px rgb(0 0 0 / .12); }
+  .plan-card { position: relative; display: flex; min-height: 430px; flex-direction: column; padding: 25px 27px 21px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface) 90%, transparent); box-shadow: 0 18px 50px rgb(0 0 0 / .12); }
   .plan-card.is-recommended { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft), 0 24px 72px var(--accent-glow); }
   .plan-card.is-current:not(.is-recommended) { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); }
-  .plan-badge { position: absolute; top: 19px; right: 19px; padding: 5px 9px; border-radius: 99px; color: var(--btn-primary-fg); background: var(--accent); font: 600 .67rem/1 var(--font-body); }
+  .plan-badge { position: absolute; top: 19px; right: 19px; padding: 5px 9px; border-radius: var(--radius-pill); color: var(--btn-primary-fg); background: var(--accent); font: 600 .67rem/1 var(--font-body); }
   .plan-badge.current { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
   .plan-card header { min-height: 72px; padding-right: 50px; }
   .plan-name { font: 600 1.15rem/1.3 var(--font-display); }
@@ -552,16 +552,16 @@ const copy = commercialCopy(locale)
   .credit-pack > strong small { display: block; margin-top: 3px; color: var(--fg-faint); font: 400 .65rem var(--font-body); }
   .credit-pack > span { align-self: center; color: var(--fg-muted); font-size: .8rem; }
   .credit-pack .btn { grid-column: 1 / -1; justify-content: center; min-height: 39px; padding: 8px 12px; }
-  .purchase-summary { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 11px; background: var(--chip-bg); }
+  .purchase-summary { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--chip-bg); }
   .purchase-summary > div { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
   .purchase-summary span { color: var(--fg-faint); font-size: .74rem; }
   .purchase-summary strong { font-size: .82rem; text-align: right; }
   .payment-options { display: grid; gap: 7px; margin: 19px 0 0; padding: 0; border: 0; }
   .payment-options legend { margin-bottom: 8px; color: var(--fg-faint); font-size: .72rem; }
-  .payment-options label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+  .payment-options label { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
   .payment-options label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   .payment-options span, .payment-options strong { font-size: .78rem; }
-  .checkout-dialog img { display: block; width: min(280px, 100%); aspect-ratio: 1; margin: 20px auto; border-radius: 10px; background: #fff; }
+  .checkout-dialog img { display: block; width: min(280px, 100%); aspect-ratio: 1; margin: 20px auto; border-radius: var(--radius-md); background: #fff; }
   .checkout-dialog img[hidden] { display: none; }
   .checkout-action { display: flex; justify-content: center; width: 100%; margin-top: 9px; }
   .checkout-dialog code { display: block; max-height: 84px; margin-top: 14px; overflow: auto; color: var(--fg-faint); font-size: .65rem; overflow-wrap: anywhere; }

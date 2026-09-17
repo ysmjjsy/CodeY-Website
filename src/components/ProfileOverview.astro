@@ -325,20 +325,20 @@ const managePlanHref = pricingPath(locale)
   .profile-state { display: grid; min-height: 156px; place-items: center; margin-top: 28px; padding: 24px; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); color: var(--fg-muted); background: var(--panel-glass); }
   .profile-content { margin-top: 28px; }
   .profile-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 22px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--accent) 5%, var(--panel-glass)); }
-  .profile-avatar { display: grid; width: 58px; height: 58px; place-items: center; border-radius: 18px; color: var(--btn-primary-fg); background: var(--accent); background-position: center; background-size: cover; font-size: 1.15rem; font-weight: 700; }
+  .profile-avatar { display: grid; width: 58px; height: 58px; place-items: center; border-radius: var(--radius-xl); color: var(--btn-primary-fg); background: var(--accent); background-position: center; background-size: cover; font-size: 1.15rem; font-weight: 700; }
   .profile-heading { display: grid; min-width: 0; gap: 5px; }
   .profile-heading strong { overflow: hidden; color: var(--fg); font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
   .profile-heading span { overflow: hidden; color: var(--fg-muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-  .profile-role { padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-muted); background: var(--bg); font-size: .7rem; font-weight: 600; white-space: nowrap; }
+  .profile-role { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-pill); color: var(--fg-muted); background: var(--bg); font-size: .7rem; font-weight: 600; white-space: nowrap; }
   .profile-benefits { margin-top: 14px; padding: 22px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel-glass); }
   .profile-benefits-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
   .profile-benefits-head h2 { margin: 0; color: var(--fg); font-size: .92rem; }
   .profile-benefits-head p { max-width: 620px; margin: 6px 0 0; color: var(--fg-muted); font-size: .75rem; line-height: 1.55; }
   .profile-benefits-head .btn { flex: none; gap: 7px; white-space: nowrap; }
-  .profile-benefits-state { display: grid; min-height: 104px; place-items: center; margin: 18px 0 0; border: 1px dashed var(--border); border-radius: 12px; color: var(--fg-muted); font-size: .75rem; }
+  .profile-benefits-state { display: grid; min-height: 104px; place-items: center; margin: 18px 0 0; border: 1px dashed var(--border); border-radius: var(--radius-lg); color: var(--fg-muted); font-size: .75rem; }
   .profile-benefits-content { display: grid; grid-template-columns: minmax(240px, .72fr) minmax(0, 1.28fr); gap: 14px; margin-top: 18px; }
-  .profile-plan-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--accent) 5%, var(--bg)); }
-  .profile-plan-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; color: var(--accent-bright); background: var(--accent-soft); font-size: 1rem; }
+  .profile-plan-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--accent) 5%, var(--bg)); }
+  .profile-plan-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: var(--radius-lg); color: var(--accent-bright); background: var(--accent-soft); font-size: 1rem; }
   .profile-plan-copy { display: grid; min-width: 0; gap: 3px; }
   .profile-plan-copy > span, .profile-scheduled-plan span { color: var(--fg-muted); font-size: .68rem; }
   .profile-plan-copy strong { overflow: hidden; color: var(--fg); font-size: .94rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -346,7 +346,7 @@ const managePlanHref = pricingPath(locale)
   .profile-scheduled-plan { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
   .profile-scheduled-plan strong { color: var(--fg); font-size: .72rem; }
   .profile-credit-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
-  .profile-credit-summary > div { min-width: 0; padding: 14px 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+  .profile-credit-summary > div { min-width: 0; padding: 14px 15px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); }
   .profile-credit-summary > div.is-primary { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--bg)); }
   .profile-credit-summary dt { color: var(--fg-muted); font-size: .68rem; }
   .profile-credit-summary dd { display: flex; align-items: baseline; gap: 5px; min-width: 0; margin: 7px 0 0; }
@@ -358,7 +358,7 @@ const managePlanHref = pricingPath(locale)
   .profile-section-head h2 { margin: 0; color: var(--fg); font-size: .92rem; }
   .profile-section-head p { margin: 6px 0 0; color: var(--fg-muted); font-size: .75rem; line-height: 1.55; }
   .profile-editor form { display: grid; gap: 18px; margin-top: 24px; }
-  .profile-editor input { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: 9px; outline: 0; color: var(--fg); background: var(--bg); font: inherit; font-size: .8rem; }
+  .profile-editor input { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); outline: 0; color: var(--fg); background: var(--bg); font: inherit; font-size: .8rem; }
   .profile-editor input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .profile-form-actions { display: flex; justify-content: flex-end; padding-top: 2px; }
   .profile-details dl { display: grid; gap: 0; margin: 18px 0 0; }
@@ -367,11 +367,11 @@ const managePlanHref = pricingPath(locale)
   .profile-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--fg); font-size: .76rem; text-align: right; }
   .profile-details code { color: var(--fg-muted); font-size: .7rem; }
   .connection-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
-  .connection-icon { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); font-size: 1rem; }
+  .connection-icon { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); font-size: 1rem; }
   .connection-row > div { display: grid; gap: 3px; }
   .connection-row strong { font-size: .78rem; }
   .connection-row div span { color: var(--fg-muted); font-size: .7rem; }
-  .connection-status { padding: 5px 8px; border-radius: 999px; color: var(--fg-faint); background: var(--chip-bg); font-size: .66rem; white-space: nowrap; }
+  .connection-status { padding: 5px 8px; border-radius: var(--radius-pill); color: var(--fg-faint); background: var(--chip-bg); font-size: .66rem; white-space: nowrap; }
   .connection-status.is-connected { color: var(--success); background: color-mix(in srgb, var(--success) 10%, transparent); }
   @media (max-width: 980px) { .profile-benefits-content, .profile-grid { grid-template-columns: 1fr; } }
   @media (max-width: 620px) { .profile-hero { grid-template-columns: auto minmax(0, 1fr); } .profile-role { grid-column: 2; justify-self: start; } .profile-benefits, .profile-editor, .profile-details, .profile-connections { padding: 18px; } .profile-benefits-head { display: grid; } .profile-benefits-head .btn { width: 100%; justify-content: center; } .profile-credit-summary { grid-template-columns: 1fr 1fr; } .profile-details dl > div { grid-template-columns: 1fr; gap: 5px; } .profile-details dd { text-align: left; } .profile-form-actions .btn { width: 100%; justify-content: center; } }

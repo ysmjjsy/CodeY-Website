@@ -277,38 +277,38 @@ const registerHref = registerPath(locale)
 
 <style>
   .account-menu { display: contents; }
-  .account-sign-in { min-height: 32px; padding: 5px 11px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--fg-muted); background: var(--ghost-bg); font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+  .account-sign-in { min-height: 32px; padding: 5px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); color: var(--fg-muted); background: var(--ghost-bg); font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
   .account-sign-in:hover { color: var(--fg); border-color: var(--border-hover); }
-  .account-register { min-height: 32px; padding: 6px 12px; border-radius: 8px; color: var(--btn-primary-fg); background: var(--accent); font-size: 0.8rem; white-space: nowrap; }
+  .account-register { min-height: 32px; padding: 6px 12px; border-radius: var(--radius-md); color: var(--btn-primary-fg); background: var(--accent); font-size: 0.8rem; white-space: nowrap; }
   .account-register:hover { color: var(--btn-primary-fg); filter: brightness(1.05); }
   .account-profile { position: relative; }
   .account-profile summary { display: flex; align-items: center; gap: 7px; max-width: 120px; color: var(--fg-muted); font-size: 0.8rem; cursor: pointer; list-style: none; }
   .account-profile summary::-webkit-details-marker { display: none; }
   .account-avatar { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: white; background: var(--accent); background-position: center; background-size: cover; font-size: 0.72rem; font-weight: 700; }
   .account-profile [data-account-name] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .account-popover { position: absolute; top: calc(100% + 12px); right: 0; display: grid; min-width: 150px; padding: 7px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); box-shadow: 0 16px 42px rgb(0 0 0 / 0.18); }
-  .account-popover a, .account-popover button { padding: 9px 10px; border: 0; border-radius: 7px; color: var(--fg-muted); background: transparent; font: inherit; font-size: 0.82rem; text-align: left; cursor: pointer; }
+  .account-popover { position: absolute; top: calc(100% + 12px); right: 0; display: grid; min-width: 150px; padding: 7px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: 0 16px 42px rgb(0 0 0 / 0.18); }
+  .account-popover a, .account-popover button { padding: 9px 10px; border: 0; border-radius: var(--radius-sm); color: var(--fg-muted); background: transparent; font: inherit; font-size: 0.82rem; text-align: left; cursor: pointer; }
   .account-popover a:hover, .account-popover button:hover { color: var(--fg); background: var(--chip-bg); }
-  .auth-dialog { width: min(480px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; overflow: visible; border: 1px solid var(--border-strong); border-radius: 22px; color: var(--fg); background: var(--bg); box-shadow: 0 30px 100px rgb(0 0 0 / 0.34); }
+  .auth-dialog { width: min(480px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; overflow: visible; border: 1px solid var(--border-strong); border-radius: var(--radius-xl); color: var(--fg); background: var(--bg); box-shadow: 0 30px 100px rgb(0 0 0 / 0.34); }
   .auth-dialog::backdrop, .logout-dialog::backdrop { background: rgb(9 12 22 / 0.7); backdrop-filter: blur(6px); }
   .auth-dialog-card { position: relative; padding: 38px 44px 34px; }
   .auth-close { position: absolute; top: 17px; right: 17px; display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 1px solid transparent; border-radius: 50%; color: var(--fg-faint); background: transparent; font-size: 1.25rem; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s; }
   .auth-close:hover { border-color: var(--border); color: var(--fg); background: var(--ghost-bg); }
   .auth-head { display: grid; justify-items: center; text-align: center; }
-  .auth-brand-mark { display: grid; width: 42px; height: 42px; margin-bottom: 16px; place-items: center; border-radius: 12px; color: var(--btn-primary-fg); background: var(--accent); box-shadow: 0 9px 24px var(--accent-soft); font: 700 0.92rem var(--font-mono); }
+  .auth-brand-mark { display: grid; width: 42px; height: 42px; margin-bottom: 16px; place-items: center; border-radius: var(--radius-lg); color: var(--btn-primary-fg); background: var(--accent); box-shadow: 0 9px 24px var(--accent-soft); font: 700 0.92rem var(--font-mono); }
   .auth-head h2 { font-size: 1.78rem; letter-spacing: -0.035em; }
   .auth-head p { margin: 9px 0 26px; color: var(--fg-muted); font-size: 0.87rem; }
   .auth-form { display: grid; gap: 17px; }
   .auth-form label { display: grid; gap: 8px; color: var(--fg); font-size: 0.8rem; font-weight: 600; }
-  .auth-form input { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; outline: 0; color: var(--fg); background: var(--panel-glass); font: 400 0.88rem var(--font-body); transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
+  .auth-form input { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); outline: 0; color: var(--fg); background: var(--panel-glass); font: 400 0.88rem var(--font-body); transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
   .auth-form input::placeholder { color: var(--fg-faint); }
   .auth-form input:focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px var(--accent-soft); }
   .auth-password-field { position: relative; display: block; }
   .auth-password-field input { padding-right: 46px; }
-  .auth-password-field button { position: absolute; top: 50%; right: 10px; display: grid; width: 32px; height: 32px; padding: 0; transform: translateY(-50%); place-items: center; border: 0; border-radius: 8px; color: var(--fg-faint); background: transparent; cursor: pointer; }
+  .auth-password-field button { position: absolute; top: 50%; right: 10px; display: grid; width: 32px; height: 32px; padding: 0; transform: translateY(-50%); place-items: center; border: 0; border-radius: var(--radius-md); color: var(--fg-faint); background: transparent; cursor: pointer; }
   .auth-password-field button:hover, .auth-password-field button[aria-pressed='true'] { color: var(--fg); background: var(--ghost-bg); }
   .auth-form small { color: var(--fg-faint); font-weight: 400; }
-  .auth-form .btn { min-height: 46px; margin-top: 3px; border-radius: 10px; font-size: 0.92rem; }
+  .auth-form .btn { min-height: 46px; margin-top: 3px; border-radius: var(--radius-md); font-size: 0.92rem; }
   .auth-divider { display: flex; align-items: center; gap: 13px; margin: 24px 0 17px; color: var(--fg-faint); font-size: 0.74rem; }
   .auth-divider::before, .auth-divider::after { content: ''; height: 1px; flex: 1; background: var(--border); }
   .auth-providers { display: flex; justify-content: center; gap: 16px; }
@@ -318,13 +318,13 @@ const registerHref = registerPath(locale)
   .auth-provider small { font: inherit; }
   .auth-switch { margin: 22px 0 0; color: var(--fg-muted); font-size: 0.8rem; text-align: center; }
   .auth-switch a { color: var(--accent-bright); }
-  .logout-dialog { width: min(400px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; border: 1px solid var(--border-strong); border-radius: 18px; color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / 0.3); }
+  .logout-dialog { width: min(400px, calc(100vw - 24px)); max-width: none; margin: auto; padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-xl); color: var(--fg); background: var(--bg); box-shadow: 0 24px 80px rgb(0 0 0 / 0.3); }
   .logout-dialog-card { padding: 28px; text-align: center; }
-  .logout-dialog-icon { display: grid; width: 48px; height: 48px; margin: 0 auto 17px; place-items: center; border-radius: 14px; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+  .logout-dialog-icon { display: grid; width: 48px; height: 48px; margin: 0 auto 17px; place-items: center; border-radius: var(--radius-lg); color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
   .logout-dialog h2 { font-size: 1.3rem; letter-spacing: -0.025em; }
   .logout-dialog p { margin: 9px auto 0; color: var(--fg-muted); font-size: 0.82rem; line-height: 1.65; }
   .logout-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
-  .logout-dialog-actions .btn { min-height: 42px; border-radius: 9px; }
+  .logout-dialog-actions .btn { min-height: 42px; border-radius: var(--radius-md); }
   @media (max-width: 960px) { .account-profile [data-account-name] { display: none; } }
   @media (max-width: 520px) { .auth-dialog-card { padding: 34px 22px 28px; } .logout-dialog-card { padding: 24px 20px; } }
 </style>

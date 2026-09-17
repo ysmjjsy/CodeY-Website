@@ -258,7 +258,7 @@ const copy = commercialCopy(locale)
 <style is:global>
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .model-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 190px 190px auto; align-items: center; gap: 10px; margin-top: 48px; padding: 12px; }
-  .model-toolbar input, .model-toolbar select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; outline: 0; color: var(--fg); background: var(--bg); font: .8rem var(--font-body); }
+  .model-toolbar input, .model-toolbar select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-md); outline: 0; color: var(--fg); background: var(--bg); font: .8rem var(--font-body); }
   .model-toolbar input:focus, .model-toolbar select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .model-search { position: relative; display: block; }
   .model-search i { position: absolute; top: 50%; left: 13px; transform: translateY(-50%); color: var(--fg-faint); }
@@ -288,13 +288,13 @@ const copy = commercialCopy(locale)
   .model-card header > div > span { color: var(--accent-bright); font-size: .69rem; font-weight: 600; }
   .model-card h2 { margin-top: 4px; font-size: 1.28rem; }
   .model-card code { display: block; margin-top: 5px; color: var(--fg-faint); font-size: .68rem; }
-  .protocol-chip { max-width: 160px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; color: var(--fg-muted); background: var(--chip-bg); font: .61rem/1.3 var(--font-mono); text-align: right; }
-  .model-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 25px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--border); }
+  .protocol-chip { max-width: 160px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg-muted); background: var(--chip-bg); font: .61rem/1.3 var(--font-mono); text-align: right; }
+  .model-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 25px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--border); }
   .model-specs > div { display: grid; gap: 5px; padding: 12px; background: var(--bg); }
   .model-specs span { color: var(--fg-faint); font-size: .62rem; }
   .model-specs strong { font: 600 .85rem var(--font-mono); }
   .model-capabilities, .detail-capabilities { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
-  .model-capabilities span, .detail-capabilities span { padding: 5px 8px; border-radius: 6px; color: var(--fg-muted); background: var(--chip-bg); font-size: .67rem; }
+  .model-capabilities span, .detail-capabilities span { padding: 5px 8px; border-radius: var(--radius-sm); color: var(--fg-muted); background: var(--chip-bg); font-size: .67rem; }
   .model-detail-button { position: absolute; right: 22px; bottom: 20px; display: flex; align-items: center; gap: 7px; padding: 0; border: 0; color: var(--fg-muted); background: transparent; font: .76rem var(--font-body); cursor: pointer; }
   .model-detail-button:hover { color: var(--accent-bright); }
   .model-empty { margin: 0; padding: 60px; color: var(--fg-muted); text-align: center; }
@@ -308,7 +308,7 @@ const copy = commercialCopy(locale)
   .model-dialog-head h2 { margin-top: 4px; }
   .model-dialog-head code { display: block; margin-top: 6px; color: var(--fg-faint); font-size: .7rem; }
   .model-dialog-head button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--fg-muted); background: var(--chip-bg); cursor: pointer; }
-  .model-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 24px 0 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--border); }
+  .model-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 24px 0 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--border); }
   .model-detail-grid > div { padding: 13px; background: var(--bg); }
   .model-detail-grid dt { color: var(--fg-faint); font-size: .64rem; }
   .model-detail-grid dd { margin: 5px 0 0; font: .8rem var(--font-mono); }

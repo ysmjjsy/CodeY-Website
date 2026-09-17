@@ -207,25 +207,25 @@ const copy = authCopy(locale)
   .register-page { display: grid; min-height: calc(100vh - 68px); padding: clamp(42px, 7vw, 88px) 20px; place-items: center; }
   .register-card { width: min(720px, 100%); padding: clamp(28px, 5vw, 48px); }
   .register-card header { margin-bottom: 30px; text-align: center; }
-  .register-mark { display: grid; width: 44px; height: 44px; margin: 0 auto 14px; place-items: center; border-radius: 12px; color: var(--btn-primary-fg); background: var(--accent); font: 700 .92rem var(--font-mono); }
+  .register-mark { display: grid; width: 44px; height: 44px; margin: 0 auto 14px; place-items: center; border-radius: var(--radius-lg); color: var(--btn-primary-fg); background: var(--accent); font: 700 .92rem var(--font-mono); }
   .register-kicker { margin: 0 0 8px; color: var(--accent-bright); font: 600 .68rem var(--font-mono); letter-spacing: .13em; }
   .register-card h1 { font-size: clamp(1.8rem, 5vw, 2.55rem); letter-spacing: -.04em; }
   .register-card header > p:last-child { margin: 10px 0 0; color: var(--fg-muted); font-size: .88rem; }
   form { display: grid; gap: 18px; }
   label:not(.terms-check) { display: grid; gap: 8px; color: var(--fg); font-size: .8rem; font-weight: 600; }
-  input:not([type='checkbox']) { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; outline: 0; color: var(--fg); background: var(--panel-glass); font: 400 .88rem var(--font-body); }
+  input:not([type='checkbox']) { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); outline: 0; color: var(--fg); background: var(--panel-glass); font: 400 .88rem var(--font-body); }
   input:not([type='checkbox']):focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px var(--accent-soft); }
   label small { color: var(--fg-faint); font-weight: 400; }
   .register-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .verification-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
-  .verification-row button { min-width: 116px; border: 1px solid var(--border-strong); border-radius: 10px; color: var(--fg); background: var(--ghost-bg); cursor: pointer; }
+  .verification-row button { min-width: 116px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); color: var(--fg); background: var(--ghost-bg); cursor: pointer; }
   .verification-row button:hover:not(:disabled) { border-color: var(--border-hover); background: var(--ghost-bg-hover); }
   button:disabled { cursor: not-allowed; opacity: .6; }
   .terms-check { display: flex; align-items: flex-start; gap: 10px; color: var(--fg-muted); font-size: .78rem; line-height: 1.55; cursor: pointer; }
   .terms-check input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--accent); }
-  form > .btn { min-height: 48px; margin-top: 2px; border-radius: 10px; }
+  form > .btn { min-height: 48px; margin-top: 2px; border-radius: var(--radius-md); }
   .register-login { margin: 22px 0 0; color: var(--fg-muted); font-size: .8rem; text-align: center; }
   .register-login button { padding: 0; border: 0; color: var(--accent-bright); background: transparent; font: inherit; cursor: pointer; }
-  .register-state { margin: 0 0 22px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: 10px; color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, transparent); font-size: .82rem; }
+  .register-state { margin: 0 0 22px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: var(--radius-md); color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, transparent); font-size: .82rem; }
   @media (max-width: 620px) { .register-grid { grid-template-columns: 1fr; } .verification-row { grid-template-columns: 1fr; } .verification-row button { min-height: 44px; } }
 </style>

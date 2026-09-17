@@ -156,7 +156,7 @@ const { locale } = Astro.props
     justify-content: center;
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     color: var(--accent-bright);
     background: var(--accent-soft);
     border: 1px solid var(--accent-ring);
@@ -194,7 +194,7 @@ const { locale } = Astro.props
     gap: 8px;
     align-items: center;
     padding: 6px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--ghost-bg);
     border: 1px solid var(--border);
     color: var(--fg-muted);
@@ -228,7 +228,7 @@ const { locale } = Astro.props
   .mode-chip {
     font-size: 0.78rem;
     padding: 5px 14px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--border-strong);
     color: var(--fg-muted);
   }

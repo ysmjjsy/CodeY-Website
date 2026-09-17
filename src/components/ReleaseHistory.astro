@@ -81,7 +81,7 @@ const { locale } = Astro.props
     flex: none;
     padding: 5px 11px;
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     color: var(--fg-faint);
     background: var(--ghost-bg);
     font-family: var(--font-mono);
@@ -158,7 +158,7 @@ const { locale } = Astro.props
     grid-row: 1 / span 2;
     align-self: center;
     padding: 2px 7px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     color: var(--accent-bright);
     background: var(--accent-soft);
     font-family: var(--font-mono);
@@ -204,7 +204,7 @@ const { locale } = Astro.props
   .release-detail :global(.release-badge) {
     padding: 3px 8px;
     border: 1px solid var(--accent-ring);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     color: var(--accent-bright);
     background: var(--accent-soft);
     font-family: var(--font-mono);
@@ -328,7 +328,7 @@ const { locale } = Astro.props
     gap: 7px;
     min-width: 0;
     padding: 7px 8px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: var(--fg-muted);
     background: var(--ghost-bg);
     font-family: var(--font-mono);
@@ -368,7 +368,7 @@ const { locale } = Astro.props
 
   .release-detail-skeleton span {
     height: 18px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: linear-gradient(90deg, var(--ghost-bg), var(--ghost-bg-hover), var(--ghost-bg));
     background-size: 200% 100%;
     animation: history-skeleton 1.4s ease-in-out infinite;
