@@ -207,6 +207,11 @@ docker compose up -d
 
 首次构建需要编译 300+ 个 Rust crate，耗时较长（视机器性能约 5–15 分钟）。
 
+> `Dockerfile` 刻意不使用 `RUN --mount=type=cache` 等 BuildKit 专属语法。
+> 只装了 docker engine 而没有 buildx 插件的服务器上，Compose 会回退到传统
+> 构建器并报 `the --mount option requires BuildKit`；去掉该语法后两种构建器
+> 都能工作。构建缓存由 Docker 的普通层缓存承担。
+
 查看状态与日志：
 
 ```bash
@@ -375,6 +380,20 @@ payment configuration group is incomplete: ...
 ```bash
 docker compose exec app node -e "console.log(process.env.CODEY_DATABASE_URL)"
 ```
+
+### 构建报 the --mount option requires BuildKit
+
+服务器缺少 buildx 插件，Compose 回退到传统构建器。当前 `Dockerfile` 已不含
+BuildKit 专属语法，若仍报此错，说明本地 `Dockerfile` 是旧版本，请先
+`git pull --ff-only`。
+
+想确认服务器是否具备 buildx：
+
+```bash
+docker buildx version
+```
+
+没有输出即未安装。此时无需安装，直接使用上面的 `Dockerfile` 即可构建。
 
 ### 修改 .env 后没有生效
 

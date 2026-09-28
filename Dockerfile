@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # =============================================================================
 # CodeY Website + Market Server
 #
@@ -10,6 +8,10 @@
 #
 # 最终镜像里，run-site.mjs 同时承担静态文件服务与 API 反向代理，
 # 对外只暴露 4321 一个端口。
+#
+# 本文件刻意不使用任何 BuildKit 专属语法（如 RUN --mount=type=cache）：
+# 部分服务器只装了 docker engine 而没有 buildx 插件，此时 Compose 会回退到
+# 传统构建器，遇到 --mount 会直接失败。缓存交给 Docker 的普通层缓存处理。
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -22,17 +24,28 @@ ENV PNPM_HOME=/pnpm \
     CI=1
 
 # 国内服务器可传 --build-arg NPM_REGISTRY=https://registry.npmmirror.com
+#
+# 注意大小写：pnpm 读取的是小写 npm_config_registry。写成大写的
+# NPM_CONFIG_REGISTRY 不会报错，但也不会生效（仍然走官方源，只是慢）。
 ARG NPM_REGISTRY=https://registry.npmjs.org
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+ENV npm_config_registry=$NPM_REGISTRY
 
 RUN npm install --global pnpm@11.7.0 && npm cache clean --force
 
 WORKDIR /app
 
+# 项目级 .npmrc，确保 pnpm 一定读到该镜像源（环境变量之外的双保险）
+RUN printf 'registry=%s\n' "$NPM_REGISTRY" > /app/.npmrc
+
 # 先只复制清单文件，让依赖层在源码变化时仍能命中缓存
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm-web,target=/pnpm/store \
-    pnpm install --frozen-lockfile --store-dir /pnpm/store
+RUN pnpm install --frozen-lockfile
+
+WORKDIR /app
+
+# 先只复制清单文件，让依赖层在源码变化时仍能命中缓存
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY astro.config.mjs tsconfig.json ./
 COPY public ./public
@@ -60,12 +73,9 @@ RUN if [ -n "$CARGO_REGISTRY_MIRROR" ]; then \
 COPY Cargo.toml Cargo.lock ./
 COPY server ./server
 
-# cargo 自身按 crate 增量编译，registry/target 用缓存挂载加速重复构建。
-# target 是缓存挂载（不落镜像层），所以构建完必须把二进制复制出去。
-RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=cargo-git,target=/usr/local/cargo/git \
-    --mount=type=cache,id=cargo-target,target=/app/target \
-    cargo build --release -p codey-market-server \
+# cargo 按 crate 增量编译；重复构建时 Docker 会复用未变化的层。
+# 二进制复制到 /tmp，避免把整个 target 目录带进最终镜像。
+RUN cargo build --release -p codey-market-server \
     && cp target/release/codey-market-server /tmp/codey-market-server
 
 # -----------------------------------------------------------------------------

@@ -18,6 +18,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # 国内服务器在 .env 里设置这两个值即可加速构建：
+        #   NPM_REGISTRY=https://registry.npmmirror.com
+        #   CARGO_REGISTRY_MIRROR=https://rsproxy.cn/index/
+        # 留空时使用官方源。
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+        CARGO_REGISTRY_MIRROR: ${CARGO_REGISTRY_MIRROR:-}
     image: codey-website:latest
     container_name: codey-website
     restart: unless-stopped
