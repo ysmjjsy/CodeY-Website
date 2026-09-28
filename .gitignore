@@ -5,7 +5,17 @@ dist/
 .astro/
 .codey-market/
 .env.local
+# 备份的环境文件同样含明文密钥，不能提交
+.env.local.bak*
+# Docker Compose 使用的生产环境文件，含数据库密码与各类密钥
+.env
 target/
+
+# 容器持久化数据与 TLS 证书私钥
+/data/
+/deploy/certs/
+# 自动申请 Origin Certificate 用的 Cloudflare API Token
+/deploy/.cloudflare-token
 
 # Editor and OS scratch files. None of these are project state, and no tracked
 # file uses these extensions, so a blanket rule is safe here.

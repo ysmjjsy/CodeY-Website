@@ -1,0 +1,28 @@
+# 构建上下文排除项。
+# 关键：node_modules 与 target 必须在容器内重建，宿主机的 macOS 二进制不可用；
+# .env* 绝不能进镜像，密钥一律运行时注入。
+
+.git
+.github
+.gitignore
+
+# 依赖与构建产物（容器内重新生成）
+node_modules
+dist
+.astro
+target
+.codey-market
+
+# 本地环境与密钥
+.env
+.env.*
+!.env.example
+deploy/certs
+
+# 文档与开发期文件
+.agents
+*.md
+!README.md
+.DS_Store
+.idea
+.vscode

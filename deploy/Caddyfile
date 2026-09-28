@@ -1,0 +1,50 @@
+# CodeY 官网 —— Cloudflare 代理模式
+#
+# 前置条件：Cloudflare SSL/TLS 模式必须设为 Full (strict)。
+# 不要用 Flexible：回源走 HTTP 会与应用的 https Origin 判断冲突，
+# 导致写操作报 "Request origin is not allowed"，且会话 Cookie 不带 Secure。
+
+codey.ysmjjsy.com {
+	# 方案 A（推荐）：Cloudflare Origin Certificate，有效期 15 年，不依赖回源 80 端口。
+	# 在 Cloudflare 后台 SSL/TLS → Origin Server → Create Certificate 生成，
+	# 存为 deploy/certs/codey.pem 与 deploy/certs/codey.key。
+	tls /etc/caddy/certs/codey.pem /etc/caddy/certs/codey.key
+
+	# 方案 B：没有 Origin Certificate 时，改用自签名证书，
+	# 并把 Cloudflare SSL/TLS 模式设为 Full（而非 Full strict）。
+	# 注释掉上面的 tls 行，改用下面这行：
+	# tls internal
+
+	encode zstd gzip
+
+	# 真实客户端 IP。
+	#
+	# 应用优先读 x-real-ip，其次读 x-forwarded-for 的第一个值
+	# （见 server/market-server/src/lib.rs 的 registration_source_hash）。
+	# 注册验证码限流按该地址分桶，所以必须还原成真实访客 IP：
+	# 若直接透传 TCP 对端地址，所有访客都会共用 Cloudflare 边缘节点 IP，
+	# 被一起限流。
+	#
+	# CF-Connecting-IP 由 Cloudflare 注入，且访客无法伪造。
+	@from_cloudflare header CF-Connecting-IP *
+	handle @from_cloudflare {
+		reverse_proxy app:4321 {
+			header_up X-Real-IP {http.CF-Connecting-IP}
+			header_up X-Forwarded-For {http.CF-Connecting-IP}
+		}
+	}
+
+	# 未经过 Cloudflare 的请求（例如内网直连调试）回退到 TCP 对端地址。
+	handle {
+		reverse_proxy app:4321 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

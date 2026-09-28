@@ -1,0 +1,71 @@
+# =============================================================================
+# CodeY 官网 + 模板市场
+#
+#   cp .env.docker.example .env   # 填写真实配置
+#   docker compose up -d --build
+#
+# 架构：
+#   caddy (80/443) → app:4321
+#                      ├── 静态站 dist/
+#                      └── /api/* 与 /.well-known/* → market server (容器内 8787)
+#
+# app 容器内部自带 market server，不需要单独的数据库容器：
+# PostgreSQL 使用外部实例（见 .env 的 CODEY_DATABASE_URL）。
+# =============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codey-website:latest
+    container_name: codey-website
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # 容器内必须监听 0.0.0.0，否则同一网络里的 caddy 无法访问
+      CODEY_WEBSITE_HOST: 0.0.0.0
+      CODEY_WEBSITE_PORT: "4321"
+      CODEY_MARKET_UPSTREAM: http://127.0.0.1:8787
+      # 上传的模板文件与 entitlement 签名密钥的持久化目录
+      CODEY_MARKET_DATA_ROOT: /data
+    volumes:
+      # 必须持久化：cloud-entitlement-ed25519.pk8 丢失会导致已下发的
+      # Desktop 模型授权全部失效。备份时与 PostgreSQL 一起打包。
+      - ./data:/data
+    ports:
+      # 仅供宿主机调试与健康检查；公网流量一律经 caddy 进入
+      - "127.0.0.1:4321:4321"
+    extra_hosts:
+      # 让容器内的 CODEY_DATABASE_URL 可以用 host.docker.internal
+      # 指向宿主机上监听的 PostgreSQL
+      - "host.docker.internal:host-gateway"
+    networks:
+      - codey
+
+  caddy:
+    image: caddy:2
+    container_name: codey-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/certs:/etc/caddy/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        # 等 app 健康后再启动 caddy，避免首启期间返回 502
+        condition: service_healthy
+    networks:
+      - codey
+
+networks:
+  codey:
+
+volumes:
+  caddy_data:
+  caddy_config:
