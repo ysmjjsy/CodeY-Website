@@ -10,6 +10,7 @@
 #
 # 需要的凭据（二选一，优先环境变量）：
 #   CLOUDFLARE_API_TOKEN    推荐。权限：Zone → SSL and Certificates → Edit
+#                           （Cloudflare 正把 Edit 改称 Write，二者是同一权限）
 #                           另需 Zone → Zone → Read（用于自动查 zone id）
 #   或写入 deploy/.cloudflare-token 文件（已被 .gitignore 忽略）
 #
@@ -178,7 +179,7 @@ if [[ -z "${CERT_PEM}" || "${CERT_PEM}" == "null" ]]; then
   rm -f "${KEY_FILE}.tmp" "${CERT_DIR}/codey.csr.tmp"
   die "申请失败（success=${API_OK:-unknown}）：${API_ERROR:-未知错误}
 常见原因：
-  1. API Token 缺少 Zone → SSL and Certificates → Edit 权限
+  1. API Token 缺少 Zone → SSL and Certificates → Edit（界面可能显示为 Write）权限
   2. 域名不在该账号下
   3. 账号未开通 API Access"
 fi

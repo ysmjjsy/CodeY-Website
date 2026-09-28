@@ -123,6 +123,9 @@ caddy 需要一个证书来接受 Cloudflare 的回源 HTTPS 连接。两种做�
    Zone → Zone → Read                     （自动查找 zone id）
    ```
 
+   > 界面用词差异：Cloudflare 正在把权限级的 `Edit` 改称 `Write`。若下拉框里
+   > 只有 `Write` 没有 `Edit`，选 `Write` 即可，两者是同一个权限。
+
    Zone Resources 选 `Include → Specific zone → ysmjjsy.com`，把权限限制在单个域名。
 
 2. 让脚本读到 Token，二选一：
