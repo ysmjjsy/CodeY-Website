@@ -40,15 +40,29 @@ app 容器内同时运行 Astro 静态站服务与 Rust market server。caddy �
 
 服务器需要：
 
-- Docker Engine 24+ 与 Docker Compose v2 插件
+- Docker Engine 24+
+- Compose **v2**，两种写法任选其一（`deploy/` 下的脚本会自动探测）：
+  - `docker compose` —— Compose v2 插件，随 Docker Engine 一起安装
+  - `docker-compose` —— 独立二进制，v2 版本
 - 约 4 GB 可用内存（Rust release 构建较吃内存）
 - 能访问 npm 与 crates.io（国内服务器建议用镜像源，见第 4 节）
+
+> **不支持 Compose v1（Python 版 `docker-compose` 1.x）。** v1 已停止维护，且读不懂
+> 本项目的 `docker-compose.yml` —— 该文件是 Compose Specification（没有 `version:`
+> 顶层键），并使用了 `depends_on.condition: service_healthy`。脚本检测到 v1 会直接
+> 给出升级指引，而不是让你去猜 compose 的解析报错。
 
 检查：
 
 ```bash
 docker version
-docker compose version
+docker compose version     # 或 docker-compose version，两者都返回 v2 即可
+```
+
+不想让脚本自动选，或想固定用某一个：
+
+```bash
+CODEY_DEPLOY_COMPOSE=docker-compose ./deploy/docker-deploy.sh
 ```
 
 PostgreSQL 需要已经建好 `codey` 数据库：
@@ -192,6 +206,9 @@ chmod 600 deploy/certs/codey.key
 
 ## 6. 构建并启动
 
+> 本文后续示例统一写作 `docker compose`。若你的服务器用的是独立二进制，把
+> `docker compose` 换成 `docker-compose` 即可，两者完全等价。
+
 ```bash
 docker compose up -d --build
 ```
@@ -300,7 +317,7 @@ curl --fail --show-error https://codey.ysmjjsy.com/api/market/v1/listings
 ./deploy/docker-deploy.sh
 ```
 
-脚本会检查 `.env` 与证书、`git pull`、重建镜像、滚动重启并做健康检查。
+脚本会检查 `.env` 与证书、自动探测 Compose 命令、`git pull`、重建镜像、滚动重启并做健康检查。
 
 手工更新：
 
@@ -401,4 +418,32 @@ Compose 只在容器创建时注入环境变量：
 
 ```bash
 docker compose up -d --force-recreate app
+```
+
+### 报错找不到 docker compose / 只装了 docker-compose
+
+`deploy/docker-deploy.sh` 会自动探测两种写法，正常情况下不需要手工处理。若脚本报
+"未找到可用的 Compose"，说明两者都不可用：
+
+```bash
+docker compose version      # 插件
+docker-compose version      # 独立二进制
+```
+
+都没有就装 v2 插件：
+
+```bash
+apt-get install docker-compose-plugin        # Debian / Ubuntu
+dnf install docker-compose-plugin            # RHEL / Fedora
+```
+
+若脚本报"检测到 Docker Compose v1"，说明 PATH 里的 `docker-compose` 是已停止维护的
+Python 1.x。它无法解析本项目的 `docker-compose.yml`（Compose Specification，没有
+`version:` 顶层键），必须升级到 v2；装好插件后 `docker compose` 会被优先选中，
+旧的 v1 二进制留着也不影响。
+
+两种写法都要保留时，可显式指定脚本用哪个：
+
+```bash
+CODEY_DEPLOY_COMPOSE=docker-compose ./deploy/docker-deploy.sh
 ```

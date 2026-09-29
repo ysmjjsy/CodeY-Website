@@ -24,7 +24,14 @@ warn() { printf '\033[33m警告: %s\033[0m\n' "$*" >&2; }
 die() { printf '\033[31m错误: %s\033[0m\n' "$*" >&2; exit 1; }
 
 command -v docker >/dev/null 2>&1 || die "未找到 docker"
-docker compose version >/dev/null 2>&1 || die "未找到 docker compose 插件"
+
+# ---------- 0. 选择 Compose 命令 ----------
+# 同时支持 `docker compose` 与 `docker-compose`，见 compose-command.sh。
+# shellcheck source=deploy/compose-command.sh
+source "${SCRIPT_DIR}/compose-command.sh"
+codey_resolve_compose || exit 1
+
+log "使用 Compose 命令: ${COMPOSE[*]}"
 
 # ---------- 1. 环境文件 ----------
 if [[ ! -f .env ]]; then
@@ -93,10 +100,10 @@ fi
 
 # ---------- 4. 构建并启动 ----------
 log "构建镜像"
-docker compose build
+"${COMPOSE[@]}" build
 
 log "启动容器"
-docker compose up -d --remove-orphans
+"${COMPOSE[@]}" up -d --remove-orphans
 
 # ---------- 5. 健康检查 ----------
 log "等待服务就绪"
@@ -105,14 +112,14 @@ for attempt in $(seq 1 60); do
     log "部署成功"
     printf '  本机入口: %s\n' "${HEALTHCHECK_URL}"
     printf '  公开地址: https://%s/\n' "${DOMAIN}"
-    printf '  查看日志: docker compose logs -f app\n'
+    printf '  查看日志: %s logs -f app\n' "${COMPOSE[*]}"
     exit 0
   fi
   sleep 2
 done
 
 printf '\n容器状态:\n' >&2
-docker compose ps >&2
+"${COMPOSE[@]}" ps >&2
 printf '\n应用日志（末尾 50 行）:\n' >&2
-docker compose logs --tail 50 app >&2
+"${COMPOSE[@]}" logs --tail 50 app >&2
 die "健康检查失败: ${HEALTHCHECK_URL}"

@@ -4,6 +4,10 @@
 #   cp .env.docker.example .env   # 填写真实配置
 #   docker compose up -d --build
 #
+# `docker compose` 与 `docker-compose` 两种写法均可，deploy/ 下的脚本会自动探测。
+# 要求 Compose v2：本文件是 Compose Specification（没有 version: 顶层键），
+# 并使用了 depends_on.condition，v1 无法解析。
+#
 # 架构：
 #   caddy (80/443) → app:4321
 #                      ├── 静态站 dist/

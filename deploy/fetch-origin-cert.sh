@@ -210,7 +210,13 @@ if openssl x509 -in "${CERT_FILE}" -noout -checkend 0 >/dev/null 2>&1; then
   log "完成"
   printf '  证书: %s\n' "${CERT_FILE}"
   printf '  私钥: %s\n' "${KEY_FILE}"
-  printf '\n下一步: docker compose up -d --force-recreate caddy\n'
+  # 探测 Compose 命令（docker compose / docker-compose），只为把下一步提示写成用户
+  # 实际能用的写法。探测失败不阻塞：本脚本只申请证书，没有 Compose 也能完成，
+  # 所以吞掉诊断并回退到插件写法。
+  # shellcheck source=deploy/compose-command.sh
+  source "${SCRIPT_DIR}/compose-command.sh"
+  codey_resolve_compose 2>/dev/null || COMPOSE=(docker compose)
+  printf '\n下一步: %s up -d --force-recreate caddy\n' "${COMPOSE[*]}"
 else
   die "证书已过期，请重新申请"
 fi
