@@ -116,7 +116,7 @@ const description =
           <Field label={copy.displayName}><input name="displayName" required maxlength="100" /></Field>
           <Field label={copy.slug} hint={copy.slugHelp}><input name="slug" required minlength="2" maxlength="100" pattern="[a-z0-9][a-z0-9._-]{1,99}" /></Field>
           <Field label={copy.protocolFamily} hint={copy.protocolFamilyHelp}><select name="providerKind"><option value="openai_compatible">{copy.openaiCompatible}</option><option value="anthropic">Anthropic</option><option value="gemini">Gemini</option></select></Field>
-          <Field label={copy.baseUrl} hint={copy.baseUrlHelp}><input name="baseUrl" type="url" required placeholder="https://api.example.com" /></Field>
+          <Field label={copy.baseUrl} hint={copy.baseUrlHelp}><input name="baseUrl" type="url" required placeholder={copy.baseUrlPlaceholder} /></Field>
         </div>
         <section class="provider-discovery" aria-live="polite" data-provider-discovery hidden>
           <div><i class="ph ph-radar" aria-hidden="true"></i><span data-provider-discovery-text>{copy.discoveryRequired}</span></div>

@@ -64,7 +64,10 @@ use cloud::{
     SchedulePlanChangeRequest, SubscriptionSnapshot, TestOfficialModelRequest, TopUpCatalog,
     UpsertUpstreamProviderRequest, UpstreamDiscoveryError, UpstreamModelDiscovery, WalletSummary,
 };
-use cloud::{normalize_provider_preset_id, provider_credential_required, provider_preset};
+use cloud::{
+    normalize_provider_preset_id, provider_credential_required, provider_preset,
+    upstream_base_url_is_allowed,
+};
 
 const PACKAGE_FIELD: &str = "archive";
 const UPLOAD_TTL_MINUTES: i64 = 30;
@@ -883,15 +886,10 @@ async fn cloud_discover_model_provider(
 }
 
 fn validate_upstream_discovery_url(base_url: &str) -> ApiResult<()> {
-    let url = url::Url::parse(base_url)
-        .map_err(|_| ApiError::bad_request("cloud_invalid_request", "provider URL is invalid"))?;
-    let loopback = url
-        .host_str()
-        .is_some_and(|host| matches!(host, "127.0.0.1" | "localhost" | "::1"));
-    if (!loopback && url.scheme() != "https") || url.host_str().is_none() {
+    if !upstream_base_url_is_allowed(base_url) {
         return Err(ApiError::bad_request(
             "cloud_invalid_request",
-            "provider URL must use HTTPS unless it targets localhost",
+            "provider URL must be an absolute HTTP or HTTPS address with a host",
         ));
     }
     Ok(())

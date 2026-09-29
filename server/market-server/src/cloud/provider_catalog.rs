@@ -325,6 +325,21 @@ pub fn provider_credential_required(provider_preset_id: &str) -> bool {
     provider_preset(provider_preset_id).is_none_or(|preset| preset.credential_required)
 }
 
+/// Whether an administrator may point a provider connection at this address.
+///
+/// Plain HTTP is accepted: self-hosted gateways, intranet deployments and
+/// single-board boxes routinely serve the OpenAI-compatible API without a
+/// certificate, and the admin form is the only way to reach them. The scheme is
+/// still restricted to HTTP(S) — `file:`, `ftp:` and `ws:` must never reach the
+/// gateway — and the address must name a host, so a relative or credential-only
+/// string cannot be stored as an endpoint.
+pub fn upstream_base_url_is_allowed(base_url: &str) -> bool {
+    url::Url::parse(base_url.trim()).is_ok_and(|url| {
+        matches!(url.scheme(), "http" | "https")
+            && url.host_str().is_some_and(|host| !host.is_empty())
+    })
+}
+
 pub fn provider_discovery_mode(provider_preset_id: &str) -> ProviderDiscoveryMode {
     provider_preset(provider_preset_id).map_or(ProviderDiscoveryMode::Standard, |preset| {
         preset.discovery_mode
@@ -401,5 +416,37 @@ mod tests {
             model.upstream_model_id == "speech-2.8-hd"
                 && model.protocol == OfficialModelProtocol::SpeechSynthesis
         }));
+    }
+
+    #[test]
+    fn upstream_base_url_accepts_plain_http_and_rejects_other_schemes() {
+        for accepted in [
+            "http://180.76.244.225:18987/v1",
+            "http://192.168.1.10/v1",
+            "http://gateway.internal:8000",
+            "https://api.openai.com/v1",
+            "http://127.0.0.1:11434",
+            "HTTPS://API.EXAMPLE.COM",
+        ] {
+            assert!(
+                upstream_base_url_is_allowed(accepted),
+                "{accepted} should be accepted"
+            );
+        }
+        for rejected in [
+            "",
+            "   ",
+            "180.76.244.225:18987/v1",
+            "ftp://example.com/v1",
+            "file:///etc/passwd",
+            "ws://example.com/socket",
+            "http://",
+            "not a url",
+        ] {
+            assert!(
+                !upstream_base_url_is_allowed(rejected),
+                "{rejected} should be rejected"
+            );
+        }
     }
 }

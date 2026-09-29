@@ -36,6 +36,7 @@ pub use payment::{CloudPaymentConfig, PaymentError, PaymentManager};
 pub use period::{natural_month_period_end, prorated_credits, prorated_money};
 pub(crate) use provider_catalog::{
     normalize_provider_preset_id, provider_credential_required, provider_discovery_mode,
-    provider_preset, provider_preset_models, ProviderDiscoveryMode, CUSTOM_PROVIDER_PRESET_ID,
+    provider_preset, provider_preset_models, upstream_base_url_is_allowed, ProviderDiscoveryMode,
+    CUSTOM_PROVIDER_PRESET_ID,
 };
 pub use store::{CloudStore, CloudStoreError};

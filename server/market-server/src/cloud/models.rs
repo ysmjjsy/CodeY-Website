@@ -7,11 +7,12 @@ use serde_json::Value;
 use super::store::{parse_time, stored_i64, stored_u64};
 use super::{
     normalize_provider_preset_id, provider_credential_required, provider_preset,
-    provider_preset_models, AdminModelCatalog, AdminOfficialModelSummary, CloudStore,
-    CloudStoreError, ModelPricing, OfficialModelCatalog, OfficialModelProtocol,
-    OfficialModelSummary, PublicOfficialModelCatalog, PublicOfficialModelSummary,
-    PublishOfficialModelRequest, UpsertUpstreamProviderRequest, UpstreamAvailableModel,
-    UpstreamProviderKind, UpstreamProviderSummary, CUSTOM_PROVIDER_PRESET_ID,
+    provider_preset_models, upstream_base_url_is_allowed, AdminModelCatalog,
+    AdminOfficialModelSummary, CloudStore, CloudStoreError, ModelPricing, OfficialModelCatalog,
+    OfficialModelProtocol, OfficialModelSummary, PublicOfficialModelCatalog,
+    PublicOfficialModelSummary, PublishOfficialModelRequest, UpsertUpstreamProviderRequest,
+    UpstreamAvailableModel, UpstreamProviderKind, UpstreamProviderSummary,
+    CUSTOM_PROVIDER_PRESET_ID,
 };
 
 const OFFICIAL_CONNECTION_ID: &str = "codey-official";
@@ -826,12 +827,7 @@ fn validate_provider(request: &UpsertUpstreamProviderRequest) -> Result<(), Clou
     {
         return Err(CloudStoreError::InvalidUpstreamProvider);
     }
-    let url =
-        url::Url::parse(&request.base_url).map_err(|_| CloudStoreError::InvalidUpstreamProvider)?;
-    let loopback = url
-        .host_str()
-        .is_some_and(|host| matches!(host, "127.0.0.1" | "localhost" | "::1"));
-    if (!loopback && url.scheme() != "https") || url.host_str().is_none() {
+    if !upstream_base_url_is_allowed(&request.base_url) {
         return Err(CloudStoreError::InvalidUpstreamProvider);
     }
     if request.available_models.as_ref().is_some_and(|models| {
@@ -1095,5 +1091,48 @@ mod tests {
             published.models[0].pricing.fixed_credit_micros_per_request,
             1_000_000
         );
+    }
+
+    #[test]
+    fn custom_provider_accepts_a_plain_http_base_url() {
+        let root = TempDir::new().unwrap();
+        let store = CloudStore::open(root.path(), "").unwrap();
+        let cipher = CloudSecretCipher::for_test();
+        let now = Utc.with_ymd_and_hms(2026, 9, 29, 0, 0, 0).unwrap();
+        let request = |base_url: &str| UpsertUpstreamProviderRequest {
+            provider_id: None,
+            provider_preset_id: Some(CUSTOM_PROVIDER_PRESET_ID.into()),
+            slug: "wbm".into(),
+            display_name: "wbm".into(),
+            provider_kind: UpstreamProviderKind::OpenaiCompatible,
+            base_url: base_url.into(),
+            api_key: Some("upstream-key".into()),
+            available_models: Some(vec![UpstreamAvailableModel {
+                upstream_model_id: "gpt-upstream".into(),
+                display_name: "GPT Upstream".into(),
+                protocol: OfficialModelProtocol::ChatCompletions,
+                input_modalities: vec!["text".into()],
+                output_modalities: vec!["text".into()],
+                asynchronous: false,
+            }]),
+            last_test_latency_ms: Some(12),
+            active: true,
+            expected_revision: 0,
+        };
+        let catalog = store
+            .upsert_upstream_provider(
+                &request("http://180.76.244.225:18987/v1"),
+                Some(&cipher),
+                now,
+            )
+            .unwrap();
+        assert_eq!(
+            catalog.providers[0].base_url,
+            "http://180.76.244.225:18987/v1"
+        );
+        assert!(matches!(
+            store.upsert_upstream_provider(&request("ftp://example.com/v1"), Some(&cipher), now),
+            Err(CloudStoreError::InvalidUpstreamProvider)
+        ));
     }
 }

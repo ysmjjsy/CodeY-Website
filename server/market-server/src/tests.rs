@@ -965,6 +965,31 @@ async fn api_account_upload_review_publish_and_download_round_trip() {
     let _ = server.await;
 }
 
+#[test]
+fn discovery_url_validation_accepts_plain_http_on_a_public_host() {
+    for accepted in [
+        "http://180.76.244.225:18987/v1",
+        "http://192.168.1.10:3000/v1",
+        "http://gateway.internal:8000",
+        "https://api.openai.com/v1",
+    ] {
+        assert!(
+            super::validate_upstream_discovery_url(accepted).is_ok(),
+            "{accepted} should be accepted"
+        );
+    }
+    for rejected in [
+        "",
+        "180.76.244.225:18987/v1",
+        "ftp://180.76.244.225/v1",
+        "file:///etc/passwd",
+        "not a url",
+    ] {
+        let error = super::validate_upstream_discovery_url(rejected).unwrap_err();
+        assert_eq!(error.code, "cloud_invalid_request");
+    }
+}
+
 fn session_cookie_header(response: &reqwest::Response) -> String {
     response
         .headers()
