@@ -23,7 +23,7 @@ const cases = [
   },
   {
     name: 'website brand colour drifts from desktop',
-    mutate: (css) => css.replace('--accent: #4f46e5;', '--accent: #4f46e6;'),
+    mutate: (css) => css.replace('--accent: #1a1917;', '--accent: #1a1918;'),
     expect: /brand primary mismatch \(light\)/,
   },
   {
@@ -38,7 +38,7 @@ const cases = [
   },
   {
     name: 'cyan used as a brand colour',
-    mutate: (css) => css.replace('--accent: #4f46e5;', '--accent: #06b6d4;'),
+    mutate: (css) => css.replace('--accent: #1a1917;', '--accent: #06b6d4;'),
     expect: /uses cyan/,
   },
 ]

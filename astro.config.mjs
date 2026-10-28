@@ -56,6 +56,16 @@ export default defineConfig({
               slug: 'docs/architecture',
             },
             {
+              label: '动画设计系统',
+              translations: { en: 'Motion design system' },
+              slug: 'docs/motion-system',
+            },
+            {
+              label: '动画系统实施方案',
+              translations: { en: 'Motion system implementation plan' },
+              slug: 'docs/motion-implementation-plan',
+            },
+            {
               label: '受控执行与安全',
               translations: { en: 'Controlled execution & security' },
               slug: 'docs/security',

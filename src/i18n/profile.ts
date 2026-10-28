@@ -11,7 +11,7 @@ const copy = {
     roleAdmin: '管理员',
     roleUser: '普通用户',
     profileSection: '公开资料',
-    profileSectionDescription: '昵称会用于官网账号和模板发布者信息。',
+    profileSectionDescription: '昵称会用于官网账号信息。',
     displayName: '昵称',
     email: '邮箱',
     emailHint: '用于登录和账号识别，可留空。',
@@ -56,8 +56,7 @@ const copy = {
     roleAdmin: 'Administrator',
     roleUser: 'User',
     profileSection: 'Public profile',
-    profileSectionDescription:
-      'Your display name appears on your website account and published templates.',
+    profileSectionDescription: 'Your display name appears on your website account.',
     displayName: 'Display name',
     email: 'Email',
     emailHint: 'Used for sign-in and account identification. Optional.',

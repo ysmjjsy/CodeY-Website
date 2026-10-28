@@ -155,7 +155,7 @@ const { locale } = Astro.props
   }
 
   .pulse {
-    animation: dot-pulse 1.8s ease-in-out infinite;
+    animation: dot-pulse var(--motion-loop-breathe) var(--motion-ease-in-out) infinite;
   }
 
   @keyframes dot-pulse {
@@ -238,7 +238,7 @@ const { locale } = Astro.props
     font-size: var(--text-sm);
     color: var(--fg-muted);
     opacity: 0;
-    animation: tl-in 0.6s var(--ease-out) forwards;
+    animation: tl-in var(--motion-reveal) var(--motion-ease-out) forwards;
     animation-delay: calc(0.35s + var(--i) * 0.45s);
   }
 
@@ -367,7 +367,7 @@ const { locale } = Astro.props
     width: 7px;
     height: 15px;
     background: var(--accent-bright);
-    animation: caret-blink 1s steps(1) infinite;
+    animation: caret-blink var(--motion-loop-cursor) steps(1) infinite;
   }
 
   @keyframes caret-blink {

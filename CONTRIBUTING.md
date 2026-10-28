@@ -86,9 +86,9 @@ Biome **不解析 `.astro` 的 `<style>` 块**——把它写进 `files.includes
 
 ### 动效时长
 
-分两组。**交互反馈**（transition）只用 `--duration-fast/base/slow`（0.15/0.2/0.25s）；
+分两组。**交互反馈**（transition）只用 `--motion-fast/base/notice`（0.15/0.22/0.3s）；
 **入场与循环动画**（animation）按动画自身节奏取值，因为那是「被观看的动画」而非
-「对操作的应答」。滚动显现用 `--duration-reveal`（0.7s）。
+「对操作的应答」。滚动显现用 `--motion-reveal`（0.7s）。
 
 ### 断点（无法 Token 化）
 

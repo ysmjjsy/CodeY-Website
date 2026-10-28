@@ -29,13 +29,7 @@ export function initMarketDashboard(): void {
   const root = rootEl
   const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>
   const locale = root.dataset.locale === 'en' ? 'en' : 'zh-CN'
-  const detailBase = root.dataset.detailBase || '/market/item/'
-  const initialSection = root.dataset.initialSection === 'review' ? 'review' : 'templates'
-  const access = root.querySelector<HTMLElement>('[data-dashboard-access]')!
-  const section = root.querySelector<HTMLElement>(`[data-dashboard-section="${initialSection}"]`)
-  const templateRows = root.querySelector<HTMLTableSectionElement>('[data-template-rows]')
-  const templateState = root.querySelector<HTMLElement>('[data-template-state]')
-  const templateResultCount = root.querySelector<HTMLElement>('[data-template-result-count]')
+  const access = root.querySelector<HTMLElement>('[data-dashboard-access]')
   const reviewHistoryRows = root.querySelector<HTMLTableSectionElement>(
     '[data-review-history-rows]',
   )
@@ -48,25 +42,21 @@ export function initMarketDashboard(): void {
   const reviewHistoryCount = root.querySelector<HTMLElement>('[data-review-history-count]')
   const reviewDialog = root.querySelector<HTMLDialogElement>('[data-review-dialog]')
   const reviewNote = root.querySelector<HTMLTextAreaElement>('[data-review-note]')
-  const templatePaginationRoot = root.querySelector<HTMLElement>('[data-template-pagination]')
   const reviewHistoryPaginationRoot = root.querySelector<HTMLElement>(
     '[data-review-history-pagination]',
   )
   const reviewPendingPaginationRoot = root.querySelector<HTMLElement>(
     '[data-review-pending-pagination]',
   )
-  const templatePagination = createPagination(templatePaginationRoot)
   const reviewHistoryPagination = createPagination(reviewHistoryPaginationRoot)
   const reviewPendingPagination = createPagination(reviewPendingPaginationRoot)
+  if (!access) return
+  const dashboardAccess = access
   let currentUser: User | null = null
-  let submissionsRequest: Promise<Submission[]> | null = null
   let reviewRequest: Promise<[Submission[], Submission[]]> | null = null
   let selectedSubmission: Submission | null = null
-  let templateEntries: Array<{ latest: Submission; versions: number }> = []
   let reviewHistoryEntries: Submission[] = []
   let reviewPendingEntries: Submission[] = []
-  let templatePage = 1
-  let templatePageSize = 10
   let reviewHistoryPage = 1
   let reviewHistoryPageSize = 10
   let reviewPendingPage = 1
@@ -100,12 +90,8 @@ export function initMarketDashboard(): void {
     return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
   }
 
-  function statusLabel(status: SubmissionStatus): string {
-    return copy[status]
-  }
-
   function statusBadge(status: SubmissionStatus): HTMLElement {
-    return text('span', statusLabel(status), `dashboard-status is-${status}`)
+    return text('span', copy[status], `dashboard-status is-${status}`)
   }
 
   function templateIdentity(submission: Submission): HTMLElement {
@@ -125,119 +111,7 @@ export function initMarketDashboard(): void {
   }
 
   async function errorMessage(response: Response): Promise<string> {
-    return localizedApiError(response, locale, copy.loadError)
-  }
-
-  function latestTemplates(
-    submissions: Submission[],
-  ): Array<{ latest: Submission; versions: number }> {
-    const grouped = new Map<string, Submission[]>()
-    submissions.forEach((submission) => {
-      const entries = grouped.get(submission.preview.packageId) || []
-      entries.push(submission)
-      grouped.set(submission.preview.packageId, entries)
-    })
-    return Array.from(grouped.values())
-      .map((entries) => ({
-        latest: entries.sort(
-          (left, right) => Date.parse(right.submittedAt) - Date.parse(left.submittedAt),
-        )[0]!,
-        versions: entries.length,
-      }))
-      .sort(
-        (left, right) => Date.parse(right.latest.submittedAt) - Date.parse(left.latest.submittedAt),
-      )
-  }
-
-  function renderTemplateSummary(templates: Array<{ latest: Submission; versions: number }>): void {
-    const counts: Record<'total' | SubmissionStatus, number> = {
-      total: templates.length,
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-    }
-    templates.forEach(({ latest }) => {
-      counts[latest.status] += 1
-    })
-    Object.entries(counts).forEach(([name, count]) => {
-      const value = root.querySelector<HTMLElement>(`[data-stat="${name}"]`)
-      if (value) value.textContent = String(count)
-    })
-    if (templateResultCount)
-      templateResultCount.textContent = `${templates.length} ${copy.templateCountSuffix}`
-  }
-
-  function renderTemplateRow(entry: { latest: Submission; versions: number }): HTMLTableRowElement {
-    const { latest, versions } = entry
-    const row = document.createElement('tr')
-    const name = document.createElement('td')
-    name.append(templateIdentity(latest))
-    const version = document.createElement('td')
-    version.append(
-      text('strong', `v${latest.preview.version}`),
-      text('span', `${versions} ${copy.versionCountSuffix}`),
-    )
-    const status = document.createElement('td')
-    status.append(statusBadge(latest.status))
-    const submitted = text('td', formatDate(latest.submittedAt))
-    const actions = document.createElement('td')
-    actions.className = 'dashboard-actions-cell'
-    if (latest.status === 'approved' && latest.release?.listingId) {
-      const link = text('a', copy.view, 'dashboard-row-action') as HTMLAnchorElement
-      link.href = `${detailBase}?id=${encodeURIComponent(latest.release.listingId)}`
-      link.append(icon('arrow-up-right'))
-      actions.append(link)
-    } else {
-      actions.append(text('span', copy.noReviewNote))
-    }
-    row.append(name, version, status, submitted, actions)
-    return row
-  }
-
-  function renderTemplatePage(): void {
-    if (!templateRows || !templateState) return
-    const pageCount = Math.max(1, Math.ceil(templateEntries.length / templatePageSize))
-    templatePage = Math.min(templatePage, pageCount)
-    templateRows.replaceChildren(
-      ...pagedItems(templateEntries, templatePage, templatePageSize).map(renderTemplateRow),
-    )
-    templateState.textContent = copy.empty
-    templateState.hidden = templateEntries.length > 0
-    templatePagination.set({
-      page: templatePage,
-      pageSize: templatePageSize,
-      totalItems: templateEntries.length,
-    })
-  }
-
-  async function loadSubmissions(force = false): Promise<void> {
-    if (!currentUser || !templateRows || !templateState) return
-    if (force) submissionsRequest = null
-    if (!submissionsRequest) {
-      templateState.hidden = false
-      templateState.textContent = copy.loading
-      submissionsRequest = fetch('/api/market/v1/submissions/mine', {
-        headers: { Accept: 'application/json' },
-      })
-        .then(async (response) => {
-          if (!response.ok) throw new Error(await errorMessage(response))
-          return response.json() as Promise<Submission[]>
-        })
-        .catch((error) => {
-          submissionsRequest = null
-          throw error
-        })
-    }
-    try {
-      templateEntries = latestTemplates(await submissionsRequest)
-      templatePage = 1
-      renderTemplateSummary(templateEntries)
-      renderTemplatePage()
-    } catch {
-      toast.error(copy.loadError)
-      templateState.replaceChildren(retryButton(() => void loadSubmissions(true)))
-      templateState.hidden = false
-    }
+    return localizedApiError(response, locale, copy.reviewLoadError)
   }
 
   function renderReviewHistoryRow(submission: Submission): HTMLTableRowElement {
@@ -270,9 +144,10 @@ export function initMarketDashboard(): void {
   function openReview(submission: Submission): void {
     if (!reviewDialog || !reviewNote) return
     selectedSubmission = submission
-    const title = root.querySelector<HTMLElement>('[data-review-dialog-title]')!
-    const summary = root.querySelector<HTMLElement>('[data-review-dialog-summary]')!
-    const detail = root.querySelector<HTMLElement>('[data-review-detail]')!
+    const title = root.querySelector<HTMLElement>('[data-review-dialog-title]')
+    const summary = root.querySelector<HTMLElement>('[data-review-dialog-summary]')
+    const detail = root.querySelector<HTMLElement>('[data-review-detail]')
+    if (!title || !summary || !detail) return
     title.textContent = submission.request.title
     summary.textContent = submission.request.summary
     detail.replaceChildren()
@@ -317,18 +192,6 @@ export function initMarketDashboard(): void {
     return row
   }
 
-  function renderReviewData(pending: Submission[], history: Submission[]): void {
-    reviewPendingEntries = pending
-    reviewHistoryEntries = history
-    reviewPendingPage = 1
-    reviewHistoryPage = 1
-    if (reviewCount) reviewCount.textContent = String(pending.length)
-    if (reviewHistoryCount)
-      reviewHistoryCount.textContent = `${history.length} ${copy.reviewCountSuffix}`
-    renderReviewPendingPage()
-    renderReviewHistoryPage()
-  }
-
   function renderReviewPendingPage(): void {
     const pageCount = Math.max(1, Math.ceil(reviewPendingEntries.length / reviewPendingPageSize))
     reviewPendingPage = Math.min(reviewPendingPage, pageCount)
@@ -367,9 +230,20 @@ export function initMarketDashboard(): void {
     })
   }
 
+  function renderReviewData(pending: Submission[], history: Submission[]): void {
+    reviewPendingEntries = pending
+    reviewHistoryEntries = history
+    reviewPendingPage = 1
+    reviewHistoryPage = 1
+    if (reviewCount) reviewCount.textContent = String(pending.length)
+    if (reviewHistoryCount)
+      reviewHistoryCount.textContent = `${history.length} ${copy.reviewCountSuffix}`
+    renderReviewPendingPage()
+    renderReviewHistoryPage()
+  }
+
   async function loadReviewData(force = false): Promise<void> {
-    if (!currentUser || currentUser.role !== 'admin' || !reviewPendingRows || !reviewHistoryRows)
-      return
+    if (currentUser?.role !== 'admin' || !reviewPendingRows || !reviewHistoryRows) return
     if (force) reviewRequest = null
     if (!reviewRequest) {
       if (reviewPendingState) {
@@ -457,21 +331,18 @@ export function initMarketDashboard(): void {
 
   function applyUser(user: User | null | undefined): void {
     currentUser = user || null
-    access.hidden = Boolean(currentUser)
+    dashboardAccess.hidden = Boolean(currentUser)
     if (!currentUser) {
-      access.textContent = copy.signInRequired
+      dashboardAccess.textContent = copy.signInRequired
       window.dispatchEvent(new CustomEvent('market-auth-required'))
       return
     }
+    const section = root.querySelector<HTMLElement>('[data-dashboard-section="review"]')
     if (section) section.hidden = false
-    if (initialSection === 'review') {
-      if (currentUser.role === 'admin') void loadReviewData()
-      else {
-        if (reviewPendingState) reviewPendingState.textContent = copy.adminRequired
-        if (reviewHistoryState) reviewHistoryState.textContent = copy.adminRequired
-      }
-    } else {
-      void loadSubmissions()
+    if (currentUser.role === 'admin') void loadReviewData()
+    else {
+      if (reviewPendingState) reviewPendingState.textContent = copy.adminRequired
+      if (reviewHistoryState) reviewHistoryState.textContent = copy.adminRequired
     }
   }
 
@@ -484,9 +355,9 @@ export function initMarketDashboard(): void {
       const payload = (await response.json()) as AuthResponse
       applyUser(payload.user)
     } catch {
-      toast.error(copy.loadError)
-      access.hidden = false
-      access.replaceChildren(retryButton(() => void loadCurrentUser()))
+      toast.error(copy.reviewLoadError)
+      dashboardAccess.hidden = false
+      dashboardAccess.replaceChildren(retryButton(() => void loadCurrentUser()))
     }
   }
 
@@ -495,13 +366,6 @@ export function initMarketDashboard(): void {
       selectReviewView(button.dataset.reviewView === 'pending' ? 'pending' : 'history'),
     )
   })
-  templatePaginationRoot?.addEventListener('pagination:change', ((
-    event: CustomEvent<PaginationChange>,
-  ) => {
-    templatePage = event.detail.page
-    templatePageSize = event.detail.pageSize
-    renderTemplatePage()
-  }) as EventListener)
   reviewHistoryPaginationRoot?.addEventListener('pagination:change', ((
     event: CustomEvent<PaginationChange>,
   ) => {
@@ -530,8 +394,5 @@ export function initMarketDashboard(): void {
   })
   window.addEventListener('market-auth-changed', ((event: CustomEvent<AuthResponse>) =>
     applyUser(event.detail.user)) as EventListener)
-  window.addEventListener('market-submission-created', () => {
-    if (initialSection === 'templates') void loadSubmissions(true)
-  })
   void loadCurrentUser()
 }

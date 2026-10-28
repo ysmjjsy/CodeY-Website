@@ -227,7 +227,7 @@ const docsHref = docsPath(locale, 'getting-started')
     border-radius: 50%;
     background: var(--amber);
     box-shadow: 0 0 8px var(--amber);
-    animation: release-pulse 1.8s ease-in-out infinite;
+    animation: release-pulse var(--motion-loop-breathe) var(--motion-ease-in-out) infinite;
   }
 
   .release-status[data-release-state="ready"] .release-dot {
@@ -292,10 +292,10 @@ const docsHref = docsPath(locale, 'getting-started')
     background: linear-gradient(180deg, var(--ghost-bg-hover), var(--ghost-bg)), var(--surface);
     box-shadow: inset 0 1px 0 var(--panel-inset);
     transition:
-      transform var(--duration-slow) var(--ease-out),
-      border-color var(--duration-slow),
-      box-shadow var(--duration-slow),
-      background var(--duration-slow);
+      transform var(--motion-notice) var(--motion-ease-out),
+      border-color var(--motion-notice),
+      box-shadow var(--motion-notice),
+      background var(--motion-notice);
   }
 
   .download-card:hover {
@@ -376,7 +376,7 @@ const docsHref = docsPath(locale, 'getting-started')
       var(--ghost-bg) 90%
     );
     background-size: 200% 100%;
-    animation: skeleton-shine 1.4s ease-in-out infinite;
+    animation: skeleton-shine var(--motion-loop-breathe) var(--motion-ease-in-out) infinite;
   }
 
   .download-section[data-release-state="ready"] .asset-skeleton,

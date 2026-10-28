@@ -4,7 +4,7 @@
  * CodeY/apps/desktop/src/shared/styles/global.css 为准，
  * 契约见 BRAND-TOKENS.md。
  *
- * 品牌主色（--accent*）：浅色 #4f46e5 / 深色 #818cf8（indigo）
+ * 品牌主色（--accent*）：浅色 #1a1917 / 深色 #f1ede4（暖色中性）
  * 装饰色（--decorative-glow）：青色，仅用于氛围辉光，不承担品牌语义
  */
 
@@ -21,10 +21,10 @@
   --fg-muted: #a1a1aa;
   --fg-faint: #71717a;
   /* 品牌：对齐桌面端深色 primary */
-  --accent: #818cf8;
-  --accent-bright: #a5b4fc;
-  --accent-soft: rgba(129, 140, 248, 0.14);
-  --accent-ring: rgba(129, 140, 248, 0.4);
+  --accent: #f1ede4;
+  --accent-bright: #fffaf0;
+  --accent-soft: rgba(241, 237, 228, 0.14);
+  --accent-ring: rgba(241, 237, 228, 0.4);
   /* 契约别名（BRAND-TOKENS.md）
    *
    * 桌面端把品牌主色叫 `--primary`，本仓库历史上叫 `--accent`，两侧同名 Token 只有 11 个。
@@ -41,7 +41,7 @@
   --accent-decorative: var(--decorative-glow);
   /* 装饰：青色仅用于氛围辉光 */
   --decorative-glow: rgba(6, 182, 212, 0.16);
-  --accent-glow: rgba(129, 140, 248, 0.14);
+  --accent-glow: rgba(241, 237, 228, 0.14);
   --btn-primary-fg: #09090b;
   --amber: #f59e0b;
   --amber-soft: rgba(245, 158, 11, 0.12);
@@ -92,25 +92,22 @@
   --z-nav-menu: 51;
   --z-toast: 100;
 
-  /* 动效时长
-   *
-   * 分两组，因为两者都叫「秒」但语义不同：
-   *
-   * 1. **交互反馈**（transition）：hover / focus / 展开收起。用户能感知到快慢，
-   *    因此必须收得很紧，只有 3 档。
-   * 2. **入场与循环动画**（animation）：元素首次出现的位移、加载骨架的呼吸、
-   *    旋转指示器。这些是「被观看的动画」而非「对操作的应答」，
-   *    按动画自身节奏取值，不套用交互档位。
-   *
-   * 改造前 transition 有 0.15/0.16/0.18/0.2/0.25/0.7 六种取值，
-   * 其中 0.15 与 0.16 仅差 10ms（肉眼不可分辨）。现在收敛到 3 档。
-   */
-  --duration-fast: 0.15s;
-  --duration-base: 0.2s;
-  --duration-slow: 0.25s;
-  /* 滚动显现（`.reveal`）：元素随滚动进入视口，是被观看的过渡而非操作应答，
-   * 因此比交互档位慢得多，单独成一档。 */
-  --duration-reveal: 0.7s;
+  /* Shared motion semantics. Keep these names aligned with the desktop Motion Foundation. */
+  --motion-instant: 0.1s;
+  --motion-fast: 0.15s;
+  --motion-base: 0.22s;
+  --motion-notice: 0.3s;
+  --motion-notice-exit: 0.2s;
+  --motion-page: 0.48s;
+  --motion-morph: 0.42s;
+  --motion-reveal: 0.7s;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-ease-linear: linear;
+  --motion-ease-in-out: ease-in-out;
+  --motion-loop-breathe: 1.6s;
+  --motion-loop-spinner: 0.8s;
+  --motion-loop-cursor: 1s;
 
   /* 字号比例尺
    *
@@ -219,11 +216,10 @@
   --font-body:
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, ui-monospace, monospace;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
 
-/* 浅色：对齐桌面端浅色 primary（indigo #4f46e5） */
+/* 浅色：对齐桌面端浅色 primary（暖色中性 #1a1917） */
 :root[data-theme="light"] {
   --bg: #f8f9fa;
   --bg-soft: #f1f5f9;
@@ -236,10 +232,10 @@
   --fg-muted: #59697f;
   --fg-faint: #94a3b8;
   /* 品牌：对齐桌面端浅色 primary */
-  --accent: #4f46e5;
-  --accent-bright: #4338ca;
-  --accent-soft: rgba(79, 70, 229, 0.1);
-  --accent-ring: rgba(79, 70, 229, 0.28);
+  --accent: #1a1917;
+  --accent-bright: #4a4842;
+  --accent-soft: rgba(26, 25, 23, 0.1);
+  --accent-ring: rgba(26, 25, 23, 0.28);
   /* 契约别名：必须在本主题重新声明。
    * `var()` 在自定义属性里是「按使用处解析」，但被引用的 `--accent` / `--btn-primary-fg` /
    * `--decorative-glow` 都在本块被覆盖，若别名只在深色块定义，浅色下它们仍会解析到
@@ -251,7 +247,7 @@
   --accent-decorative: var(--decorative-glow);
   /* 装饰：浅色下使用更深的青色以保证对比度 */
   --decorative-glow: rgba(8, 145, 178, 0.12);
-  --accent-glow: rgba(79, 70, 229, 0.12);
+  --accent-glow: rgba(26, 25, 23, 0.12);
   --btn-primary-fg: #ffffff;
   --amber: #d97706;
   --amber-soft: rgba(217, 119, 6, 0.1);

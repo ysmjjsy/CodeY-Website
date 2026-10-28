@@ -1,6 +1,34 @@
 /* CodeY 官网首页样式 — 布局与排版；设计 Token 见 tokens.css */
 @import "./tokens.css";
 
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+
+  ::view-transition-old(root) {
+    animation: codey-page-out var(--motion-page) var(--motion-ease-out) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: codey-page-in var(--motion-page) var(--motion-ease-out) both;
+  }
+}
+
+@keyframes codey-page-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes codey-page-out {
+  to {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -104,8 +132,8 @@ pre {
   opacity: 0;
   transform: translateY(20px);
   transition:
-    opacity var(--duration-reveal) var(--ease-out),
-    transform var(--duration-reveal) var(--ease-out);
+    opacity var(--motion-reveal) var(--motion-ease-out),
+    transform var(--motion-reveal) var(--motion-ease-out);
   transition-delay: var(--reveal-delay, 0s);
 }
 

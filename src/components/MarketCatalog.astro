@@ -45,9 +45,6 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
           />
           <button type="submit" aria-label={copy.search}><kbd>⌘ K</kbd></button>
         </form>
-        <Button class="market-upload-button" variant="primary" data-market-upload-open>
-          <i class="ph ph-upload-simple" aria-hidden="true"></i>{copy.upload}
-        </Button>
         </div>
       </Fragment>
     </PageHeader>
@@ -84,9 +81,6 @@ const [discoverTitlePrefix, discoverTitleSuffix = ''] = copy.discoverTitle.split
           <h2 id="market-empty-title" data-market-empty-title>{copy.emptyTitle}</h2>
           <p data-market-empty-description>{copy.emptyDescription}</p>
           <div class="market-empty-actions" data-market-inventory-actions>
-            <Button variant="primary" data-market-upload-open>
-              <i class="ph ph-upload-simple" aria-hidden="true"></i>{copy.publishFirst}
-            </Button>
             <Button href={docsPath(locale, 'sdk/agent-definitions')}>
               <i class="ph ph-file-code" aria-hidden="true"></i>{copy.learnPackage}
             </Button>

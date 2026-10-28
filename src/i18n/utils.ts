@@ -48,14 +48,7 @@ export function registerPath(locale: Locale): string {
 
 export function consolePath(
   locale: Locale,
-  section:
-    | 'profile'
-    | 'templates'
-    | 'users'
-    | 'reviews'
-    | 'models'
-    | 'plans'
-    | 'topups' = 'profile',
+  section: 'profile' | 'users' | 'reviews' | 'models' | 'plans' | 'topups' = 'profile',
 ): string {
   const base = locale === 'en' ? '/en/console' : '/console'
   return section === 'profile' ? `${base}/` : `${base}/${section}/`

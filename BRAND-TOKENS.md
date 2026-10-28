@@ -29,7 +29,7 @@ CodeY/apps/desktop/src/shared/styles/global.css
 
 | 契约名 | 官网别名指向 | 桌面端 |
 |---|---|---|
-| `--primary` | `var(--accent)` | 字面量 `#4f46e5` / `#818cf8` |
+| `--primary` | `var(--accent)` | 字面量 `#1a1917` / `#f1ede4` |
 | `--primary-foreground` | `var(--btn-primary-fg)` | 字面量 |
 | `--ring` | `var(--accent)` | `var(--primary)` |
 | `--accent-decorative` | `var(--decorative-glow)` | **未定义**（见下） |
@@ -45,22 +45,22 @@ CodeY/apps/desktop/src/shared/styles/global.css
 
 | 语义 | 桌面端 Token | 官网 Token | 浅色 | 深色 |
 |---|---|---|---|---|
-| 品牌主色 | `--primary` | `--accent`（别名 `--primary`） | `#4f46e5` | `#818cf8` |
+| 品牌主色 | `--primary` | `--accent`（别名 `--primary`） | `#1a1917` | `#f1ede4` |
 | 品牌前景 | `--primary-foreground` | `--btn-primary-fg`（别名同上） | `#ffffff` | `#09090b` |
-| 焦点环 | `--ring` | `--ring`（别名 → `--accent`） | `#4f46e5` | `#818cf8` |
+| 焦点环 | `--ring` | `--ring`（别名 → `--accent`） | `#1a1917` | `#f1ede4` |
 | 品牌浅底 | `--accent-soft` | `--accent-soft` | 见下 | 见下 |
 
 > **`--accent-soft` 两侧同名但形式不同，替换时不可假设等价。**
 > 桌面端是**实色**（浅 `#eef2ff` / 深 `#22243a`）；官网是**半透明叠色**
-> （浅 `rgba(79, 70, 229, 0.1)` / 深 `rgba(129, 140, 248, 0.14)`）。
+> （浅 `rgba(26, 25, 23, 0.1)` / 深 `rgba(241, 237, 228, 0.14)`）。
 > 本文件此前把桌面端的值填进了官网那一列，已更正。
 
 官网另有两个派生的品牌阶：
 
 | 语义 | 官网 Token | 浅色 | 深色 |
 |---|---|---|---|
-| 品牌亮阶（用于小字号文本） | `--accent-bright` | `#4338ca` | `#a5b4fc` |
-| 品牌辉光 | `--accent-glow` | `rgba(79, 70, 229, 0.12)` | `rgba(129, 140, 248, 0.14)` |
+| 品牌亮阶（用于小字号文本） | `--accent-bright` | `#4a4842` | `#fffaf0` |
+| 品牌辉光 | `--accent-glow` | `rgba(26, 25, 23, 0.12)` | `rgba(241, 237, 228, 0.14)` |
 
 桌面端把 `--accent` / `--accent-foreground` / `--ring` 定义为 `--primary` 的派生别名，
 因此 `--primary` 是唯一需要维护的字面量。
@@ -189,5 +189,5 @@ node CodeY/scripts/check-design-tokens.mjs
 
 - 四个契约名（`--primary` / `--primary-foreground` / `--ring` / `--accent-decorative`）
   在官网均已定义；
-- 品牌主色的浅色 `#4f46e5`、深色 `#818cf8` 与桌面端 `global.css` 中的值逐字相等；
+- 品牌主色的浅色 `#1a1917`、深色 `#f1ede4` 与桌面端 `global.css` 中的值逐字相等；
 - `cyan` 未作为品牌色出现在 `landing.css` / `tokens.css` 的品牌 Token 上。

@@ -74,9 +74,9 @@ const downloadHref = downloadPath(locale)
     z-index: var(--z-header);
     border-bottom: 1px solid transparent;
     transition:
-      background var(--duration-slow),
-      border-color var(--duration-slow),
-      backdrop-filter var(--duration-slow);
+      background var(--motion-notice),
+      border-color var(--motion-notice),
+      backdrop-filter var(--motion-notice);
   }
 
   .site-nav.is-scrolled,
@@ -117,7 +117,7 @@ const downloadHref = downloadPath(locale)
   .nav-links a {
     font-size: var(--text-md);
     color: var(--fg-muted);
-    transition: color var(--duration-fast);
+    transition: color var(--motion-fast);
   }
 
   .nav-links a:hover {
@@ -162,8 +162,8 @@ const downloadHref = downloadPath(locale)
     justify-content: center;
     padding: 0;
     transition:
-      border-color var(--duration-fast),
-      background var(--duration-fast);
+      border-color var(--motion-fast),
+      background var(--motion-fast);
   }
 
   .nav-toggle:hover {
@@ -180,8 +180,8 @@ const downloadHref = downloadPath(locale)
     background: currentColor;
     border-radius: 1px;
     transition:
-      transform var(--duration-base) var(--ease-out),
-      opacity var(--duration-base);
+      transform var(--motion-base) var(--motion-ease-out),
+      opacity var(--motion-base);
   }
 
   .nav-toggle-bars {
@@ -254,9 +254,9 @@ const downloadHref = downloadPath(locale)
       visibility: hidden;
       z-index: var(--z-nav-menu);
       transition:
-        opacity var(--duration-base) var(--ease-out),
-        transform var(--duration-base) var(--ease-out),
-        visibility var(--duration-base);
+        opacity var(--motion-base) var(--motion-ease-out),
+        transform var(--motion-base) var(--motion-ease-out),
+        visibility var(--motion-base);
     }
 
     .site-nav.is-open .nav-links {
@@ -291,7 +291,7 @@ const downloadHref = downloadPath(locale)
       background: rgba(0, 0, 0, 0.42);
       opacity: 0;
       pointer-events: none;
-      transition: opacity var(--duration-base);
+      transition: opacity var(--motion-base);
       z-index: var(--z-behind);
     }
 

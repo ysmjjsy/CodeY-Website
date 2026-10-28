@@ -4,7 +4,7 @@ import type { Locale } from '../i18n/ui'
 import { consolePath } from '../i18n/utils'
 import '../styles/console.css'
 
-type ConsoleSection = 'profile' | 'templates' | 'users' | 'reviews' | 'models' | 'plans' | 'topups'
+type ConsoleSection = 'profile' | 'users' | 'reviews' | 'models' | 'plans' | 'topups'
 
 interface Props {
   locale: Locale
@@ -15,7 +15,6 @@ const { locale, activeSection } = Astro.props
 const copy = consoleCopy(locale)
 const navigation = [
   { section: 'profile', label: copy.profile, icon: 'user-circle' },
-  { section: 'templates', label: copy.templates, icon: 'stack' },
   { section: 'users', label: copy.users, icon: 'users', admin: true },
   { section: 'reviews', label: copy.reviews, icon: 'shield-check', admin: true },
   { section: 'models', label: copy.models, icon: 'brain', admin: true },
@@ -37,7 +36,7 @@ const navigation = [
     <nav aria-label={copy.title}>
       <p class="console-nav-group">{copy.personal}</p>
       {
-        navigation.slice(0, 2).map((item) => (
+          navigation.slice(0, 1).map((item) => (
           <a href={consolePath(locale, item.section)} aria-current={activeSection === item.section ? 'page' : undefined}>
             <i class={`ph ph-${item.icon}`} aria-hidden="true"></i>
             <span>{item.label}</span>
@@ -48,7 +47,7 @@ const navigation = [
       <div class="console-admin-navigation" hidden data-console-admin>
         <p class="console-nav-group">{copy.administration}</p>
         {
-          navigation.slice(2).map((item) => (
+          navigation.slice(1).map((item) => (
             <a href={consolePath(locale, item.section)} aria-current={activeSection === item.section ? 'page' : undefined}>
               <i class={`ph ph-${item.icon}`} aria-hidden="true"></i>
               <span>{item.label}</span>

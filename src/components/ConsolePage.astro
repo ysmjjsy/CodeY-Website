@@ -8,14 +8,7 @@ import { alternateLocalePath } from '../i18n/utils'
 import MarketLayout from '../layouts/MarketLayout.astro'
 import ConsoleShell from './ConsoleShell.astro'
 
-export type ConsoleSection =
-  | 'profile'
-  | 'templates'
-  | 'users'
-  | 'reviews'
-  | 'models'
-  | 'plans'
-  | 'topups'
+export type ConsoleSection = 'profile' | 'users' | 'reviews' | 'models' | 'plans' | 'topups'
 
 interface Props {
   locale: Locale
@@ -42,7 +35,6 @@ const meta = {
   models: { title: `${cloud.adminTitle} · CodeY`, description: cloud.adminDescription },
   plans: { title: `${cloud.planAdminTitle} · CodeY`, description: cloud.planAdminDescription },
   topups: { title: `${cloud.topUpAdminTitle} · CodeY`, description: cloud.topUpAdminDescription },
-  templates: { title: dashboard.metaTitle, description: dashboard.metaDescription },
 }[section]
 ---
 

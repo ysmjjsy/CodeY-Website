@@ -109,7 +109,7 @@ const copy =
       inset 0 1px 0 var(--panel-inset);
     backdrop-filter: blur(18px) saturate(150%);
     pointer-events: auto;
-    animation: codey-toast-in 0.32s var(--ease-out) both;
+    animation: codey-toast-in var(--motion-notice) var(--motion-ease-out) both;
   }
 
   .codey-toast::before {
@@ -139,7 +139,7 @@ const copy =
   }
 
   .codey-toast.is-closing {
-    animation: codey-toast-out 0.18s ease-in forwards;
+    animation: codey-toast-out var(--motion-notice-exit) var(--motion-ease-out) forwards;
   }
 
   .codey-toast-icon {
@@ -195,8 +195,8 @@ const copy =
     border-radius: var(--radius-md);
     cursor: pointer;
     transition:
-      color var(--duration-fast),
-      background-color var(--duration-fast);
+      color var(--motion-fast),
+      background-color var(--motion-fast);
   }
 
   .codey-toast-close:hover {
@@ -216,7 +216,7 @@ const copy =
     background: var(--toast-tone);
     opacity: 0.72;
     transform-origin: left;
-    animation: codey-toast-countdown var(--toast-duration, 4500ms) linear forwards;
+    animation: codey-toast-countdown var(--toast-duration, 4500ms) var(--motion-ease-linear) forwards;
   }
 
   .codey-toast:is(:hover, :focus-within) .codey-toast-progress {

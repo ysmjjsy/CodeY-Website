@@ -2,7 +2,6 @@
 import { dashboardCopy } from '../i18n/dashboard'
 import type { Locale } from '../i18n/ui'
 import { marketPath } from '../i18n/utils'
-import MarketUpload from './MarketUpload.astro'
 import Button from './ui/Button.astro'
 import Dialog from './ui/Dialog.astro'
 import List from './ui/List.astro'
@@ -12,12 +11,10 @@ import StateMessage from './ui/StateMessage.astro'
 
 interface Props {
   locale: Locale
-  initialSection?: 'templates' | 'review'
 }
 
-const { locale, initialSection = 'templates' } = Astro.props
+const { locale } = Astro.props
 const copy = dashboardCopy(locale)
-const isReview = initialSection === 'review'
 ---
 
 <section
@@ -25,19 +22,18 @@ const isReview = initialSection === 'review'
   data-market-dashboard
   data-copy={JSON.stringify(copy)}
   data-locale={locale}
-  data-initial-section={initialSection}
+  data-initial-section="review"
   data-detail-base={marketPath(locale, 'item')}
 >
   <PageHeader
     class="dashboard-header"
-    eyebrow={isReview ? copy.reviewWorkspace : copy.templateLibrary}
+    eyebrow={copy.reviewWorkspace}
     eyebrowClass="dashboard-eyebrow"
-    title={isReview ? copy.reviewTitle : copy.title}
-    description={isReview ? copy.reviewDescription : copy.description}
+    title={copy.reviewTitle}
+    description={copy.reviewDescription}
   >
-    <Fragment slot="actions">{
-      isReview ? (
-        <div class="dashboard-review-tabs" role="tablist" aria-label={copy.reviewTitle}>
+    <Fragment slot="actions">
+      <div class="dashboard-review-tabs" role="tablist" aria-label={copy.reviewTitle}>
           <button type="button" role="tab" aria-selected="true" class="is-active" data-review-view="history">
             <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
             <span>{copy.reviewHistory}</span>
@@ -47,63 +43,13 @@ const isReview = initialSection === 'review'
             <span>{copy.pendingApplications}</span>
             <strong data-review-count>0</strong>
           </button>
-        </div>
-      ) : (
-        <Button class="dashboard-upload" variant="primary" hidden data-authenticated-only data-market-upload-open>
-          <i class="ph ph-upload-simple" aria-hidden="true"></i>
-          {copy.upload}
-        </Button>
-      )
-    }</Fragment>
+      </div>
+    </Fragment>
   </PageHeader>
 
   <StateMessage as="div" class="dashboard-access" data-dashboard-access>{copy.loading}</StateMessage>
 
-  {
-    !isReview && (
-      <section class="dashboard-section" hidden data-dashboard-section="templates">
-        <div class="dashboard-summary" aria-label={copy.status}>
-          <div class="dashboard-summary-primary">
-            <span>{copy.total}</span>
-            <strong data-stat="total">0</strong>
-          </div>
-          <div><span class="dashboard-dot is-pending"></span><span>{copy.pending}</span><strong data-stat="pending">0</strong></div>
-          <div><span class="dashboard-dot is-approved"></span><span>{copy.approved}</span><strong data-stat="approved">0</strong></div>
-          <div><span class="dashboard-dot is-rejected"></span><span>{copy.rejected}</span><strong data-stat="rejected">0</strong></div>
-        </div>
-
-        <List class="dashboard-panel">
-          <div class="dashboard-panel-head">
-            <div>
-              <h2>{copy.templateList}</h2>
-              <p>{copy.templateListDescription}</p>
-            </div>
-            <span data-template-result-count></span>
-          </div>
-          <div class="dashboard-table-wrap">
-            <table class="dashboard-table dashboard-template-table">
-              <thead>
-                <tr>
-                  <th>{copy.name}</th>
-                  <th>{copy.latestVersion}</th>
-                  <th>{copy.status}</th>
-                  <th>{copy.submittedAt}</th>
-                  <th><span class="sr-only">{copy.actions}</span></th>
-                </tr>
-              </thead>
-              <tbody data-template-rows></tbody>
-            </table>
-          </div>
-          <div slot="empty" class="dashboard-empty" hidden data-template-state></div>
-          <Pagination slot="footer" locale={locale} pageSize={10} pageSizeOptions={[10, 20, 50]} data-template-pagination />
-        </List>
-      </section>
-    )
-  }
-
-  {
-    isReview && (
-      <section class="dashboard-section" hidden data-dashboard-section="review">
+  <section class="dashboard-section" hidden data-dashboard-section="review">
         <div data-review-panel="history">
           <div class="dashboard-section-heading">
             <div><h2>{copy.reviewHistory}</h2><p>{copy.reviewHistoryDescription}</p></div>
@@ -177,12 +123,8 @@ const isReview = initialSection === 'review'
             </div>
           </div>
         </Dialog>
-      </section>
-    )
-  }
+  </section>
 </section>
-
-{!isReview && <MarketUpload locale={locale} />}
 
 <script>
   import { initMarketDashboard } from '../lib/market-dashboard.ts'

@@ -122,9 +122,9 @@ const { locale } = Astro.props
     text-align: left;
     cursor: pointer;
     transition:
-      border-color var(--duration-base),
-      background var(--duration-base),
-      color var(--duration-base);
+      border-color var(--motion-base),
+      background var(--motion-base),
+      color var(--motion-base);
   }
 
   .release-list :global(.release-tab:hover) {
@@ -173,7 +173,7 @@ const { locale } = Astro.props
     border-radius: var(--radius-md);
     background: linear-gradient(90deg, var(--ghost-bg), var(--ghost-bg-hover), var(--ghost-bg));
     background-size: 200% 100%;
-    animation: history-skeleton 1.4s ease-in-out infinite;
+    animation: history-skeleton var(--motion-loop-breathe) var(--motion-ease-in-out) infinite;
   }
 
   .release-detail {
@@ -337,8 +337,8 @@ const { locale } = Astro.props
     font-family: var(--font-mono);
     font-size: var(--text-2xs);
     transition:
-      color var(--duration-base),
-      background var(--duration-base);
+      color var(--motion-base),
+      background var(--motion-base);
   }
 
   .release-detail :global(.release-asset:hover) {
@@ -376,7 +376,7 @@ const { locale } = Astro.props
     border-radius: var(--radius-sm);
     background: linear-gradient(90deg, var(--ghost-bg), var(--ghost-bg-hover), var(--ghost-bg));
     background-size: 200% 100%;
-    animation: history-skeleton 1.4s ease-in-out infinite;
+    animation: history-skeleton var(--motion-loop-breathe) var(--motion-ease-in-out) infinite;
   }
 
   .release-detail-skeleton span:first-child {
