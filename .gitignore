@@ -1,37 +1,46 @@
-.DS_Store
-Thumbs.db
-node_modules/
-dist/
-.astro/
-.codey-market/
-.env.local
-# 备份的环境文件同样含明文密钥，不能提交
-.env.local.bak*
-# Docker Compose 使用的生产环境文件，含数据库密码与各类密钥
+.idea
+.review
+.vscode
+.zed
+.history
+upload
+*.exe
+*.db
+build
+*.db-journal
+*.db-shm
+*.db-wal
+logs
+web/dist
+web/node_modules
 .env
-target/
+one-api
+new-api
+/__debug_bin*
+.DS_Store
+tiktoken_cache
+.eslintcache
+.gocache
+.gomodcache/
+.cache
+.plans
+.claude
+.cursor
 
-# 容器持久化数据与 TLS 证书私钥
+electron/node_modules
+electron/dist
 /data/
-/deploy/certs/
-# 自动申请 Origin Certificate 用的 Cloudflare API Token
-/deploy/.cloudflare-token
+.gomodcache/
+.gocache-temp
+.gopath
+.test
+token_estimator_test.go
+skills-lock.json
+.playwright-mcp
 
-# Editor and OS scratch files. None of these are project state, and no tracked
-# file uses these extensions, so a blanket rule is safe here.
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-*.orig
-*.rej
-*.log
-
-# Retired visual-QA evidence dumps (18 MB + 10 MB of dated screenshots). They had
-# no code, CI, or gate dependency. Visual review evidence now lives outside the
-# repository; do not re-add these paths. Leading slash anchors each rule to the
-# repository root so nested source directories are unaffected.
-/artifacts/
-/qa/
-/design-qa.md
+# Local-only live probes and scratch test workspaces.
+.local-tests/
+relaykit/relayconvert/chat_responses_live_local_test.go
+service/openaicompat/chat_responses_live_local_test.go
+go.work
+go.work.sum
