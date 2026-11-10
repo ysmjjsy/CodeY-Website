@@ -147,13 +147,13 @@ describe('email delivery settings', () => {
     await user.type(from, 'mail@example.com')
     await user.type(
       screen.getByRole('textbox', { name: 'Sender name' }),
-      'New API'
+      'CodeGuys'
     )
     await user.type(screen.getByLabelText('Resend API key'), 'test-key')
     await user.click(screen.getByRole('button', { name: 'Save Changes' }))
     await waitFor(() => expect(request).toHaveBeenCalledTimes(3))
     expect(request.mock.calls.map((call) => call[1])).toEqual([
-      { key: 'ResendFrom', value: '"New API" <mail@example.com>' },
+      { key: 'ResendFrom', value: '"CodeGuys" <mail@example.com>' },
       { key: 'ResendApiKey', value: 'test-key' },
       { key: 'EmailProvider', value: 'resend' },
     ])
@@ -185,7 +185,7 @@ describe('email delivery settings', () => {
     await user.type(from, 'notify@another.example')
     await user.type(
       screen.getByRole('textbox', { name: 'Sender name' }),
-      'New API 通知'
+      'CodeGuys 通知'
     )
     await user.click(screen.getByRole('radio', { name: 'SMTP' }))
     expect(
@@ -196,7 +196,7 @@ describe('email delivery settings', () => {
       screen.getByRole('textbox', { name: 'Sender email address' })
     ).toHaveValue('notify@another.example')
     expect(screen.getByRole('textbox', { name: 'Sender name' })).toHaveValue(
-      'New API 通知'
+      'CodeGuys 通知'
     )
   })
 
@@ -259,13 +259,13 @@ describe('email delivery settings', () => {
       .mockResolvedValue({ data: { success: true } })
     const user = renderEmail({
       EmailProvider: 'resend',
-      ResendFrom: 'New API <notify@example.com>',
+      ResendFrom: 'CodeGuys <notify@example.com>',
     })
     expect(
       screen.getByRole('textbox', { name: 'Sender email address' })
     ).toHaveValue('notify@example.com')
     expect(screen.getByRole('textbox', { name: 'Sender name' })).toHaveValue(
-      'New API'
+      'CodeGuys'
     )
     await user.click(screen.getByRole('button', { name: 'Save Changes' }))
     expect(request).not.toHaveBeenCalled()
@@ -277,17 +277,17 @@ describe('email delivery settings', () => {
       .mockResolvedValue({ data: { success: true } })
     const user = renderEmail({
       EmailProvider: 'resend',
-      ResendFrom: '"New API, \\"Mail\\"" <notify@example.com>',
+      ResendFrom: '"CodeGuys, \\"Mail\\"" <notify@example.com>',
     })
     const name = screen.getByRole('textbox', { name: 'Sender name' })
-    expect(name).toHaveValue('New API, "Mail"')
+    expect(name).toHaveValue('CodeGuys, "Mail"')
     await user.clear(name)
-    await user.type(name, 'New API, "Support"')
+    await user.type(name, 'CodeGuys, "Support"')
     await user.click(screen.getByRole('button', { name: 'Save Changes' }))
     await waitFor(() =>
       expect(request).toHaveBeenLastCalledWith('/api/option/', {
         key: 'ResendFrom',
-        value: '"New API, \\"Support\\"" <notify@example.com>',
+        value: '"CodeGuys, \\"Support\\"" <notify@example.com>',
       })
     )
     await user.clear(name)
@@ -300,7 +300,7 @@ describe('email delivery settings', () => {
     )
   })
 
-  it.each(['notify', 'New API <notify@example.com>'])(
+  it.each(['notify', 'CodeGuys <notify@example.com>'])(
     'rejects %s instead of a complete standalone sender email',
     async (address) => {
       const request = vi
@@ -332,7 +332,7 @@ describe('email delivery settings', () => {
     const parsed = createEmailSchema((key) => key).safeParse({
       ...defaults,
       EmailProvider: 'resend',
-      ResendSenderName: 'New API\r\nBcc: other@example.com',
+      ResendSenderName: 'CodeGuys\r\nBcc: other@example.com',
     })
     expect(parsed.success).toBe(false)
     if (!parsed.success) {

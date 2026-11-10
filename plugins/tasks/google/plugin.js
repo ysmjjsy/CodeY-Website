@@ -8,7 +8,7 @@ export const meta = {
     zh: "Google Veo 视频生成（文生视频、图生视频），Gemini API 版本",
   },
   version: "1.2.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [24],
   models: ["veo-3.0-generate-001", "veo-3.0-fast-generate-001", "veo-3.1-generate-preview", "veo-3.1-fast-generate-preview"],
   fetchMode: "per_task",
@@ -34,7 +34,7 @@ export const meta = {
     { label: "4s × 720p", facts: { seconds: 4, resolution: "720p" } },
   ],
   // Gemini API request and response bodies, for clients and for a downstream
-  // New API gateway. The model segment carries the method,
+  // CodeGuys gateway. The model segment carries the method,
   // models/{model}:predictLongRunning, and the operation it returns is named
   // after the gateway task.
   // The gateway also serves each route under /google.
@@ -54,7 +54,7 @@ function plainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-// On a New API channel the same plugin answers on another gateway, which
+// On a CodeGuys channel the same plugin answers on another gateway, which
 // serves the Gemini API wire format under /google, the form every gateway
 // release serves, and takes its own token as a Bearer header.
 function viaGateway(ctx) {

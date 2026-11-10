@@ -207,7 +207,7 @@ export const ReasoningContent = memo(
           <Response
             className='grid gap-1.5 [&_li]:my-0.5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_p]:leading-5 [&_ul]:my-1.5'
             final={!isStreaming}
-            parserId='new-api-reasoning'
+            parserId='codeguys-reasoning'
           >
             {children}
           </Response>

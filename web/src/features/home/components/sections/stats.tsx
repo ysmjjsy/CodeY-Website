@@ -16,69 +16,65 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useRef, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface CounterProps {
   end: number
   suffix?: string
-  prefix?: string
-  duration?: number
-  decimals?: number
 }
 
+/**
+ * Counts up once the red route line reaches it. The line marks the span with
+ * `data-reached`; with reduced motion the line is drawn in full at once, so the
+ * number shows its final value straight away, which is the finished frame.
+ */
 function Counter(props: CounterProps) {
-  const { end, suffix = '', prefix = '', duration = 1600, decimals = 0 } = props
+  const { end, suffix = '' } = props
   const ref = useRef<HTMLSpanElement>(null)
   const startedRef = useRef(false)
 
-  const formatValue = useCallback(
-    (v: number) =>
-      decimals > 0 ? v.toFixed(decimals) : Math.round(v).toLocaleString(),
-    [decimals]
-  )
-
   const animate = useCallback(() => {
     const el = ref.current
-    if (!el) return
+    if (!el || startedRef.current) return
+    startedRef.current = true
+    const duration = 900
     const start = performance.now()
     const step = (now: number) => {
       const progress = Math.min((now - start) / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
-      el.textContent = `${prefix}${formatValue(eased * end)}${suffix}`
+      el.textContent = `${Math.round(eased * end)}${suffix}`
       if (progress < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
-  }, [end, duration, prefix, suffix, formatValue])
+  }, [end, suffix])
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
 
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mq.matches) {
-      el.textContent = `${prefix}${formatValue(end)}${suffix}`
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.textContent = `${end}${suffix}`
       return
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !startedRef.current) {
-          startedRef.current = true
-          animate()
-          observer.unobserve(el)
-        }
-      },
-      { threshold: 0.5 }
-    )
-
-    observer.observe(el)
+    const observer = new MutationObserver(() => {
+      if (el.hasAttribute('data-reached')) {
+        animate()
+        observer.disconnect()
+      }
+    })
+    observer.observe(el, {
+      attributes: true,
+      attributeFilter: ['data-reached'],
+    })
+    if (el.hasAttribute('data-reached')) animate()
     return () => observer.disconnect()
-  }, [animate, end, prefix, suffix, formatValue])
+  }, [animate, end, suffix])
 
   return (
-    <span ref={ref} className='tabular-nums'>
-      {prefix}0{suffix}
+    <span ref={ref} data-route-mark className='tabular-nums'>
+      0{suffix}
     </span>
   )
 }
@@ -91,7 +87,6 @@ interface StatItem {
   end: number
   suffix: string
   label: string
-  decimals?: number
 }
 
 export function Stats(_props: StatsProps) {
@@ -105,18 +100,26 @@ export function Stats(_props: StatsProps) {
   ]
 
   return (
-    <div className='border-border/40 bg-muted/10 relative z-10 border-y'>
+    <div className='border-border bg-muted dark:bg-card relative border-y'>
       <div className='mx-auto max-w-6xl px-6 py-10 md:py-12'>
-        <div className='grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12'>
-          {stats.map((s) => (
+        <div className='grid grid-cols-2 gap-8 md:grid-cols-4'>
+          {stats.map((s, index) => (
             <div
               key={s.label}
-              className='flex flex-col items-center text-center'
+              className={
+                index > 0
+                  ? 'md:border-foreground/10 flex flex-col md:border-l md:pl-8'
+                  : 'flex flex-col'
+              }
             >
-              <span className='text-2xl font-bold tracking-tight md:text-3xl'>
-                <Counter end={s.end} suffix={s.suffix} decimals={s.decimals} />
+              <span className='font-mono text-3xl font-semibold tracking-tight md:text-4xl'>
+                <Counter end={s.end} suffix={s.suffix} />
               </span>
-              <span className='text-muted-foreground mt-1.5 text-xs'>
+              <span
+                aria-hidden='true'
+                className='bg-primary mt-3 block h-px w-10 origin-left motion-safe:animate-[gateway-route-draw_0.9s_cubic-bezier(0.16,1,0.3,1)_both]'
+              />
+              <span className='text-muted-foreground mt-3 text-xs'>
                 {s.label}
               </span>
             </div>

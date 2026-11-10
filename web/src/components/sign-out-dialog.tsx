@@ -49,7 +49,9 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
 
       clearAuthenticatedClientState(queryClient)
       toast.success(t('Signed out'))
-      void navigate({ to: '/sign-in', replace: true })
+      // Back to the public site. The sign-in page is for someone arriving
+      // signed out, not for someone who just left.
+      void navigate({ to: '/', replace: true })
     } catch (error: unknown) {
       handleServerError(error, t('Failed to sign out session'))
     } finally {

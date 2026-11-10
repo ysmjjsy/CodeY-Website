@@ -1,8 +1,8 @@
 # 宝塔面板部署教程
 
-本文档提供使用宝塔面板 Docker 功能部署 New API 的图文教程。
+本文档提供使用宝塔面板 Docker 功能部署 CodeGuys 的图文教程。
 
-> 📖 官方文档：[宝塔面板部署](https://docs.newapi.pro/zh/docs/installation/deployment-methods/bt-docker-installation)
+> 📖 官方文档：[宝塔面板部署](https://github.com/ysmjjsy/CodeY-Website)
 
 ***
 
@@ -32,15 +32,15 @@
 
 ***
 
-## 步骤三：安装 New API
+## 步骤三：安装 CodeGuys
 
 ### 方法一：使用宝塔应用商店（推荐）
 
 1. 在宝塔面板 Docker 功能中，点击 **应用商店**
-2. 搜索并找到 **New-API**
+2. 搜索并找到 **CodeGuys**
 3. 点击 **安装**
 4. 配置以下基本选项：
-   - **容器名称**：可自定义，默认为 `new-api`
+   - **容器名称**：可自定义，默认为 `codeguys`
    - **端口映射**：默认为 `3000:3000`
    - **环境变量**：
      - `SESSION_SECRET`：会话密钥（**必填**，多机部署时必须一致）
@@ -50,15 +50,15 @@
 
 ### 方法二：使用 Docker Compose
 
-1. 在宝塔面板中创建网站目录，如 `/www/wwwroot/new-api`
+1. 在宝塔面板中创建网站目录，如 `/www/wwwroot/codeguys`
 2. 创建 `docker-compose.yml` 文件：
 
 ```yaml
 version: '3'
 services:
-  new-api:
-    image: calciumion/new-api:latest
-    container_name: new-api
+  codeguys:
+    image: codeguys:latest
+    container_name: codeguys
     restart: always
     ports:
       - "3000:3000"
@@ -72,7 +72,7 @@ services:
 1. 在终端中进入目录并启动：
 
 ```bash
-cd /www/wwwroot/new-api
+cd /www/wwwroot/codeguys
 docker-compose up -d
 ```
 
@@ -126,7 +126,7 @@ volumes:
 
 ```bash
 # 拉取最新镜像
-docker pull calciumion/new-api:latest
+docker pull codeguys:latest
 
 # 重启容器
 docker-compose down && docker-compose up -d
@@ -136,10 +136,10 @@ docker-compose down && docker-compose up -d
 
 ## 相关链接
 
-- [官方文档](https://docs.newapi.pro/zh/docs/installation)
-- [环境变量配置](https://docs.newapi.pro/zh/docs/installation/config-maintenance/environment-variables)
-- [常见问题](https://docs.newapi.pro/zh/docs/support/faq)
-- [GitHub 仓库](https://github.com/QuantumNous/new-api)
+- [官方文档](https://github.com/ysmjjsy/CodeY-Website
+- [环境变量配置](https://github.com/ysmjjsy/CodeY-Website
+- [常见问题](https://github.com/ysmjjsy/CodeY-Website
+- [GitHub 仓库](https://github.com/ysmjjsy/CodeY-Website)
 
 ***
 

@@ -16,12 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ConfigDrawer } from '@/components/config-drawer'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { NotificationPopover } from '@/components/notification-popover'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
-import { SystemUpdateAction } from '@/features/system-update/system-update-action'
+import { ThemeSwitch } from '@/components/theme-switch'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useTopNavLinks } from '@/hooks/use-top-nav-links'
 
@@ -83,11 +82,6 @@ type AppHeaderProps = {
    */
   showNotifications?: boolean
   /**
-   * Whether to show config drawer
-   * @default true
-   */
-  showConfigDrawer?: boolean
-  /**
    * Whether to show profile dropdown
    * @default true
    */
@@ -101,7 +95,6 @@ export function AppHeader({
   showSearch = true,
   rightContent,
   showNotifications = true,
-  showConfigDrawer = true,
   showProfileDropdown = true,
 }: AppHeaderProps) {
   // Prioritize dynamically generated links from backend
@@ -113,9 +106,8 @@ export function AppHeader({
 
   return (
     <Header>
-      <div className='@container/system-brand flex min-w-0 flex-1 items-center gap-1'>
+      <div className='flex min-w-0 flex-1 items-center gap-1'>
         <SystemBrand variant='inline' />
-        <SystemUpdateAction presentation='version' />
       </div>
 
       {leftContent ? (
@@ -145,7 +137,7 @@ export function AppHeader({
             />
           )}
           <LanguageSwitcher />
-          {showConfigDrawer && <ConfigDrawer />}
+          <ThemeSwitch />
           {showProfileDropdown && <ProfileDropdown />}
         </div>
       )}

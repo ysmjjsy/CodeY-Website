@@ -55,18 +55,9 @@ export type NavCollapsible = BaseNavItem & {
 }
 
 /**
- * Dynamic chat presets type - dynamically loaded chat preset list from API
- */
-export type NavChatPresets = BaseNavItem & {
-  type: 'chat-presets'
-  url?: never
-  items?: never
-}
-
-/**
  * Navigation item union type
  */
-export type NavItem = NavCollapsible | NavLink | NavChatPresets
+export type NavItem = NavCollapsible | NavLink
 
 /**
  * Navigation group type - a group of navigation items in sidebar
@@ -90,6 +81,15 @@ export type SidebarData = {
 /**
  * Top navigation link type
  */
+export type TopNavChildLink = {
+  title: string
+  /** Short line under the title. */
+  description?: string
+  href: string
+  /** The cyan product marker. Only CodeY carries it. */
+  accent?: boolean
+}
+
 export type TopNavLink = {
   title: string
   href: string
@@ -97,6 +97,12 @@ export type TopNavLink = {
   disabled?: boolean
   requiresAuth?: boolean
   external?: boolean
+  /**
+   * Present only for the products entry, which opens a menu instead of
+   * navigating. `href` is then the first product's page, used where a menu
+   * cannot be shown.
+   */
+  children?: TopNavChildLink[]
 }
 
 /**

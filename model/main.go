@@ -338,6 +338,11 @@ func migrateDB() error {
 	if err := migrateOptionPrimaryKey(DB); err != nil {
 		common.SysError(common.LogText("failed to migrate options primary key: %s", err.Error()))
 	}
+	// A stored name from before the CodeGuys rename is the old default, not a
+	// choice, so correct it. A name set on purpose is left as it is.
+	if err := migrateLegacySystemName(DB); err != nil {
+		common.SysError(common.LogText("failed to migrate system name: %s", err.Error()))
+	}
 
 	err := DB.AutoMigrate(
 		&Channel{},

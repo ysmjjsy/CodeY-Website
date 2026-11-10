@@ -63,6 +63,9 @@ import { cn } from '@/lib/utils'
 export function UserAuthForm({
   className,
   redirectTo,
+  onSignedIn,
+  onForgotPassword,
+  compact = false,
   ...props
 }: AuthFormProps) {
   const { t } = useTranslation()
@@ -185,6 +188,7 @@ export function UserAuthForm({
       if (res.success) {
         form.setValue('password', '')
         if (await handleLoginResult(res.data, redirectTo)) {
+          onSignedIn?.()
           toast.success(t('Welcome back!'))
         }
       } else {
@@ -226,6 +230,7 @@ export function UserAuthForm({
       if (res?.success) {
         handleWeChatDialogChange(false)
         if (await handleLoginResult(res.data, redirectTo)) {
+          onSignedIn?.()
           toast.success(t('Signed in via WeChat'))
         }
       } else {
@@ -278,6 +283,7 @@ export function UserAuthForm({
 
       rememberPasskeyRPID(passkey.rpID)
       if (await handleLoginResult(finish.data, redirectTo)) {
+        onSignedIn?.()
         toast.success(t('Signed in with Passkey'))
       }
     } catch (error: unknown) {
@@ -335,6 +341,7 @@ export function UserAuthForm({
       <OAuthProviders
         status={status}
         redirectTo={redirectTo}
+        compact={compact}
         disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
         onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
         isWeChatLoading={isWeChatSubmitting}
@@ -385,12 +392,22 @@ export function UserAuthForm({
                     />
                   </FormControl>
                   <FormMessage />
-                  <Link
-                    to='/forgot-password'
-                    className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
-                  >
-                    {t('Forgot password?')}
-                  </Link>
+                  {onForgotPassword ? (
+                    <button
+                      type='button'
+                      className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
+                      onClick={onForgotPassword}
+                    >
+                      {t('Forgot password?')}
+                    </button>
+                  ) : (
+                    <Link
+                      to='/forgot-password'
+                      className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
+                    >
+                      {t('Forgot password?')}
+                    </Link>
+                  )}
                 </FormItem>
               )}
             />

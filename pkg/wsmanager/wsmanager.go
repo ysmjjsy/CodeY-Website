@@ -17,7 +17,7 @@ const (
 	KindResponses = "responses"
 
 	defaultCloseReason = "channel disabled or deleted"
-	redisChannel       = "new-api:wsmanager:channel-close"
+	redisChannel       = "codeguys:wsmanager:channel-close"
 )
 
 type entry struct {

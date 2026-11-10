@@ -38,7 +38,7 @@ describe('legacy frontend route migration', () => {
       '/console/log': '/usage-logs',
       '/console/midjourney': '/usage-logs/drawing',
       '/console/task': '/usage-logs/task',
-      '/console/chat/42': '/chat/42',
+      '/console/chat/42': '/dashboard',
     }
 
     for (const [source, target] of Object.entries(routes)) {

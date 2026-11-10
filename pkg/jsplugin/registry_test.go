@@ -589,7 +589,7 @@ func TestRegistryValidatesChannelTypes(t *testing.T) {
 		{name: "zero rejected", channelTypes: []int{0}, wantErr: "positive channel types"},
 		{name: "negative rejected", channelTypes: []int{-1}, wantErr: "positive channel types"},
 		{name: "task plugin type rejected", channelTypes: []int{constant.ChannelTypeTaskPlugin}, wantErr: "task plugin channel type"},
-		{name: "new api type rejected", channelTypes: []int{constant.ChannelTypeNewAPI}, wantErr: "New API channel type"},
+		{name: "new api type rejected", channelTypes: []int{constant.ChannelTypeNewAPI}, wantErr: "CodeGuys channel type"},
 		{name: "duplicates rejected", channelTypes: []int{1, 1}, wantErr: "must be unique"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

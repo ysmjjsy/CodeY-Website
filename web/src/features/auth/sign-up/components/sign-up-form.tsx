@@ -55,10 +55,19 @@ import { AuthOperationError } from '@/lib/secure-verification'
 import { createServerError } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 
-export function SignUpForm({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLFormElement>) {
+export function SignUpForm(props: {
+  className?: string
+  /**
+   * The dialog layout: the other ways to register sit on one row of icons
+   * instead of a stack of full-width buttons.
+   */
+  compact?: boolean
+  /**
+   * Called once the account exists, so a dialog can switch to sign-in instead
+   * of leaving for the sign-in page.
+   */
+  onRegistered?: () => void
+}) {
   const { t } = useTranslation()
   const [isLoading, setIsLoading] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
@@ -172,7 +181,11 @@ export function SignUpForm({
 
       if (res?.success) {
         toast.success(t('Account created! Please sign in'))
-        redirectToLogin()
+        if (props.onRegistered) {
+          props.onRegistered()
+        } else {
+          redirectToLogin()
+        }
       } else {
         handleServerError(createServerError(res, t('Failed to create account')))
       }
@@ -248,8 +261,7 @@ export function SignUpForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-4', className)}
-        {...props}
+        className={cn('grid gap-4', props.className)}
       >
         {/* Username Field */}
         <FormField
@@ -389,6 +401,7 @@ export function SignUpForm({
             onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
             isWeChatLoading={isWeChatSubmitting}
             className='pt-2'
+            compact={props.compact}
           />
         )}
       </form>

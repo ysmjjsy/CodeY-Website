@@ -23,12 +23,27 @@ import { useStatus } from '@/hooks/use-status'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 import { useAuthStore } from '@/stores/auth-store'
 
+export type TopNavChildLink = {
+  title: string
+  /** Short line under the title. */
+  description?: string
+  href: string
+  /** The cyan product marker. Only CodeY carries it. */
+  accent?: boolean
+}
+
 export type TopNavLink = {
   title: string
   href: string
   disabled?: boolean
   requiresAuth?: boolean
   external?: boolean
+  /**
+   * Present only for the products entry, which opens a menu instead of
+   * navigating. `href` is then the first product's page, used where a menu
+   * cannot be shown.
+   */
+  children?: TopNavChildLink[]
 }
 
 /**
@@ -37,6 +52,7 @@ export type TopNavLink = {
  * {
  *   home: true,
  *   console: true,
+ *   products: true,
  *   pricing: { enabled: true, requireAuth: false },
  *   rankings: { enabled: true, requireAuth: false },
  *   docs: true,
@@ -55,21 +71,28 @@ export function useTopNavLinks(): TopNavLink[] {
     )
   }, [status])
 
-  // Documentation link (may be external)
-  const docsLink: string | undefined = status?.docs_link as string | undefined
-
   const isAuthed = !!auth?.user
 
   const links: TopNavLink[] = []
+
+  // The console is not a nav item. A signed-in user reaches it from the
+  // account menu, so it never appears in the bar.
 
   // Home
   if (modules?.home !== false) {
     links.push({ title: t('Home'), href: '/' })
   }
 
-  // Console -> /dashboard (new console path)
-  if (modules?.console !== false) {
-    links.push({ title: t('Console'), href: '/dashboard' })
+  // Products. CodeY is the only one today; the menu exists so the next
+  // product is another entry rather than another nav item.
+  if (modules?.products !== false) {
+    const codey = {
+      title: 'CodeY',
+      description: t('A local-first AI work partner'),
+      href: '/products/codey',
+      accent: true,
+    }
+    links.push({ title: t('Products'), href: codey.href, children: [codey] })
   }
 
   // Pricing
@@ -86,13 +109,27 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Rankings'), href: '/rankings', requiresAuth })
   }
 
-  // Docs (supports external links)
+  // Docs. Two entries, one per subject, each opening that subject's first
+  // page. The chapters live in the docs sidebar, not in the menu. The
+  // backend's docs_link is ignored: this site owns its documentation.
   if (modules?.docs !== false) {
-    if (docsLink) {
-      links.push({ title: t('Docs'), href: docsLink, external: true })
-    } else {
-      links.push({ title: t('Docs'), href: '/docs' })
-    }
+    links.push({
+      title: t('Docs'),
+      href: '/docs/gateway',
+      children: [
+        {
+          title: 'CodeGuys',
+          description: t('The unified API gateway.'),
+          href: '/docs/gateway',
+        },
+        {
+          title: 'CodeY',
+          description: t('A product built on CodeGuys.'),
+          href: '/docs/codey',
+          accent: true,
+        },
+      ],
+    })
   }
 
   // About

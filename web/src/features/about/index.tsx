@@ -16,171 +16,112 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
-import { Construction } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
-import { RichContent } from '@/components/rich-content'
-import { Skeleton } from '@/components/ui/skeleton'
-import { isHttpUrl, isLikelyHtml } from '@/lib/content-format'
-import { requireServerSuccess } from '@/lib/server-error-message'
 
-import { getAboutContent } from './api'
+const REPOSITORY_URL = 'https://github.com/ysmjjsy/CodeY-Website'
 
-function EmptyAboutState() {
-  const { t } = useTranslation()
-  const currentYear = new Date().getFullYear()
-
-  return (
-    <div className='flex min-h-[60vh] items-center justify-center p-8'>
-      <div className='max-w-2xl space-y-6 text-center'>
-        <div className='flex justify-center'>
-          <Construction className='text-muted-foreground h-24 w-24' />
-        </div>
-        <div className='space-y-2'>
-          <h2 className='text-2xl font-bold'>{t('No About Content Set')}</h2>
-          <p className='text-muted-foreground'>
-            {t(
-              'The administrator has not configured any about content yet. You can set it in the settings page, supporting HTML or URL.'
-            )}
-          </p>
-        </div>
-        <div className='space-y-4 text-sm'>
-          <p>
-            {t('New API Project Repository:')}{' '}
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('https://github.com/QuantumNous/new-api')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            <a
-              href='https://github.com/QuantumNous/new-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('NewAPI')}
-            </a>{' '}
-            © {currentYear}{' '}
-            <a
-              href='https://github.com/QuantumNous'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('QuantumNous')}
-            </a>{' '}
-            {t('| Based on')}{' '}
-            <a
-              href='https://github.com/songquanpeng/one-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('One API')}
-            </a>{' '}
-            © 2023{' '}
-            <a
-              href='https://github.com/songquanpeng'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('JustSong')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            {t('This project must be used in compliance with the')}{' '}
-            <a
-              href='https://github.com/QuantumNous/new-api/blob/main/LICENSE'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('AGPL v3.0 License')}
-            </a>
-            .
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+/**
+ * CodeGuys, the company and the gateway. CodeY appears here only as one of
+ * its products, with the full explanation living on the product page.
+ */
 export function About() {
   const { t } = useTranslation()
-  const { data, isLoading } = useQuery({
-    queryKey: ['about-content'],
-    queryFn: async () => requireServerSuccess(await getAboutContent()),
-  })
+  const year = new Date().getFullYear()
 
-  const rawContent = data?.data?.trim() ?? ''
-  const hasContent = rawContent.length > 0
-  const isUrl = hasContent && isHttpUrl(rawContent)
-  const contentIsHtml = hasContent && isLikelyHtml(rawContent)
-
-  if (isLoading) {
-    return (
-      <PublicLayout>
-        <div className='mx-auto flex max-w-4xl flex-col gap-4 py-12'>
-          <Skeleton className='h-8 w-[45%]' />
-          <Skeleton className='h-4 w-full' />
-          <Skeleton className='h-4 w-[90%]' />
-          <Skeleton className='h-4 w-[80%]' />
-        </div>
-      </PublicLayout>
-    )
-  }
-
-  if (!hasContent) {
-    return (
-      <PublicLayout>
-        <EmptyAboutState />
-      </PublicLayout>
-    )
-  }
-
-  if (isUrl) {
-    return (
-      <PublicLayout showMainContainer={false}>
-        <iframe
-          src={rawContent}
-          className='h-[calc(100vh-3.5rem)] w-full border-0'
-          title={t('About')}
-          sandbox='allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts'
-        />
-      </PublicLayout>
-    )
-  }
-
-  if (contentIsHtml) {
-    return (
-      <PublicLayout showMainContainer={false}>
-        <RichContent
-          mode='html'
-          htmlVariant='isolated'
-          content={rawContent}
-          className='prose-neutral dark:prose-invert max-w-none'
-        />
-      </PublicLayout>
-    )
-  }
+  const points = [
+    {
+      title: t('One protocol, many providers'),
+      desc: t(
+        'An application writes against a single API. CodeGuys routes that call across the providers you have configured and fails over when one of them does not answer.'
+      ),
+    },
+    {
+      title: t('Billing you can read'),
+      desc: t(
+        'Every settled request is recorded against a model price, a key, and a user, and quotas stop a call before it can spend past the limit you set.'
+      ),
+    },
+    {
+      title: t('Yours to run'),
+      desc: t(
+        "The gateway runs on your own infrastructure, with the channels, keys, and limits under your control rather than a vendor's."
+      ),
+    },
+  ]
 
   return (
-    <PublicLayout>
-      <div className='mx-auto max-w-6xl px-4 py-8'>
-        <RichContent
-          mode='markdown'
-          content={rawContent}
-          className='prose-neutral dark:prose-invert max-w-none'
-        />
-      </div>
+    <PublicLayout showMainContainer={false}>
+      <article className='mx-auto max-w-3xl px-6 py-24 md:py-32'>
+        <p className='text-muted-foreground text-xs font-medium tracking-widest uppercase'>
+          CodeGuys
+        </p>
+        <h1 className='mt-3 text-3xl font-bold tracking-tight md:text-4xl'>
+          {t('The unified API gateway behind the products')}
+        </h1>
+        <p className='text-muted-foreground mt-5 text-base leading-relaxed'>
+          {t(
+            'CodeGuys is a gateway for model APIs. It gives every application one place to call, one place to see what that call cost, and one place to decide which provider answered it.'
+          )}
+        </p>
+
+        <dl className='mt-14 flex flex-col gap-8'>
+          {points.map((point) => (
+            <div key={point.title} className='border-border border-t pt-6'>
+              <dt className='text-sm font-semibold'>{point.title}</dt>
+              <dd className='text-muted-foreground mt-2 text-sm leading-relaxed'>
+                {point.desc}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        <h2 className='mt-16 text-xl font-semibold tracking-tight'>
+          {t('Products')}
+        </h2>
+        <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
+          {t(
+            'CodeGuys is the platform. The products built on it each do one job and share the gateway for their models.'
+          )}
+        </p>
+        <Link
+          to='/products/codey'
+          className='group border-primary mt-6 flex items-start gap-4 border-l-2 py-1 pl-5'
+        >
+          <span className='flex flex-col gap-1'>
+            <span className='flex items-center gap-2 text-sm font-semibold'>
+              <span
+                aria-hidden='true'
+                className='bg-brand-accent size-1.5 rounded-full'
+              />
+              CodeY
+            </span>
+            <span className='text-muted-foreground text-sm'>
+              {t('A local-first AI work partner')}
+            </span>
+          </span>
+          <ArrowRight className='mt-0.5 ml-auto size-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5' />
+        </Link>
+
+        <h2 className='mt-16 text-xl font-semibold tracking-tight'>
+          {t('Contact')}
+        </h2>
+        <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
+          {t('Questions and issues go to the project repository.')}{' '}
+          <a
+            href={REPOSITORY_URL}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='text-foreground underline underline-offset-4'
+          >
+            github.com/ysmjjsy/CodeY-Website
+          </a>
+        </p>
+        <p className='text-muted-foreground mt-10 text-xs'>CodeGuys © {year}</p>
+      </article>
     </PublicLayout>
   )
 }

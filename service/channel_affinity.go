@@ -28,8 +28,8 @@ const (
 	ginKeyChannelAffinitySkipRetry   = "channel_affinity_skip_retry_on_failure"
 	ginKeyChannelAffinityRetryOffset = "channel_affinity_retry_offset"
 
-	channelAffinityCacheNamespace           = "new-api:channel_affinity:v1"
-	channelAffinityUsageCacheStatsNamespace = "new-api:channel_affinity_usage_cache_stats:v1"
+	channelAffinityCacheNamespace           = "codeguys:channel_affinity:v1"
+	channelAffinityUsageCacheStatsNamespace = "codeguys:channel_affinity_usage_cache_stats:v1"
 )
 
 var (

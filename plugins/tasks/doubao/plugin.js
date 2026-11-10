@@ -304,7 +304,7 @@ export const meta = {
     zh: "火山引擎豆包 Seedance 视频生成与 Seedream 图片生成",
   },
   version: "1.4.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [54, 45], // VolcEngine-type channels serve Ark video models with the same wire format
   models: Object.keys(VIDEO_MODELS).concat(Object.keys(IMAGE_MODELS)),
   fetchMode: "per_task",
@@ -336,7 +336,7 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
-// Another New API gateway serves the Ark wire format under /doubao, the form
+// Another CodeGuys gateway serves the Ark wire format under /doubao, the form
 // every gateway release serves; Ark itself serves the unprefixed paths.
 function apiRoot(ctx) {
   return ctx.baseUrl + (ctx.upstream && ctx.upstream.kind === "new_api" ? "/doubao" : "");

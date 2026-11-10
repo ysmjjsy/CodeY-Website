@@ -75,7 +75,7 @@ export const meta = {
     zh: "xAI Grok Imagine 视频生成（文生视频、图生视频、参考生视频、视频编辑、视频延长）",
   },
   version: "1.2.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [48], // xAI-type channels serve the video API with the same key
   baseUrl: "https://api.x.ai",
   // Result videos, whose headers settle the resolution of edits and extensions.
@@ -137,7 +137,7 @@ function plainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-// Another New API gateway serves the xAI wire format under /xai, the form
+// Another CodeGuys gateway serves the xAI wire format under /xai, the form
 // every gateway release serves.
 function apiRoot(ctx) {
   return ctx.baseUrl + (ctx.upstream && ctx.upstream.kind === "new_api" ? "/xai" : "");

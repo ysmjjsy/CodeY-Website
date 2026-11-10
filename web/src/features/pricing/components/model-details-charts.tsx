@@ -20,7 +20,6 @@ import { VChart } from '@visactor/react-vchart'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useThemeCustomization } from '@/context/theme-customization-provider'
 import { getSuccessRateColor } from '@/features/performance-metrics/lib/format'
 import { useThemeRadiusPx } from '@/lib/theme-radius'
 import { useChartTheme } from '@/lib/use-chart-theme'
@@ -326,11 +325,7 @@ export function ThroughputBarChart(props: {
   const { t } = useTranslation()
   const { resolvedTheme, themeReady } = useChartTheme()
   const { textColor, gridColor } = getChartThemeTokens(resolvedTheme)
-  const { customization } = useThemeCustomization()
-  const barRadius = useThemeRadiusPx(
-    '--radius-sm',
-    `${customization.preset}:${customization.radius}`
-  )
+  const barRadius = useThemeRadiusPx('--radius-sm')
 
   const filtered = useMemo(
     () => props.rows.filter((r) => r.throughput_tps > 0),

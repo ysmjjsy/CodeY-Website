@@ -403,7 +403,7 @@ func TestVertexAIOmniBuildSubmitRequest(t *testing.T) {
 	_, err = call(map[string]any{"upstreamModel": omni, "authHeader": "Bearer t", "auth": map[string]any{"authHeader": "Bearer t", "projectId": "p"}, "requestBody": map[string]any{"prompt": "x", "resolution": "2k"}})
 	assert.ErrorContains(t, err, "resolution must be one of 360p")
 	_, err = call(map[string]any{"upstreamModel": omni, "upstream": map[string]any{"kind": "new_api"}, "authHeader": "Bearer t", "auth": map[string]any{}, "requestBody": map[string]any{"prompt": "x"}})
-	assert.ErrorContains(t, err, "New API gateway")
+	assert.ErrorContains(t, err, "CodeGuys gateway")
 }
 
 func TestVertexAIOmniQueryAndParse(t *testing.T) {

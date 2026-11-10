@@ -19,14 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/public-sans';
-/* Editorial serif (Lora) backing the `serif` font axis and the Anthropic
- * preset's default typography. See `--font-serif` in theme.css for the
- * full Latin + CJK fallback stack and `theme-presets.css` for the cascade
- * that activates it. Loaded globally so font-switching is instantaneous
- * with no FOUT once the variable is fetched. */
-@import '@fontsource-variable/lora';
-
 @import './theme.css';
 @import './theme-presets.css';
 
@@ -111,9 +103,7 @@ For commercial licensing, please contact support@quantumnous.com
   }
   body {
     @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full;
-    /* Font is driven by the theme's font axis via `--font-body`
-     * (defined in theme.css, swapped by `[data-theme-font='...']` blocks
-     * in theme-presets.css). Defaults to the browser's sans-serif. */
+    /* The brand face is the system sans; there is no per-user font choice. */
     font-family: var(--font-body);
   }
 
@@ -685,6 +675,290 @@ For commercial licensing, please contact support@quantumnous.com
   .terminal-demo-spin,
   .terminal-demo-pulse {
     animation: none !important;
+  }
+}
+
+/* The homepage hero sits on coordinate paper. The lines are the border
+ * color, so they stay faint on the white canvas and on the near-black one,
+ * and they fade out before the stats band. The grid does not move. */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center;
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+
+/* ── Homepage gateway routes ──
+ * The lines and the hexagon draw themselves once. A reduced-motion visitor
+ * gets the finished frame straight away, via the data attribute the component
+ * sets, so the drawing never depends on the animation running. */
+.gateway-route-line,
+.gateway-route-hex {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: gateway-route-draw 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.gateway-route-hex {
+  animation-duration: 1.1s;
+}
+.gateway-route-line[data-reduced],
+.gateway-route-hex[data-reduced] {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+
+@keyframes gateway-route-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* One request travels at a time. The route it is on turns solid for the
+ * moment it is at the endpoint: the line, a dot at each end, and the name,
+ * which takes a box. Everything else stays faint. CodeY lights in cyan. The
+ * keyframe is one full tour long, so the delay on each route picks the lit
+ * one. The box is invisible at rest, which is also the reduced-motion frame. */
+.gateway-route-line {
+  stroke: color-mix(in oklch, var(--primary) 28%, transparent);
+}
+.gateway-route-line-cyan {
+  stroke: color-mix(in oklch, var(--brand-accent) 40%, transparent);
+}
+.gateway-route-name {
+  fill: var(--muted-foreground);
+}
+.gateway-route-name-cyan {
+  fill: var(--brand-accent);
+}
+.gateway-route-box {
+  fill: transparent;
+  stroke: transparent;
+}
+.gateway-route-dot {
+  fill: transparent;
+}
+.gateway-route-hex {
+  /* Covers the coordinate grid behind the mark, so the hexagon reads as one
+   * solid piece instead of lines crossing the logo. */
+  fill: var(--background);
+}
+@keyframes gateway-route-line-lit {
+  0%,
+  2%,
+  100% {
+    stroke: transparent;
+  }
+  0.5%,
+  1.5% {
+    stroke: var(--primary);
+  }
+}
+@keyframes gateway-route-line-lit-cyan {
+  0%,
+  2%,
+  100% {
+    stroke: transparent;
+  }
+  0.5%,
+  1.5% {
+    stroke: var(--brand-accent);
+  }
+}
+@keyframes gateway-route-box {
+  0%,
+  2%,
+  100% {
+    fill: transparent;
+    stroke: transparent;
+  }
+  0.5%,
+  1.5% {
+    fill: var(--primary);
+    stroke: var(--primary);
+  }
+}
+@keyframes gateway-route-box-cyan {
+  0%,
+  2%,
+  100% {
+    fill: transparent;
+    stroke: transparent;
+  }
+  0.5%,
+  1.5% {
+    fill: var(--brand-accent);
+    stroke: var(--brand-accent);
+  }
+}
+@keyframes gateway-route-name {
+  0%,
+  2%,
+  100% {
+    fill: var(--muted-foreground);
+  }
+  0.5%,
+  1.5% {
+    fill: var(--primary-foreground);
+  }
+}
+@keyframes gateway-route-name-cyan {
+  0%,
+  2%,
+  100% {
+    fill: var(--brand-accent);
+  }
+  0.5%,
+  1.5% {
+    fill: var(--background);
+  }
+}
+@keyframes gateway-route-dot {
+  0%,
+  2%,
+  100% {
+    fill: transparent;
+  }
+  0.5%,
+  1.5% {
+    fill: var(--primary);
+  }
+}
+@keyframes gateway-route-dot-cyan {
+  0%,
+  2%,
+  100% {
+    fill: transparent;
+  }
+  0.5%,
+  1.5% {
+    fill: var(--brand-accent);
+  }
+}
+.gateway-route-lit {
+  stroke: transparent;
+  animation-name: gateway-route-line-lit;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.gateway-route-lit-cyan {
+  animation-name: gateway-route-line-lit-cyan;
+}
+.gateway-route-box:not([data-reduced]) {
+  animation-name: gateway-route-box;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.gateway-route-box-cyan:not([data-reduced]) {
+  animation-name: gateway-route-box-cyan;
+}
+.gateway-route-name:not([data-reduced]) {
+  animation-name: gateway-route-name;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.gateway-route-name-cyan:not([data-reduced]) {
+  animation-name: gateway-route-name-cyan;
+}
+.gateway-route-dot:not([data-reduced]) {
+  animation-name: gateway-route-dot;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.gateway-route-dot-cyan:not([data-reduced]) {
+  animation-name: gateway-route-dot-cyan;
+}
+
+/* The red line that runs down the homepage. It is one element whose height is
+ * the whole run, and the colored part grows from the top as the page scrolls.
+ * With reduced motion it is drawn in full, which is the finished frame. */
+.route-line {
+  background: linear-gradient(var(--primary), var(--primary)) 0 0 / 100%
+    var(--route-line, 0px) no-repeat;
+  /* The tip follows the scroll instead of jumping to it. Marks light up from
+   * the target position, so they turn as the line is arriving. */
+  transition: background-size 180ms linear;
+}
+.route-line[data-reduced] {
+  background-size: 100% 100%;
+}
+
+/* A step number turns red once the line reaches it, and stays red. */
+.route-step[data-reached] {
+  color: var(--primary);
+}
+
+/* The product band's hexagon turns once every twenty seconds, barely there. */
+.product-band-hex {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: product-band-spin 20s linear infinite;
+}
+
+@keyframes product-band-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A feature cell grows corner brackets, like a viewfinder. They draw
+ * themselves in sequence when the grid scrolls into view, and they come back
+ * on hover. With reduced motion they are drawn from the start. */
+.feature-cell {
+  background:
+    linear-gradient(var(--primary), var(--primary)) 0 0 / 0 1.5px no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 0 0 / 1.5px 0 no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 100% 0 / 0 1.5px no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 100% 0 / 1.5px 0 no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 0 100% / 0 1.5px no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 0 100% / 1.5px 0 no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 100% 100% / 0 1.5px
+      no-repeat,
+    linear-gradient(var(--primary), var(--primary)) 100% 100% / 1.5px 0
+      no-repeat;
+  transition: background-size 150ms ease;
+}
+[data-feature-grid].is-drawn .feature-cell,
+.feature-cell:hover {
+  background-size:
+    8px 1.5px,
+    1.5px 8px,
+    8px 1.5px,
+    1.5px 8px,
+    8px 1.5px,
+    1.5px 8px,
+    8px 1.5px,
+    1.5px 8px;
+}
+[data-feature-grid].is-drawn .feature-cell {
+  transition-delay: calc(var(--bracket, 0) * 70ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gateway-route-line,
+  .gateway-route-hex {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .product-band-hex {
+    animation: none;
+  }
+  /* The finished frame: brackets drawn, names at rest, the line already run. */
+  .feature-cell {
+    background-size:
+      8px 1.5px,
+      1.5px 8px,
+      8px 1.5px,
+      1.5px 8px,
+      8px 1.5px,
+      1.5px 8px,
+      8px 1.5px,
+      1.5px 8px;
+  }
+  .route-line {
+    background-size: 100% 100%;
   }
 }
 

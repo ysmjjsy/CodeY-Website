@@ -90,7 +90,7 @@ export const meta = {
     zh: "MiniMax 海螺视频生成（文生视频、图生视频、MiniMax-H3 多模态参考生视频）",
   },
   version: "1.4.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [35],
   models: [H3_MODEL].concat(V1_MODELS),
   fetchMode: "per_task",
@@ -185,7 +185,7 @@ function definedFields(source, keys) {
   return fields;
 }
 
-// On a New API channel the same plugin answers on another gateway, which
+// On a CodeGuys channel the same plugin answers on another gateway, which
 // serves the MiniMax wire format under /hailuo, the form every gateway release
 // serves.
 function viaGateway(ctx) {

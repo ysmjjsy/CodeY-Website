@@ -26,10 +26,14 @@ import { applyFaviconToDom } from '@/lib/dom-utils'
 import '@/lib/dayjs'
 import { initializeFrontendCache } from '@/lib/frontend-cache'
 import { createAppQueryClient } from '@/lib/query-client'
-import { readCachedStatus, statusQueryOptions } from '@/lib/status-query'
+import {
+  mapStatusDataToConfig,
+  readCachedStatus,
+  statusQueryOptions,
+  type StatusData,
+} from '@/lib/status-query'
 
 import { DirectionProvider } from './context/direction-provider'
-import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 import './i18n/config'
 // Generated Routes
@@ -71,7 +75,11 @@ if (!rootElement) {
 ;(function initSystemBranding() {
   try {
     if (typeof window === 'undefined' || typeof document === 'undefined') return
-    const apply = (name: string) => {
+    // The same name the rest of the page shows: a stored legacy default such
+    // as "codeguys" becomes CodeGuys, and a name set on purpose is kept.
+    const applyTitle = (status: StatusData) => {
+      const name = mapStatusDataToConfig(status).systemName
+      if (!name) return
       document.title = name
       const metaTitle = document.querySelector(
         'meta[name="title"]'
@@ -80,7 +88,7 @@ if (!rootElement) {
     }
     // Cache-first
     const cached = readCachedStatus()
-    if (cached?.system_name) apply(cached.system_name as string)
+    if (cached) applyTitle(cached)
     if (cached?.logo) applyFaviconToDom(cached.logo as string)
 
     // Background refresh through the shared cache. This primes ['status']
@@ -90,7 +98,7 @@ if (!rootElement) {
     queryClient
       .ensureQueryData(statusQueryOptions)
       .then((s) => {
-        if (s?.system_name) apply(s.system_name as string)
+        if (s) applyTitle(s)
         if (s?.logo) applyFaviconToDom(s.logo as string)
       })
       .catch(() => {
@@ -106,11 +114,9 @@ if (!rootElement.innerHTML) {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <FontProvider>
-            <DirectionProvider>
-              <RouterProvider router={router} />
-            </DirectionProvider>
-          </FontProvider>
+          <DirectionProvider>
+            <RouterProvider router={router} />
+          </DirectionProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </StrictMode>

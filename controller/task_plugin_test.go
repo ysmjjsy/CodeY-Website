@@ -1349,8 +1349,8 @@ func TestUploadTaskPluginReportsUnknownMetaField(t *testing.T) {
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	assert.False(t, response.Success)
-	assert.Equal(t, `Plugin metadata contains an unknown field "futureField". If this plugin was downloaded from the official marketplace, it may require a newer version of new-api. Try updating new-api and installing the plugin again.`, response.Message)
-	assert.Equal(t, `Plugin metadata contains an unknown field "{{field}}". If this plugin was downloaded from the official marketplace, it may require a newer version of new-api. Try updating new-api and installing the plugin again.`, response.MessageKey)
+	assert.Equal(t, `Plugin metadata contains an unknown field "futureField". If this plugin was downloaded from the official marketplace, it may require a newer version of CodeGuys. Try updating CodeGuys and installing the plugin again.`, response.Message)
+	assert.Equal(t, `Plugin metadata contains an unknown field "{{field}}". If this plugin was downloaded from the official marketplace, it may require a newer version of CodeGuys. Try updating CodeGuys and installing the plugin again.`, response.MessageKey)
 	assert.Equal(t, map[string]any{"field": "futureField"}, response.MessageParams)
 }
 
@@ -1520,10 +1520,7 @@ func TestGetTaskPluginMarketplaceSourcesDefaultWhenUnset(t *testing.T) {
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	require.True(t, response.Success)
-	require.Equal(t, []setting.TaskPluginMarketplaceSource{
-		{Name: "Official", IndexURL: "https://www.newapi.ai/api/v1/plugins/index.json"},
-		{Name: "GitHub", IndexURL: "https://raw.githubusercontent.com/QuantumNous/new-api-plugins/main/index.json"},
-	}, response.Data)
+	require.Equal(t, []setting.TaskPluginMarketplaceSource{}, response.Data)
 	var count int64
 	require.NoError(t, model.DB.Model(&model.Option{}).Where("key = ?", setting.TaskPluginMarketplaceSourcesKey).Count(&count).Error)
 	assert.Zero(t, count)
@@ -1533,7 +1530,7 @@ func TestUpdateTaskPluginMarketplaceSourcesRoundTrip(t *testing.T) {
 	setupTaskPluginMarketplaceSourcesTest(t)
 	payload := []setting.TaskPluginMarketplaceSource{
 		{Name: "Mirror", IndexURL: "https://example.com/plugins/index.json"},
-		{Name: "Official", IndexURL: "https://www.newapi.ai/api/v1/plugins/index.json"},
+		{Name: "Official", IndexURL: "https://github.com/ysmjjsy/CodeY-Website/raw/main/plugin-marketplace/index.json"},
 	}
 	body, err := common.Marshal(payload)
 	require.NoError(t, err)

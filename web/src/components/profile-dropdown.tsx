@@ -17,7 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
-import { User, Wallet, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import {
+  LayoutDashboard,
+  User,
+  Wallet,
+  LogOut,
+  Settings,
+  ShieldCheck,
+} from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -60,7 +67,13 @@ export function ProfileDropdown() {
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger
-          render={<Button variant='ghost' className='relative size-6 p-0' />}
+          render={
+            <Button
+              variant='ghost'
+              aria-label={t('Account menu')}
+              className='relative size-6 p-0'
+            />
+          }
         >
           <Avatar className='size-6'>
             <AvatarFallback
@@ -102,6 +115,11 @@ export function ProfileDropdown() {
           </div>
 
           <DropdownMenuSeparator />
+
+          <DropdownMenuItem onClick={() => navigate({ to: '/dashboard' })}>
+            <LayoutDashboard className='size-4' />
+            {t('Console')}
+          </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => navigate({ to: '/profile' })}>
             <User className='size-4' />

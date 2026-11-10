@@ -39,6 +39,12 @@ type OAuthProvidersProps = {
   onWeChatLogin?: () => void
   isWeChatLoading?: boolean
   redirectTo?: string
+  /**
+   * One row of icon buttons instead of a stack of full-width ones, for a
+   * dialog that has no room for a button per provider. A provider without an
+   * icon keeps its text, so nothing becomes an unlabelled control.
+   */
+  compact?: boolean
 }
 
 type ProviderButton = {
@@ -56,6 +62,7 @@ export function OAuthProviders({
   onWeChatLogin,
   isWeChatLoading = false,
   redirectTo,
+  compact = false,
 }: OAuthProvidersProps) {
   const { t } = useTranslation()
   const {
@@ -157,21 +164,30 @@ export function OAuthProviders({
         </div>
       </div>
 
-      <div className='flex flex-col gap-2'>
+      <div className={compact ? 'flex flex-wrap gap-2' : 'flex flex-col gap-2'}>
         {providerButtons.map(
-          ({ key, label, onClick, icon, disabled: extraDisabled }) => (
-            <Button
-              key={key}
-              variant='outline'
-              type='button'
-              disabled={disabled || isLoading || extraDisabled}
-              onClick={onClick}
-              className='h-11 w-full justify-center gap-2 rounded-lg'
-            >
-              {icon}
-              {label}
-            </Button>
-          )
+          ({ key, label, onClick, icon, disabled: extraDisabled }) => {
+            const iconOnly = compact && icon !== undefined
+            return (
+              <Button
+                key={key}
+                variant='outline'
+                type='button'
+                disabled={disabled || isLoading || extraDisabled}
+                onClick={onClick}
+                aria-label={iconOnly ? label : undefined}
+                title={iconOnly ? label : undefined}
+                className={
+                  iconOnly
+                    ? 'size-11 rounded-lg'
+                    : 'h-11 w-full justify-center gap-2 rounded-lg'
+                }
+              >
+                {icon}
+                {iconOnly ? <span className='sr-only'>{label}</span> : label}
+              </Button>
+            )
+          }
         )}
       </div>
     </div>

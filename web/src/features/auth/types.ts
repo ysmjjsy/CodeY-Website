@@ -218,4 +218,19 @@ export interface CustomOAuthProviderInfo {
 
 export interface AuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
   redirectTo?: string
+  /**
+   * Called once a sign-in completes without leaving the page, so a dialog can
+   * close itself. A sign-in that navigates away never reaches it.
+   */
+  onSignedIn?: () => void
+  /**
+   * The dialog layout: the other ways to sign in sit on one row of icons
+   * instead of a stack of full-width buttons.
+   */
+  compact?: boolean
+  /**
+   * Opens password reset without leaving the page. Absent on the standalone
+   * page, where the link navigates to `/forgot-password` instead.
+   */
+  onForgotPassword?: () => void
 }

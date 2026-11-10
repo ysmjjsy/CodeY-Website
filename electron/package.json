@@ -1,7 +1,7 @@
 {
-  "name": "new-api-electron",
+  "name": "codeguys-electron",
   "version": "1.0.0",
-  "description": "New API - AI Model Gateway Desktop Application",
+  "description": "CodeGuys - AI Model Gateway Desktop Application",
   "main": "main.js",
   "scripts": {
     "start-app": "electron .",
@@ -18,10 +18,10 @@
     "openai",
     "claude"
   ],
-  "author": "QuantumNous",
+  "author": "CodeGuys",
   "repository": {
     "type": "git",
-    "url": "https://github.com/QuantumNous/new-api"
+    "url": "https://github.com/ysmjjsy/CodeY-Website"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -29,8 +29,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.newapi.desktop",
-    "productName": "New-API-App",
+    "appId": "com.codeguys.desktop",
+    "productName": "CodeGuys",
     "publish": null,
     "directories": {
       "output": "dist"
@@ -38,14 +38,14 @@
     "files": [
       "main.js",
       "preload.js",
-      "icon.png",
-      "tray-iconTemplate.png",
-      "tray-iconTemplate@2x.png",
-      "tray-icon-windows.png"
+      "codeguys-icon.png",
+      "codeguys-tray-template.png",
+      "codeguys-tray-template@2x.png",
+      "codeguys-tray-windows.png"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "icon.png",
+      "icon": "codeguys-icon.png",
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
@@ -57,20 +57,8 @@
       ],
       "extraResources": [
         {
-          "from": "../new-api",
-          "to": "bin/new-api"
-        },
-        {
-          "from": "../LICENSE",
-          "to": "licenses/LICENSE"
-        },
-        {
-          "from": "../NOTICE",
-          "to": "licenses/NOTICE"
-        },
-        {
-          "from": "../THIRD-PARTY-LICENSES.md",
-          "to": "licenses/THIRD-PARTY-LICENSES.md"
+          "from": "../codeguys",
+          "to": "bin/codeguys"
         },
         {
           "from": "node_modules/electron/dist/LICENSE",
@@ -83,27 +71,15 @@
       ]
     },
     "win": {
-      "icon": "icon.png",
+      "icon": "codeguys-icon.png",
       "target": [
         "nsis",
         "portable"
       ],
       "extraResources": [
         {
-          "from": "../new-api.exe",
-          "to": "bin/new-api.exe"
-        },
-        {
-          "from": "../LICENSE",
-          "to": "licenses/LICENSE"
-        },
-        {
-          "from": "../NOTICE",
-          "to": "licenses/NOTICE"
-        },
-        {
-          "from": "../THIRD-PARTY-LICENSES.md",
-          "to": "licenses/THIRD-PARTY-LICENSES.md"
+          "from": "../codeguys.exe",
+          "to": "bin/codeguys.exe"
         },
         {
           "from": "node_modules/electron/dist/LICENSE",
@@ -116,7 +92,7 @@
       ]
     },
     "linux": {
-      "icon": "icon.png",
+      "icon": "codeguys-icon.png",
       "target": [
         "AppImage",
         "deb"
@@ -124,20 +100,8 @@
       "category": "Development",
       "extraResources": [
         {
-          "from": "../new-api",
-          "to": "bin/new-api"
-        },
-        {
-          "from": "../LICENSE",
-          "to": "licenses/LICENSE"
-        },
-        {
-          "from": "../NOTICE",
-          "to": "licenses/NOTICE"
-        },
-        {
-          "from": "../THIRD-PARTY-LICENSES.md",
-          "to": "licenses/THIRD-PARTY-LICENSES.md"
+          "from": "../codeguys",
+          "to": "bin/codeguys"
         },
         {
           "from": "node_modules/electron/dist/LICENSE",

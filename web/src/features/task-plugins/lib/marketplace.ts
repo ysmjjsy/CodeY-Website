@@ -317,10 +317,10 @@ export function indexHasIntegrityHashes(index: MarketplaceIndex): boolean {
 }
 
 export const DEFAULT_MARKETPLACE_INDEX_URL =
-  'https://www.newapi.ai/api/v1/plugins/index.json'
+  'https://github.com/ysmjjsy/CodeY-Website/raw/main/plugin-marketplace/index.json'
 
 export const GITHUB_MARKETPLACE_INDEX_URL =
-  'https://raw.githubusercontent.com/QuantumNous/new-api-plugins/main/index.json'
+  'https://raw.githubusercontent.com/ysmjjsy/CodeY-Website/main/plugin-marketplace/index.json'
 
 /**
  * Both built-in indexes are maintained by the project. Other configured

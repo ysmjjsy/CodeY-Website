@@ -27,14 +27,17 @@ import {
 import { ThemeProvider, useTheme } from '@/context/theme-provider'
 import { initializeFrontendCache } from '@/lib/frontend-cache'
 
-const savedPreferences = {
-  'newapi:theme:v1:mode': 'dark',
-  'newapi:theme:v1:preset': 'rose-garden',
-  'newapi:theme:v1:font': 'serif',
-  'newapi:theme:v1:radius': 'lg',
-  'newapi:theme:v1:scale': 'sm',
-  'newapi:theme:v1:content-layout': 'centered',
-}
+const MODE_KEY = 'codeguys:theme:v1:mode'
+const LAYOUT_KEY = 'codeguys:theme:v1:content-layout'
+
+// Choices the brand no longer offers. A build that stored them must forget
+// them instead of keeping them around.
+const RETIRED_KEYS = [
+  'codeguys:theme:v1:preset',
+  'codeguys:theme:v1:font',
+  'codeguys:theme:v1:radius',
+  'codeguys:theme:v1:scale',
+]
 
 function ThemeControls() {
   const theme = useTheme()
@@ -43,33 +46,17 @@ function ThemeControls() {
   return (
     <>
       <output aria-label='Theme mode'>{theme.theme}</output>
-      <button type='button' onClick={() => customization.setFont('sans')}>
-        Sans font
-      </button>
-      <button type='button' onClick={() => customization.setFont('default')}>
-        Auto font
-      </button>
-      <button
-        type='button'
-        onClick={() => customization.setPreset('anthropic')}
-      >
-        Anthropic preset
-      </button>
-      <button type='button' onClick={() => customization.setPreset('default')}>
-        Default preset
+      <output aria-label='Content layout'>
+        {customization.customization.contentLayout}
+      </output>
+      <button type='button' onClick={() => theme.setTheme('dark')}>
+        Dark mode
       </button>
       <button
         type='button'
-        onClick={() => {
-          theme.setTheme('dark')
-          customization.setPreset('rose-garden')
-          customization.setFont('serif')
-          customization.setRadius('lg')
-          customization.setScale('sm')
-          customization.setContentLayout('centered')
-        }}
+        onClick={() => customization.setContentLayout('centered')}
       >
-        Customize
+        Centered layout
       </button>
       <button
         type='button'
@@ -113,53 +100,43 @@ afterEach(() => {
 })
 
 describe('theme preference persistence', () => {
-  it('starts with defaults when only shared legacy theme cookies exist', () => {
+  it('starts from the brand defaults when only legacy theme cookies exist', () => {
     document.cookie = 'theme_preset=ocean-breeze; path=/'
     document.cookie = 'vite-ui-theme=dark; path=/'
-    document.cookie = 'theme_font=serif; path=/'
-    document.cookie = 'theme_radius=xl; path=/'
-    document.cookie = 'theme_scale=lg; path=/'
     document.cookie = 'theme_content_layout=centered; path=/'
 
     render(<ThemeFixture />)
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('system')
     expect(document.documentElement).toHaveClass('light')
-    expect(document.body).not.toHaveAttribute('data-theme-preset')
-    expect(document.body).toHaveAttribute('data-theme-font', 'system')
-    expect(document.body).not.toHaveAttribute('data-theme-radius')
-    expect(document.body).not.toHaveAttribute('data-theme-scale')
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('full')
     expect(document.body).toHaveAttribute('data-theme-content-layout', 'full')
   })
 
-  it('restores all customized preferences after remounting without writing cookies', async () => {
+  it('restores the mode and content layout after remounting without writing cookies', async () => {
     const user = userEvent.setup()
     const first = render(<ThemeFixture />)
 
-    await user.click(screen.getByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Dark mode' }))
+    await user.click(screen.getByRole('button', { name: 'Centered layout' }))
     first.unmount()
     render(<ThemeFixture />)
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
     expect(document.documentElement).toHaveClass('dark')
-    expect(document.body).toHaveAttribute('data-theme-preset', 'rose-garden')
-    expect(document.body).toHaveAttribute('data-theme-font', 'serif')
-    expect(document.body).toHaveAttribute('data-theme-radius', 'lg')
-    expect(document.body).toHaveAttribute('data-theme-scale', 'sm')
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('centered')
     expect(document.body).toHaveAttribute(
       'data-theme-content-layout',
       'centered'
     )
-    for (const [key, value] of Object.entries(savedPreferences)) {
-      expect(localStorage.getItem(key)).toBe(value)
-    }
+    expect(localStorage.getItem(MODE_KEY)).toBe('dark')
+    expect(localStorage.getItem(LAYOUT_KEY)).toBe('centered')
     expect(document.cookie).toBe('')
   })
 
-  it('keeps a reset after remounting even when the legacy ocean cookie remains', async () => {
-    for (const [key, value] of Object.entries(savedPreferences)) {
-      localStorage.setItem(key, value)
-    }
+  it('keeps a reset after remounting even when a legacy theme cookie remains', async () => {
+    localStorage.setItem(MODE_KEY, 'dark')
+    localStorage.setItem(LAYOUT_KEY, 'centered')
     localStorage.setItem('unrelated-preference', 'keep')
     document.cookie = 'theme_preset=ocean-breeze; path=/'
     const user = userEvent.setup()
@@ -171,37 +148,42 @@ describe('theme preference persistence', () => {
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('system')
     expect(document.documentElement).toHaveClass('light')
-    expect(document.body).not.toHaveAttribute('data-theme-preset')
-    expect(document.body).toHaveAttribute('data-theme-font', 'system')
-    expect(document.body).not.toHaveAttribute('data-theme-radius')
-    expect(document.body).not.toHaveAttribute('data-theme-scale')
-    expect(document.body).toHaveAttribute('data-theme-content-layout', 'full')
-    for (const key of Object.keys(savedPreferences)) {
-      expect(localStorage.getItem(key)).toBeNull()
-    }
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('full')
+    expect(localStorage.getItem(MODE_KEY)).toBeNull()
+    expect(localStorage.getItem(LAYOUT_KEY)).toBeNull()
     expect(localStorage.getItem('unrelated-preference')).toBe('keep')
     expect(document.cookie).toContain('theme_preset=ocean-breeze')
   })
 
+  it('discards a color preset, font, radius, and density stored by an older build', () => {
+    for (const key of RETIRED_KEYS) {
+      localStorage.setItem(key, 'rose-garden')
+    }
+
+    render(<ThemeFixture />)
+
+    for (const key of RETIRED_KEYS) {
+      expect(localStorage.getItem(key)).toBeNull()
+    }
+    expect(document.body).not.toHaveAttribute('data-theme-preset')
+    expect(document.body).not.toHaveAttribute('data-theme-font')
+    expect(document.body).not.toHaveAttribute('data-theme-radius')
+    expect(document.body).not.toHaveAttribute('data-theme-scale')
+  })
+
   it.each(['', 'unknown'])(
-    'uses defaults when stored preferences are %j',
+    'uses the brand default when the stored content layout is %j',
     (value) => {
-      for (const key of Object.keys(savedPreferences)) {
-        localStorage.setItem(key, value)
-      }
+      localStorage.setItem(LAYOUT_KEY, value)
 
       render(<ThemeFixture />)
 
-      expect(screen.getByLabelText('Theme mode')).toHaveTextContent('system')
-      expect(document.body).not.toHaveAttribute('data-theme-preset')
-      expect(document.body).toHaveAttribute('data-theme-font', 'system')
-      expect(document.body).not.toHaveAttribute('data-theme-radius')
-      expect(document.body).not.toHaveAttribute('data-theme-scale')
+      expect(screen.getByLabelText('Content layout')).toHaveTextContent('full')
       expect(document.body).toHaveAttribute('data-theme-content-layout', 'full')
     }
   )
 
-  it('renders defaults when reading local storage fails', () => {
+  it('renders the brand defaults when reading local storage fails', () => {
     vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new DOMException('Storage unavailable', 'SecurityError')
     })
@@ -209,7 +191,7 @@ describe('theme preference persistence', () => {
     render(<ThemeFixture />)
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('system')
-    expect(document.body).not.toHaveAttribute('data-theme-preset')
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('full')
   })
 
   it('still applies and resets preferences when storage writes fail', async () => {
@@ -222,21 +204,21 @@ describe('theme preference persistence', () => {
     const user = userEvent.setup()
     render(<ThemeFixture />)
 
-    await user.click(screen.getByRole('button', { name: 'Customize' }))
+    await user.click(screen.getByRole('button', { name: 'Dark mode' }))
+    await user.click(screen.getByRole('button', { name: 'Centered layout' }))
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
-    expect(document.body).toHaveAttribute('data-theme-preset', 'rose-garden')
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('centered')
 
     await user.click(screen.getByRole('button', { name: 'Reset' }))
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('system')
-    expect(document.body).not.toHaveAttribute('data-theme-preset')
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('full')
   })
 
-  it('preserves saved theme preferences during frontend cache initialization', () => {
-    for (const [key, value] of Object.entries(savedPreferences)) {
-      localStorage.setItem(key, value)
-    }
+  it('preserves the mode and content layout during frontend cache initialization', () => {
+    localStorage.setItem(MODE_KEY, 'dark')
+    localStorage.setItem(LAYOUT_KEY, 'centered')
     localStorage.setItem('stale-ui-cache', 'old')
 
     initializeFrontendCache()
@@ -244,58 +226,7 @@ describe('theme preference persistence', () => {
     render(<ThemeFixture />)
 
     expect(screen.getByLabelText('Theme mode')).toHaveTextContent('dark')
-    expect(document.body).toHaveAttribute('data-theme-preset', 'rose-garden')
-    for (const [key, value] of Object.entries(savedPreferences)) {
-      expect(localStorage.getItem(key)).toBe(value)
-    }
+    expect(screen.getByLabelText('Content layout')).toHaveTextContent('centered')
     expect(localStorage.getItem('stale-ui-cache')).toBeNull()
-  })
-})
-
-describe('theme font selection', () => {
-  it('keeps manually selected Sans after remounting and switching presets', async () => {
-    const user = userEvent.setup()
-    const first = render(<ThemeFixture />)
-
-    await user.click(screen.getByRole('button', { name: 'Sans font' }))
-    first.unmount()
-    render(<ThemeFixture />)
-
-    expect(document.body).toHaveAttribute('data-theme-font', 'sans')
-    expect(localStorage.getItem('newapi:theme:v1:font')).toBe('sans')
-
-    await user.click(screen.getByRole('button', { name: 'Anthropic preset' }))
-
-    expect(document.body).toHaveAttribute('data-theme-font', 'sans')
-  })
-
-  it('restores the browser font after selecting Auto and remounting', async () => {
-    localStorage.setItem('newapi:theme:v1:font', 'sans')
-    const user = userEvent.setup()
-    const first = render(<ThemeFixture />)
-
-    await user.click(screen.getByRole('button', { name: 'Auto font' }))
-
-    expect(document.body).toHaveAttribute('data-theme-font', 'system')
-    expect(localStorage.getItem('newapi:theme:v1:font')).toBeNull()
-
-    first.unmount()
-    render(<ThemeFixture />)
-
-    expect(document.body).toHaveAttribute('data-theme-font', 'system')
-  })
-
-  it('uses the preset font in Auto and restores the browser font on the default preset', async () => {
-    const user = userEvent.setup()
-    render(<ThemeFixture />)
-
-    await user.click(screen.getByRole('button', { name: 'Anthropic preset' }))
-
-    expect(document.body).toHaveAttribute('data-theme-font', 'serif')
-
-    await user.click(screen.getByRole('button', { name: 'Default preset' }))
-
-    expect(document.body).toHaveAttribute('data-theme-font', 'system')
-    expect(localStorage.getItem('newapi:theme:v1:font')).toBeNull()
   })
 })

@@ -8,7 +8,7 @@ export const meta = {
     zh: "生数 Vidu 视频生成（文生视频、图生视频、首尾帧、参考生视频）",
   },
   version: "1.2.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [52],
   models: [
     "viduq3-pro",
@@ -67,7 +67,7 @@ export const meta = {
     { label: "2.0 4s 360p", facts: { credits: 0, duration: 4, resolution: "360p" } },
     { label: "2.0 8s 720p", facts: { credits: 0, duration: 8, resolution: "720p" } },
   ],
-  // Vidu request and response bodies, for clients and for a downstream New API
+  // Vidu request and response bodies, for clients and for a downstream codeguys
   // gateway, at Vidu's own paths; the gateway also serves each under /vidu.
   routes: [
     { method: "POST", path: "/ent/v2/text2video", type: "submit", decode: "createTask", render: "taskCreated" },
@@ -163,7 +163,7 @@ function plainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
-// On a New API channel the same plugin answers on another gateway, which
+// On a CodeGuys channel the same plugin answers on another gateway, which
 // serves the Vidu wire format under /vidu, the form every gateway release
 // serves, and takes its own token as a Bearer header.
 function viaGateway(ctx) {

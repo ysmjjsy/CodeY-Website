@@ -58,6 +58,26 @@ function toNumber(value: unknown, fallback: number): number {
 }
 
 /**
+ * Names this project used before CodeGuys. A stored name that is exactly one
+ * of these, ignoring case, is the old default rather than a choice, so it
+ * shows as CodeGuys. A name set on purpose is shown as stored.
+ */
+const LEGACY_SYSTEM_NAMES = new Set([
+  'codeguys',
+  'new-api',
+  'new api',
+  'newapi',
+])
+
+function displaySystemName(value: unknown): string {
+  if (typeof value !== 'string') return DEFAULT_SYSTEM_NAME
+  const stored = value.trim()
+  if (stored === '') return DEFAULT_SYSTEM_NAME
+  if (LEGACY_SYSTEM_NAMES.has(stored.toLowerCase())) return DEFAULT_SYSTEM_NAME
+  return stored
+}
+
+/**
  * Map `/api/status` response data to our persisted system config structure
  */
 export function mapStatusDataToConfig(
@@ -92,7 +112,7 @@ export function mapStatusDataToConfig(
   }
 
   return {
-    systemName: (data.system_name as string | undefined) || DEFAULT_SYSTEM_NAME,
+    systemName: displaySystemName(data.system_name),
     logo: (data.logo as string | undefined) || DEFAULT_LOGO,
     footerHtml: data.footer_html as string | undefined,
     demoSiteEnabled: data.demo_site_enabled as boolean | undefined,

@@ -39,7 +39,7 @@ export const meta = {
   },
   version: "1.3.0",
   channelTypes: [41],
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   models: [
     "veo-3.0-generate-001",
     "veo-3.0-fast-generate-001",
@@ -121,7 +121,7 @@ function trimmed(value) {
 function plainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
-// On a New API channel the same plugin answers on another gateway, which
+// On a CodeGuys channel the same plugin answers on another gateway, which
 // serves the Vertex AI wire format under /vertex-ai, the form every gateway
 // release serves, takes its own token as a Bearer header and runs the request
 // in its own project.
@@ -139,7 +139,7 @@ function omniModel(ctx) {
 // Gemini Omni runs through the Interactions API, which Vertex serves on the
 // global endpoint only, and returns the video inline in the interaction.
 function interactionsURL(ctx, interactionId) {
-  if (viaGateway(ctx)) throw new Error("Gemini Omni is not available through a New API gateway");
+  if (viaGateway(ctx)) throw new Error("Gemini Omni is not available through a CodeGuys gateway");
   const base = trimmed(ctx.baseUrl).replace(/\/$/, "") || "https://aiplatform.googleapis.com";
   const url = base + "/v1beta1/projects/" + ctx.auth.projectId + "/locations/global/interactions";
   return interactionId ? url + "/" + encodeURIComponent(interactionId) : url;

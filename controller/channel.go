@@ -524,7 +524,7 @@ func GetChannelKey(c *gin.Context) {
 	})
 }
 
-// maxTaskExtendPluginKeys bounds the plugins one New API channel can be
+// maxTaskExtendPluginKeys bounds the plugins one CodeGuys channel can be
 // extended with; it comfortably covers every built-in and installed plugin.
 const maxTaskExtendPluginKeys = 32
 
@@ -564,13 +564,13 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 
 	setting := channel.GetSetting()
 	if channel.Type != constant.ChannelTypeNewAPI && len(setting.TaskExtendPluginKeys) > 0 {
-		return fmt.Errorf("task_extend_plugin_keys is only supported on New API channels")
+		return fmt.Errorf("task_extend_plugin_keys is only supported on CodeGuys channels")
 	}
 	if channel.Type == constant.ChannelTypeNewAPI {
 		if len(setting.TaskExtendPluginKeys) > maxTaskExtendPluginKeys {
 			return fmt.Errorf("task_extend_plugin_keys must not exceed %d plugins", maxTaskExtendPluginKeys)
 		}
-		// The single key stays valid on a New API channel, so both bindings are
+		// The single key stays valid on a CodeGuys channel, so both bindings are
 		// checked as one set.
 		keys := setting.TaskExtendPluginKeys
 		if setting.TaskPluginKey != "" {
@@ -592,14 +592,14 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 				return fmt.Errorf("task plugin %q is not registered", key)
 			}
 			if !plugin.Meta.SupportsUpstream(jsplugin.UpstreamKindNewAPI) {
-				return fmt.Errorf("task plugin %q does not support a New API upstream and cannot be bound to a New API channel", key)
+				return fmt.Errorf("task plugin %q does not support a CodeGuys upstream and cannot be bound to a CodeGuys channel", key)
 			}
 			bound[key] = struct{}{}
 		}
 	}
 
 	if channel.Type == constant.ChannelTypeNewAPI && strings.TrimSpace(channel.GetBaseURL()) == "" {
-		return fmt.Errorf("New API channel base URL cannot be empty")
+		return fmt.Errorf("CodeGuys channel base URL cannot be empty")
 	}
 	if channel.Type == constant.ChannelTypeVLLM && strings.TrimSpace(channel.GetBaseURL()) == "" {
 		return fmt.Errorf("vLLM channel base URL cannot be empty")
@@ -748,7 +748,7 @@ func AddChannel(c *gin.Context) {
 		return
 	}
 
-	// Binding a plugin needs the same permission on a New API channel as the
+	// Binding a plugin needs the same permission on a CodeGuys channel as the
 	// type-61 channel dedicated to it.
 	if addChannelRequest.Channel != nil &&
 		(addChannelRequest.Channel.Type == constant.ChannelTypeTaskPlugin || len(addChannelRequest.Channel.GetSetting().TaskPluginBindings()) > 0) &&
@@ -1155,7 +1155,7 @@ func UpdateChannel(c *gin.Context) {
 		proxyChanged = originProxyErr != nil || normalizedOriginProxy != newProxy
 	}
 	// Changing which plugins a channel binds needs the bind permission on any
-	// channel type; resubmitting an unchanged New API binding list does not, so
+	// channel type; resubmitting an unchanged CodeGuys binding list does not, so
 	// administrators without it can still edit the rest of a gateway channel.
 	if settingProvided &&
 		!slices.Equal(channel.GetSetting().TaskPluginBindings(), originChannel.GetSetting().TaskPluginBindings()) &&

@@ -13,11 +13,11 @@ func TestSQLiteDSNKeepsConcurrencyParamsForBarePaths(t *testing.T) {
 		path string
 		want string
 	}{
-		{name: "default file name", path: "one-api.db", want: "one-api.db" + params},
-		{name: "bare absolute path", path: "/data/new-api.db", want: "/data/new-api.db" + params},
-		{name: "bare file URI", path: "file:/data/new-api.db", want: "file:/data/new-api.db" + params},
+		{name: "default file name", path: "codeguys.db", want: "codeguys.db" + params},
+		{name: "bare absolute path", path: "/data/codeguys.db", want: "/data/codeguys.db" + params},
+		{name: "bare file URI", path: "file:/data/codeguys.db", want: "file:/data/codeguys.db" + params},
 		{name: "in-memory database", path: ":memory:", want: ":memory:" + params},
-		{name: "own query string", path: "/data/new-api.db?_pragma=busy_timeout(5000)", want: "/data/new-api.db?_pragma=busy_timeout(5000)"},
+		{name: "own query string", path: "/data/codeguys.db?_pragma=busy_timeout(5000)", want: "/data/codeguys.db?_pragma=busy_timeout(5000)"},
 		{name: "file URI with query", path: "file:test?mode=memory&cache=shared", want: "file:test?mode=memory&cache=shared"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

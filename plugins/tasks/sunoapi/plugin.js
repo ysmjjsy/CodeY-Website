@@ -10,7 +10,7 @@ export const meta = {
     zh: "SunoAPI 项目 音乐与歌词生成",
   },
   version: "1.1.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [36],
   models: ["suno_music", "suno_lyrics"],
   fetchMode: "batch",

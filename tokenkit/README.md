@@ -1,15 +1,15 @@
 # TokenKit
 
-TokenKit 是从 [new-api](https://github.com/QuantumNous/new-api) 中拆分出的独立 Go 模块，用来在不调用上游 API 的情况下，计算或估算大模型请求的 token 数。
+TokenKit 是从 [CodeGuys](https://github.com/ysmjjsy/CodeY-Website) 中拆分出的独立 Go 模块，用来在不调用上游 API 的情况下，计算或估算大模型请求的 token 数。
 
-它只做计数，不负责解析请求、下载图片或计费。调用方传入文本，或者图片的尺寸和 detail 设置，TokenKit 返回 token 数。可以脱离 new-api 主模块，嵌入其他 Go 网关、代理或客户端。
+它只做计数，不负责解析请求、下载图片或计费。调用方传入文本，或者图片的尺寸和 detail 设置，TokenKit 返回 token 数。可以脱离 CodeGuys 主模块，嵌入其他 Go 网关、代理或客户端。
 
 ## 能力
 
 - GPT 和 o 系列模型用 tiktoken 精确计数，GPT-4 和 GPT-3.5 走 `cl100k_base`，其余走 `o200k_base`
 - Claude、Gemini 和其他模型按字符类别加权估算，Claude Opus 4.7 前后的两套 tokenizer 分开处理
 - 按各家公开的尺寸规则计算图片 token，包括 OpenAI 的 detail 级别和 Gemini 3 的 media resolution
-- 不依赖 new-api 主模块、Gin、数据库或全局设置
+- 不依赖 CodeGuys 主模块、Gin、数据库或全局设置
 
 ## 准确度
 
@@ -107,7 +107,7 @@ Claude 4.7 及以后的 tokenizer 对同样的文本多出约 30% 的 token，�
 
 ## 开发
 
-TokenKit 必须始终保持独立可构建，不依赖 new-api 主模块或 RelayKit。修改模块后，在 `tokenkit` 目录运行：
+TokenKit 必须始终保持独立可构建，不依赖 CodeGuys 主模块或 RelayKit。修改模块后，在 `tokenkit` 目录运行：
 
 ```bash
 GOWORK=off go test ./...
@@ -119,7 +119,3 @@ GOWORK=off go build ./...
 ## 版本与兼容性
 
 TokenKit 当前使用 `v0.x` 版本，公开 API 可能在小版本中调整。估算权重和图片规则会随上游模型更新重新校准，同样的输入在不同版本之间可能得到不同的结果。
-
-## 许可证
-
-TokenKit 是 new-api 项目的一部分，遵循项目根目录中的 [GNU Affero General Public License v3.0](../LICENSE)。

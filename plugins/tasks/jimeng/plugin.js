@@ -8,7 +8,7 @@ export const meta = {
     zh: "火山引擎即梦视频生成（文生视频、图生视频、首尾帧）",
   },
   version: "1.2.0",
-  author: { name: "QuantumNous" },
+  author: { name: "CodeGuys" },
   channelTypes: [51],
   models: ["jimeng_vgfm_t2v_l20"],
   fetchMode: "per_task",
@@ -97,7 +97,7 @@ function isRelay(apiKey) {
   return apiKey.startsWith("sk-");
 }
 
-// The host signal is authoritative on New API channels; the sk- key prefix
+// The host signal is authoritative on CodeGuys channels; the sk- key prefix
 // stays as the heuristic for legacy type-51 channels pointed at a gateway.
 function viaGateway(ctx) {
   return !!(ctx.upstream && ctx.upstream.kind === "new_api") || isRelay(ctx.apiKey);

@@ -8,7 +8,7 @@ Chinese template: `.github/PULL_REQUEST_TEMPLATE.md`
 > [!IMPORTANT]
 >
 > - AI-assisted descriptions are welcome. Review and condense the full text before submitting, keep only the points maintainers need to re-check, and **take responsibility** for it. Do not paste unfiltered AI-generated text in the PR body or in later comments. Repeated submissions of this kind may result in a block.
-> - Do not report issues when pass-through is enabled; pass-through sends content as-is and does not go through new-api processing logic.
+> - Do not report issues when pass-through is enabled; pass-through sends content as-is and does not go through codeguys processing logic.
 > - Please complete this template before submitting.
 
 ## Related Issue
@@ -32,11 +32,11 @@ Chinese template: `.github/PULL_REQUEST_TEMPLATE.md`
 
 ## Checklist
 - [ ] **Human review:** Whether or not the description was AI-generated, I have reviewed and condensed the full text, retained only the points needed for review, and take responsibility for its accuracy and completeness. I have not pasted unfiltered AI-generated text in the PR body or in later comments.
-- [ ] **Not a duplicate:** I have searched existing [Issues](https://github.com/QuantumNous/new-api/issues) and [PRs](https://github.com/QuantumNous/new-api/pulls) and confirmed this is not a duplicate.
+- [ ] **Not a duplicate:** I have searched existing [Issues](https://github.com/ysmjjsy/CodeY-Website/issues) and [PRs](https://github.com/ysmjjsy/CodeY-Website/pulls) and confirmed this is not a duplicate.
 - [ ] **Feature issue:** If this PR is a New feature, I have linked a corresponding Issue; if none existed, I created one first.
 - [ ] **Prior discussion:** If this is a large or directional change, I have discussed it with maintainers in the linked Issue and reached agreement.
 - [ ] **Scope:** This PR is not a Coding Plan, reverse-engineered channel, third-party API wrapper, or a change to the Codex channel type.
-- [ ] **Not pass-through:** This PR is not about forwarding behavior after enabling pass-through; pass-through sends content as-is and does not go through new-api processing logic.
+- [ ] **Not pass-through:** This PR is not about forwarding behavior after enabling pass-through; pass-through sends content as-is and does not go through codeguys processing logic.
 - [ ] **Focused change:** This PR is a single focused change and does not include unrelated code.
 - [ ] **Local verification:** I verified the changed path and recorded the commands and observed results. Stating only that `go build` or tests passed is not valid proof.
 - [ ] **Security:** This change does not include secrets and follows the project's coding guidelines.

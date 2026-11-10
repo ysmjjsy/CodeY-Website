@@ -22,12 +22,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { resolveThemeColor, useThemeColor } from '../theme-color'
 
 // jsdom does not resolve var() in computed styles, so stand in for the CSS
-// cascade: the dark class lives on <html> and the preset attribute on <body>,
-// as in theme.css and theme-presets.css.
+// cascade: the dark class lives on <html>, as in theme.css.
 function cascadedForeground(): string {
-  if (document.body.getAttribute('data-theme-preset') === 'rose-garden') {
-    return 'rgb(80, 20, 40)'
-  }
   return document.documentElement.classList.contains('dark')
     ? 'rgb(245, 245, 245)'
     : 'rgb(10, 10, 10)'
@@ -44,7 +40,6 @@ describe('useThemeColor', () => {
 
   afterEach(() => {
     document.documentElement.classList.remove('dark')
-    document.body.removeAttribute('data-theme-preset')
     vi.restoreAllMocks()
   })
 
@@ -64,15 +59,6 @@ describe('useThemeColor', () => {
     expect(result.current).toBe('rgb(245, 245, 245)')
   })
 
-  test('re-resolves when the theme preset attribute changes on body', async () => {
-    const { result } = renderHook(() => useThemeColor('--foreground'))
-
-    await act(async () => {
-      document.body.setAttribute('data-theme-preset', 'rose-garden')
-    })
-
-    expect(result.current).toBe('rgb(80, 20, 40)')
-  })
 })
 
 describe('resolveThemeColor', () => {
