@@ -24,11 +24,11 @@ const legacyConsoleRoutes: Record<string, string> = {
   '/console/deployment': '/models/deployments',
   '/console/subscription': '/subscriptions',
   '/console/channel': '/channels',
-  '/console/token': '/keys',
+  '/console/token': '/account/keys',
   '/console/playground': '/playground',
   '/console/redemption': '/redemption-codes',
   '/console/user': '/users',
-  '/console/personal': '/profile',
+  '/console/personal': '/account/profile',
   '/console/log': '/usage-logs',
   '/console/midjourney': '/usage-logs/drawing',
   '/console/task': '/usage-logs/task',
@@ -79,7 +79,7 @@ export function resolveLegacyRoute(rawHref: string): string | null {
     return buildTargetHref('/403', source)
   }
   if (pathname === '/console/topup') {
-    return buildTargetHref('/wallet', source)
+    return buildTargetHref('/account/wallet', source)
   }
   if (pathname === '/console/setting') {
     const tab = source.searchParams.get('tab') ?? ''

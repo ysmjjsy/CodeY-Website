@@ -85,8 +85,7 @@ const SETUP_GUIDE_CODE_PATTERN = [
 ].join('\n')
 
 type DashboardActionPath =
-  | '/keys'
-  | '/wallet'
+  | '/account/$section'
   | '/playground'
   | '/channels'
   | '/usage-logs'
@@ -96,6 +95,7 @@ interface StartStep {
   title: string
   description: string
   to: DashboardActionPath
+  params?: { section: 'keys' | 'wallet' }
   icon: LucideIcon
   completed: boolean
 }
@@ -104,6 +104,7 @@ interface QuickAction {
   title: string
   description: string
   to: DashboardActionPath
+  params?: { section: 'keys' | 'wallet' }
   icon: LucideIcon
   adminOnly?: boolean
 }
@@ -251,6 +252,7 @@ function StartStepItem(props: {
 
       <Link
         to={props.step.to}
+        params={props.step.params}
         className='bg-background/70 hover:bg-muted/50 focus-visible:ring-ring flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left shadow-xs transition-colors outline-none focus-visible:ring-2'
       >
         <span className='flex min-w-0 items-start gap-2.5'>
@@ -367,7 +369,13 @@ function RequestPreview(props: {
             {isCopying ? t('Loading') : t('Copy')}
           </Button>
         ) : (
-          <Button size='sm' variant='outline' render={<Link to='/keys' />}>
+          <Button
+            size='sm'
+            variant='outline'
+            render={
+              <Link to='/account/$section' params={{ section: 'keys' }} />
+            }
+          >
             {t('Create API Key')}
           </Button>
         )}
@@ -427,7 +435,7 @@ function QuickActionItem(props: { action: QuickAction }) {
     <Button
       variant='outline'
       className='h-auto justify-start rounded-xl px-3 py-3 text-left'
-      render={<Link to={props.action.to} />}
+      render={<Link to={props.action.to} params={props.action.params} />}
     >
       <span className='bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg'>
         <Icon className='size-4' aria-hidden='true' />
@@ -452,7 +460,7 @@ function CompactQuickAction(props: { action: QuickAction }) {
       variant='outline'
       size='sm'
       className='bg-background/70 h-8 min-w-24 gap-1.5 px-2.5'
-      render={<Link to={props.action.to} />}
+      render={<Link to={props.action.to} params={props.action.params} />}
     >
       <Icon data-icon='inline-start' />
       <span>{props.action.title}</span>
@@ -509,14 +517,16 @@ export function OverviewDashboard() {
       {
         title: t('Create API Key'),
         description: t('Create a key for your app or service'),
-        to: '/keys',
+        to: '/account/$section',
+        params: { section: 'keys' },
         icon: KeyRound,
         completed: Boolean(preferredKey),
       },
       {
         title: t('Add credits'),
         description: t('Keep enough balance before production traffic'),
-        to: '/wallet',
+        to: '/account/$section',
+        params: { section: 'wallet' },
         icon: CreditCard,
         completed: remainQuota > 0 || usedQuota > 0,
       },
@@ -536,7 +546,8 @@ export function OverviewDashboard() {
       {
         title: t('API Keys'),
         description: t('Create a key for your app or service'),
-        to: '/keys',
+        to: '/account/$section',
+        params: { section: 'keys' },
         icon: KeyRound,
       },
       {
@@ -684,7 +695,15 @@ export function OverviewDashboard() {
                               <ChevronUp data-icon='inline-start' />
                               {t('Hide setup guide')}
                             </Button>
-                            <Button size='sm' render={<Link to='/keys' />}>
+                            <Button
+                              size='sm'
+                              render={
+                                <Link
+                                  to='/account/$section'
+                                  params={{ section: 'keys' }}
+                                />
+                              }
+                            >
                               <KeyRound data-icon='inline-start' />
                               {t('Create API Key')}
                             </Button>

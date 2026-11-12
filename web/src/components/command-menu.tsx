@@ -70,7 +70,14 @@ export function CommandMenu() {
                         key={`${navItem.title}-${navItem.url}`}
                         value={navItem.title}
                         onSelect={() => {
-                          runCommand(() => navigate({ to: navItem.url }))
+                          runCommand(() =>
+                            navigate({
+                              to: navItem.url as string,
+                              params: navItem.params as
+                                | Record<string, string>
+                                | undefined,
+                            })
+                          )
                         }}
                       >
                         <div className='flex size-4 items-center justify-center'>

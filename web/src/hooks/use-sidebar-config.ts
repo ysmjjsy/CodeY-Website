@@ -102,14 +102,15 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/dashboard/models': { section: 'console', module: 'detail' },
   '/dashboard/users': { section: 'console', module: 'detail' },
   '/keys': { section: 'console', module: 'token' },
+  '/account/keys': { section: 'console', module: 'token' },
   '/usage-logs': { section: 'console', module: 'log' },
   '/usage-logs/common': { section: 'console', module: 'log' },
   '/usage-logs/audit': { section: 'console', module: 'audit' },
   '/usage-logs/drawing': { section: 'console', module: 'midjourney' },
   '/usage-logs/task': { section: 'console', module: 'task' },
-  '/wallet': { section: 'personal', module: 'topup' },
-  '/profile': { section: 'personal', module: 'personal' },
-  '/security': { section: 'personal', module: 'security' },
+  '/account/wallet': { section: 'personal', module: 'topup' },
+  '/account/profile': { section: 'personal', module: 'personal' },
+  '/account/security': { section: 'personal', module: 'security' },
   '/channels': { section: 'admin', module: 'channel' },
   '/models': { section: 'admin', module: 'models' },
   '/models/metadata': { section: 'admin', module: 'models' },
@@ -124,7 +125,7 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
 /**
  * Parse backend SidebarModulesAdmin configuration
  */
-function parseSidebarConfig(
+function parseSidebarModulesAdmin(
   value: string | null | undefined
 ): SidebarModulesAdminConfig {
   // If empty string, null, or undefined, use default config
@@ -147,7 +148,7 @@ function parseSidebarConfig(
  * invalid, or otherwise unusable — the caller treats null as "do not narrow",
  * so legacy users with an empty sidebar_modules field keep the full admin view.
  */
-function parseUserSidebarConfig(
+function parseUserSidebarModules(
   value: string | null | undefined
 ): SidebarModulesUserConfig {
   if (!value || value.trim() === '') {
@@ -269,7 +270,7 @@ export function useSidebarConfig(navGroups: NavGroup[]): NavGroup[] {
 
   const adminConfig = useMemo(
     () =>
-      parseSidebarConfig(
+      parseSidebarModulesAdmin(
         status?.SidebarModulesAdmin as string | null | undefined
       ),
     [status?.SidebarModulesAdmin]
@@ -284,7 +285,7 @@ export function useSidebarConfig(navGroups: NavGroup[]): NavGroup[] {
     if (auth?.user?.permissions?.sidebar_settings === false) {
       return null
     }
-    return parseUserSidebarConfig(auth?.user?.sidebar_modules)
+    return parseUserSidebarModules(auth?.user?.sidebar_modules)
   }, [auth?.user?.permissions?.sidebar_settings, auth?.user?.sidebar_modules])
 
   const filteredNavGroups = useMemo(
@@ -310,13 +311,13 @@ export function useIsSidebarModuleVisible(url: string): boolean {
   const { status } = useStatus()
   const { auth } = useAuthStore()
 
-  const adminConfig = parseSidebarConfig(
+  const adminConfig = parseSidebarModulesAdmin(
     status?.SidebarModulesAdmin as string | null | undefined
   )
   const userConfig =
     auth?.user?.permissions?.sidebar_settings === false
       ? null
-      : parseUserSidebarConfig(auth?.user?.sidebar_modules)
+      : parseUserSidebarModules(auth?.user?.sidebar_modules)
 
   return isModuleEnabled(url, adminConfig, userConfig)
 }

@@ -47,6 +47,8 @@ export interface UserProfile {
   role: number
   /** Email address */
   email?: string
+  /** Uploaded avatar URL */
+  avatar_url?: string
   /** User group */
   group: string
   /** Current quota balance */
@@ -126,6 +128,8 @@ export interface UserSettings {
   channel_notify_enabled?: boolean
   /** Preferred interface/API response language */
   language?: string
+  /** Uploaded avatar URL */
+  avatar_url?: string
 }
 
 /**

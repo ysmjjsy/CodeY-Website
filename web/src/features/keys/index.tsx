@@ -25,12 +25,19 @@ import { ApiKeysPrimaryButtons } from './components/api-keys-primary-buttons'
 import { ApiKeysProvider } from './components/api-keys-provider'
 import { ApiKeysTable } from './components/api-keys-table'
 
-export function ApiKeys() {
+interface ApiKeysProps {
+  /** Rendered inside the account page, which supplies its own heading. */
+  embedded?: boolean
+}
+
+export function ApiKeys(props: ApiKeysProps) {
   const { t } = useTranslation()
   return (
     <ApiKeysProvider>
       <SectionPageLayout fixedContent>
-        <SectionPageLayout.Title>{t('API Keys')}</SectionPageLayout.Title>
+        {!props.embedded && (
+          <SectionPageLayout.Title>{t('API Keys')}</SectionPageLayout.Title>
+        )}
         <SectionPageLayout.Actions>
           <ApiKeysPrimaryButtons />
         </SectionPageLayout.Actions>

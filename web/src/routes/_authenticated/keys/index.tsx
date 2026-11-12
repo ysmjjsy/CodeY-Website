@@ -16,10 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import z from 'zod'
 
-import { ApiKeys } from '@/features/keys'
 import { API_KEY_STATUS_OPTIONS } from '@/features/keys/constants'
 
 const apiKeySearchSchema = z.object({
@@ -35,5 +34,17 @@ const apiKeySearchSchema = z.object({
 
 export const Route = createFileRoute('/_authenticated/keys/')({
   validateSearch: apiKeySearchSchema,
-  component: ApiKeys,
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: '/account/$section',
+      params: { section: 'keys' },
+      search: {
+        page: search.page,
+        pageSize: search.pageSize,
+        status: search.status,
+        filter: search.filter,
+        token: search.token,
+      },
+    })
+  },
 })

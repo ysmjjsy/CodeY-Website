@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -521,8 +522,84 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"setting":           user.Setting,
 		"stripe_customer":   user.StripeCustomer,
 		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
+		"avatar_url":        userSetting.AvatarUrl,
 		"permissions":       permissions,
 	}
+}
+
+const avatarMultipartOverhead = 512 << 10
+
+// UpdateUserAvatar stores the uploaded avatar and points the current user
+// setting at it. The response carries the new URL so the client can update
+// without waiting for a full profile refresh.
+func UpdateUserAvatar(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.AvatarUploadLimit+avatarMultipartOverhead)
+	fileHeader, err := c.FormFile("avatar")
+	if err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	defer file.Close()
+
+	avatarURL, err := service.SaveAvatar(file)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrAvatarTooLarge):
+			common.ApiErrorT(c, "Image is too large")
+		case errors.Is(err, service.ErrAvatarUnsupported):
+			common.ApiErrorT(c, "Unsupported image format")
+		default:
+			common.SysError(common.LogText("failed to save avatar: %s", err.Error()))
+			common.ApiErrorT(c, "Update failed")
+		}
+		return
+	}
+
+	user, err := model.GetUserById(c.GetInt("id"), true)
+	if err != nil {
+		service.RemoveAvatarFile(avatarURL)
+		common.ApiError(c, err)
+		return
+	}
+	settings := user.GetSetting()
+	previousAvatarURL := settings.AvatarUrl
+	settings.AvatarUrl = avatarURL
+	if err := model.UpdateUserSetting(user.Id, settings); err != nil {
+		service.RemoveAvatarFile(avatarURL)
+		common.ApiErrorT(c, "Update failed")
+		return
+	}
+	if previousAvatarURL != "" && previousAvatarURL != avatarURL {
+		service.RemoveAvatarFile(previousAvatarURL)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    gin.H{"avatar_url": avatarURL},
+	})
+}
+
+// GetUserAvatar serves a stored avatar. Names are unguessable server tokens,
+// so the route is public and cacheable like any other profile image.
+func GetUserAvatar(c *gin.Context) {
+	path, ok := service.AvatarFilePath(c.Param("filename"))
+	if !ok {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if info, err := os.Stat(path); err != nil || info.IsDir() {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.File(path)
 }
 
 // 计算用户权限的辅助函数

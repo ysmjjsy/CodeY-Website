@@ -57,6 +57,18 @@ export async function updateUserProfile(
   return res.data
 }
 
+/**
+ * Upload the current user's avatar and return its new public URL.
+ */
+export async function uploadUserAvatar(
+  file: File
+): Promise<ApiResponse<{ avatar_url: string }>> {
+  const formData = new FormData()
+  formData.append('avatar', file)
+  const res = await api.post('/api/user/avatar', formData)
+  return res.data
+}
+
 export function changeAccountPassword(
   data: UpdateUserRequest,
   proofToken: string,

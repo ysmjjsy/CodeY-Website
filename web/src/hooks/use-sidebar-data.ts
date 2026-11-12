@@ -23,18 +23,14 @@ import {
   CreditCard,
   FileText,
   FlaskConical,
-  Key,
   LayoutDashboard,
   ListTodo,
   PlugZap,
   Radio,
   ServerCog,
   Settings,
-  ShieldCheck,
   Ticket,
-  User,
   Users,
-  Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -78,11 +74,6 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             icon: LayoutDashboard,
           },
           {
-            title: t('API Keys'),
-            url: '/keys',
-            icon: Key,
-          },
-          {
             title: t('Usage Logs'),
             url: '/usage-logs/common',
             icon: FileText,
@@ -98,27 +89,6 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             activeUrls: ['/usage-logs/drawing'],
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
-          },
-        ],
-      },
-      {
-        id: 'personal',
-        title: t('Personal'),
-        items: [
-          {
-            title: t('Wallet'),
-            url: '/wallet',
-            icon: Wallet,
-          },
-          {
-            title: t('Profile'),
-            url: '/profile',
-            icon: User,
-          },
-          {
-            title: t('Security & Access'),
-            url: '/security',
-            icon: ShieldCheck,
           },
         ],
       },

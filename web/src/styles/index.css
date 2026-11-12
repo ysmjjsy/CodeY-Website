@@ -716,6 +716,14 @@ For commercial licensing, please contact support@quantumnous.com
   }
 }
 
+/* A step of the CodeY task settles into place as it is recorded. */
+@keyframes task-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 /* One request travels at a time. The route it is on turns solid for the
  * moment it is at the endpoint: the line, a dot at each end, and the name,
  * which takes a box. Everything else stays faint. CodeY lights in cyan. The

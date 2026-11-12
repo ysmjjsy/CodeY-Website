@@ -17,16 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { X, User, Wallet, LogOut, ShieldCheck } from 'lucide-react'
+import { X, CircleUserRound, LogOut } from 'lucide-react'
 import { AnimatePresence, motion, type Variants } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 
 import { SignOutDialog } from '@/components/sign-out-dialog'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UserAvatar } from '@/components/user-avatar'
 import useDialogState from '@/hooks/use-dialog'
-import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { useUserDisplay } from '@/hooks/use-user-display'
 import type { AuthUser } from '@/stores/auth-store'
 
@@ -81,8 +80,7 @@ interface MobileUserProfileProps {
 function MobileUserProfile({ user, onNavigate }: MobileUserProfileProps) {
   const { t } = useTranslation()
   const [signOutOpen, setSignOutOpen] = useDialogState()
-  const { displayName, initials, roleLabel } = useUserDisplay(user)
-  const isSecurityVisible = useIsSidebarModuleVisible('/security')
+  const { displayName, roleLabel } = useUserDisplay(user)
 
   if (!user) return null
 
@@ -92,10 +90,12 @@ function MobileUserProfile({ user, onNavigate }: MobileUserProfileProps) {
       <div className='flex flex-col text-sm'>
         {/* User header - simplified */}
         <div className='border-border flex items-center gap-2.5 border-b p-2.5'>
-          <Avatar className='size-9'>
-            <AvatarImage src='/avatars/01.png' alt={`@${displayName}`} />
-            <AvatarFallback className='text-xs'>{initials}</AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            user={user}
+            alt={displayName}
+            className='size-9'
+            fallbackClassName='text-xs'
+          />
           <div className='flex flex-1 flex-col gap-0.5 overflow-hidden'>
             <p className='text-foreground truncate font-medium'>
               {displayName}
@@ -116,32 +116,13 @@ function MobileUserProfile({ user, onNavigate }: MobileUserProfileProps) {
 
         {/* Navigation links - same style as top nav */}
         <Link
-          to='/profile'
+          to='/account/$section'
+          params={{ section: 'profile' }}
           onClick={onNavigate}
           className='text-primary/60 hover:text-primary/80 border-border flex items-center gap-2.5 border-b p-2.5 transition-colors'
         >
-          <User className='size-4' />
-          {t('Profile')}
-        </Link>
-
-        {isSecurityVisible && (
-          <Link
-            to='/security'
-            onClick={onNavigate}
-            className='text-primary/60 hover:text-primary/80 border-border flex items-center gap-2.5 border-b p-2.5 transition-colors'
-          >
-            <ShieldCheck className='size-4' />
-            {t('Security & Access')}
-          </Link>
-        )}
-
-        <Link
-          to='/wallet'
-          onClick={onNavigate}
-          className='text-primary/60 hover:text-primary/80 border-border flex items-center gap-2.5 border-b p-2.5 transition-colors'
-        >
-          <Wallet className='size-4' />
-          {t('Wallet')}
+          <CircleUserRound className='size-4' />
+          {t('Account Information')}
         </Link>
 
         {/* Sign out - consistent style */}

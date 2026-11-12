@@ -30,11 +30,11 @@ describe('legacy frontend route migration', () => {
       '/console/deployment': '/models/deployments',
       '/console/subscription': '/subscriptions',
       '/console/channel': '/channels',
-      '/console/token': '/keys',
+      '/console/token': '/account/keys',
       '/console/playground': '/playground',
       '/console/redemption': '/redemption-codes',
       '/console/user': '/users',
-      '/console/personal': '/profile',
+      '/console/personal': '/account/profile',
       '/console/log': '/usage-logs',
       '/console/midjourney': '/usage-logs/drawing',
       '/console/task': '/usage-logs/task',
@@ -51,7 +51,7 @@ describe('legacy frontend route migration', () => {
       '/sign-in?redirect=%2Fkeys#continue'
     )
     expect(resolveLegacyRoute('/console/topup?source=email#orders')).toBe(
-      '/wallet?source=email#orders'
+      '/account/wallet?source=email#orders'
     )
   })
 

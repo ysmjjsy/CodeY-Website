@@ -40,7 +40,12 @@ import { PasskeyCard } from './components/passkey-card'
 import { PrivacyCard } from './components/privacy-card'
 import { TwoFACard } from './components/two-fa-card'
 
-export function Security() {
+interface SecurityProps {
+  /** Rendered inside the account page, which supplies its own heading. */
+  embedded?: boolean
+}
+
+export function Security(props: SecurityProps) {
   const { t } = useTranslation()
   const { profile, loading, refreshProfile, fetchProfile } = useProfile()
 
@@ -138,11 +143,13 @@ export function Security() {
 
   return (
     <SectionPageLayout>
-      <SectionPageLayout.Title>
-        {t('Security & Access')}
-      </SectionPageLayout.Title>
+      {!props.embedded && (
+        <SectionPageLayout.Title>
+          {t('Security & Access')}
+        </SectionPageLayout.Title>
+      )}
       <SectionPageLayout.Content>
-        <div className='mx-auto w-full max-w-7xl'>{content}</div>
+        <div className='w-full'>{content}</div>
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )

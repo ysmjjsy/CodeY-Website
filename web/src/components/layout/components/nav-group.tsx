@@ -122,7 +122,8 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
         tooltip={item.title}
         render={
           <Link
-            to={item.url}
+            to={item.url as string}
+            params={item.params as Record<string, string> | undefined}
             preload={isMobile ? false : undefined}
             onClick={() => setOpenMobile(false)}
           />

@@ -41,6 +41,8 @@ type BaseNavItem = {
  */
 export type NavLink = BaseNavItem & {
   url: LinkProps['to'] | (string & {})
+  /** Route params for urls with dynamic segments. */
+  params?: LinkProps['params']
   items?: never
   type?: never
 }
