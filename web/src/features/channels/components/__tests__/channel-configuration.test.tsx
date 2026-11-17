@@ -3665,6 +3665,7 @@ test('a plugin channel edits the settings its plugin declares, shows its key for
     name: 'Upload address',
   })
   expect(address).toHaveValue('https://saved-upload.example')
+  expect(address.closest('fieldset')).toHaveClass('min-w-0')
   expect(screen.getByText('AccessKey|SecretKey|Region')).toBeVisible()
 
   await user.clear(address)
