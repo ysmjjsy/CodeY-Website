@@ -52,6 +52,7 @@ Transitive dependencies should be audited before a final external release.
 | backend  | production  | Go        | `github.com/joho/godotenv`                              | `v1.5.1`                             | MIT                     |
 | backend  | test        | Go        | `github.com/json-iterator/go`                           | `v1.1.12`                            | MIT                     |
 | backend  | production  | Go        | `github.com/klauspost/compress`                         | `v1.18.3`                            | BSD-3-Clause            |
+| backend  | production  | Go        | `github.com/ledongthuc/pdf`                             | `v0.0.0-20261020125853-5e46805f718e` | BSD-3-Clause            |
 | backend  | production  | Go        | `github.com/mewkiz/flac`                                | `v1.0.13`                            | Unlicense               |
 | backend  | production  | Go        | `github.com/nicksnyder/go-i18n/v2`                      | `v2.6.1`                             | MIT                     |
 | backend  | test        | Go        | `github.com/openai/openai-go`                           | `v1.12.0`                            | Apache-2.0              |

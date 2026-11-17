@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+
 /**
  * Backend limit for a single plugin source (`maxTaskPluginSourceBytes` in
  * controller/task_plugin.go). Enforced client-side too so an oversized fetch

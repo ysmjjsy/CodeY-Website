@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +20,8 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
 	"github.com/QuantumNous/new-api/plugins"
+	"github.com/QuantumNous/new-api/relay/requestplugin"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -44,6 +46,9 @@ type taskPluginUploadRequest struct {
 	// Icon carries the sidecar icon.svg / icon.png as a data URI. It is optional
 	// and stored separately from the source so the JavaScript stays readable.
 	Icon string `json:"icon"`
+	// MarketplaceIndexURL names the marketplace source the plugin was installed
+	// from; empty for a manual upload.
+	MarketplaceIndexURL string `json:"marketplaceIndexUrl"`
 }
 
 func UploadTaskPlugin(c *gin.Context) {
@@ -55,6 +60,20 @@ func UploadTaskPlugin(c *gin.Context) {
 	if len(request.Source) > maxTaskPluginSourceBytes {
 		common.ApiErrorMsg(c, "plugin source exceeds 8 MiB")
 		return
+	}
+	marketplaceKind := ""
+	if indexURL := strings.TrimSpace(request.MarketplaceIndexURL); indexURL != "" {
+		if !slices.ContainsFunc(setting.GetTaskPluginMarketplaceSources(), func(source setting.TaskPluginMarketplaceSource) bool {
+			return strings.TrimSpace(source.IndexURL) == indexURL
+		}) {
+			common.ApiErrorT(c, "The plugin's marketplace source is not in the source list")
+			return
+		}
+		marketplaceKind = setting.TaskPluginMarketplaceSourceKind(indexURL)
+		if marketplaceKind == setting.TaskPluginMarketplaceKindCommunity && !setting.IsTaskPluginCommunityEnabled() {
+			common.ApiErrorMsg(c, "Community marketplace is disabled")
+			return
+		}
 	}
 	if expected := strings.TrimSpace(request.SourceSha256); expected != "" {
 		actual := fmt.Sprintf("%x", sha256.Sum256([]byte(request.Source)))
@@ -72,6 +91,18 @@ func UploadTaskPlugin(c *gin.Context) {
 	if err = jsplugin.ValidateV1Meta(loaded.Meta); err != nil {
 		common.ApiErrorMsg(c, err.Error())
 		return
+	}
+	// A plugin from a community or third-party source must not take the key
+	// of a built-in plugin, and its key carries its author's name.
+	if marketplaceKind != "" && marketplaceKind != setting.TaskPluginMarketplaceKindOfficial {
+		if taskPluginHasFactory(loaded.Meta.Key) {
+			common.ApiErrorT(c, "A community plugin cannot use the key of the built-in plugin {{key}}", map[string]any{"key": loaded.Meta.Key})
+			return
+		}
+		if !strings.Contains(loaded.Meta.Key, "_") {
+			common.ApiErrorT(c, "A community plugin's key must start with its author's GitHub name and an underscore, like alice_foo")
+			return
+		}
 	}
 	icon := strings.TrimSpace(request.Icon)
 	if icon != "" {
@@ -113,11 +144,12 @@ func UploadTaskPlugin(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if err = syncTaskPluginsOnceContext(c.Request.Context()); err != nil {
+	if err = SyncTaskPluginsOnceContext(c.Request.Context()); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	detail := taskPluginDetail{Plugin: &plugin, Meta: loaded.Meta, Source: string(plugin.Source), Layer: "override", HasIcon: plugin.HasIcon(), SkippedRoutes: taskPluginSkippedRoutes(plugin.Key, plugin.Version)}
+	detail := taskPluginDetail{Plugin: &plugin, Meta: loaded.Meta, Source: string(plugin.Source), Layer: "override", HasIcon: plugin.HasIcon(), SkippedRoutes: taskPluginSkippedRoutes(plugin.Key, plugin.Version),
+		taskPluginParts: servedTaskPluginParts(loaded.Meta, plugin.Active && plugin.Enabled)}
 	if plugin.Active && plugin.Enabled {
 		detail.PricingIssues = taskPluginPricingIssues(plugin.Key)
 	}
@@ -147,6 +179,47 @@ type taskPluginListItem struct {
 	ChannelCount  int            `json:"channel_count"`
 	InFlightCount int64          `json:"in_flight_count"`
 	SkippedRoutes []string       `json:"skipped_routes"`
+	taskPluginParts
+}
+
+// taskPluginParts tells a task part, a provider part, a request processing
+// part with its stage hooks and the credential hooks of a plugin apart, for
+// the channel form, the request plugin editor and the plugin pages.
+type taskPluginParts struct {
+	Task           bool     `json:"task"`
+	Provider       bool     `json:"provider"`
+	Transform      bool     `json:"transform"`
+	TransformHooks []string `json:"transform_hooks"`
+	Login          bool     `json:"login"`
+	Refresh        bool     `json:"refresh"`
+}
+
+// loadedTaskPluginParts reads the parts of a plugin the runtime holds from its
+// manifest and its exports.
+func loadedTaskPluginParts(plugin *jsplugin.LoadedPlugin) taskPluginParts {
+	return taskPluginParts{
+		Task:           plugin.Meta.HasTaskPart(),
+		Provider:       plugin.Meta.HasProviderPart(),
+		Transform:      plugin.Meta.HasTransformPart(),
+		TransformHooks: append([]string{}, plugin.TransformHooks()...),
+		Login:          plugin.HasProviderHook("login"),
+		Refresh:        plugin.HasProviderHook("refresh"),
+	}
+}
+
+// servedTaskPluginParts returns the parts of the plugin version meta
+// describes, read from the runtime when it serves that version. A version it
+// does not serve (switched off, failed to compile, not the active version)
+// reports the parts its compiled manifest and exports declare and no
+// credential hooks. The task part is read from fetchMode, which a manifest has
+// exactly when the plugin has a task part: HasTaskPart is also true for the
+// bare meta the list builds for a row that failed to compile.
+func servedTaskPluginParts(meta jsplugin.Meta, served bool) taskPluginParts {
+	if plugin, ok := jsplugin.DefaultRegistry.Get(meta.Key); served && ok && plugin.Meta.Version == meta.Version {
+		return loadedTaskPluginParts(plugin)
+	}
+	return taskPluginParts{Task: meta.FetchMode != "", Provider: meta.HasProviderPart(),
+		Transform: meta.HasTransformPart(), TransformHooks: append([]string{}, meta.TransformHooks()...)}
 }
 
 type taskPluginRebuildOutcome struct {
@@ -261,6 +334,7 @@ func ListTaskPlugins(c *gin.Context) {
 			item.InFlightCount = inFlight
 		}
 		item.SkippedRoutes = taskPluginSkippedRoutes(key, item.Meta.Version)
+		item.taskPluginParts = servedTaskPluginParts(item.Meta, item.RuntimeStatus == "registered")
 		items = append(items, item)
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -326,6 +400,7 @@ type taskPluginDetail struct {
 	SkippedRoutes []string          `json:"skipped_routes"`
 	// PricingIssues is set by an upload that puts the version into service.
 	PricingIssues []model.ModelPricingIssue `json:"pricing_issues,omitempty"`
+	taskPluginParts
 }
 
 // taskPluginSkippedRoutes lists, as "METHOD /path", the declared top-level
@@ -388,7 +463,8 @@ func GetTaskPlugin(c *gin.Context) {
 			taskPluginCompileError(c, compileErr)
 			return
 		}
-		common.ApiSuccess(c, taskPluginDetail{Plugin: plugin, Meta: loaded.Meta, Source: string(plugin.Source), Layer: "override", HasIcon: plugin.HasIcon(), SkippedRoutes: taskPluginSkippedRoutes(plugin.Key, plugin.Version)})
+		common.ApiSuccess(c, taskPluginDetail{Plugin: plugin, Meta: loaded.Meta, Source: string(plugin.Source), Layer: "override", HasIcon: plugin.HasIcon(), SkippedRoutes: taskPluginSkippedRoutes(plugin.Key, plugin.Version),
+			taskPluginParts: servedTaskPluginParts(loaded.Meta, plugin.Active && plugin.Enabled)})
 		return
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) || version != "" {
@@ -406,7 +482,8 @@ func GetTaskPlugin(c *gin.Context) {
 		return
 	}
 	_, _, hasIcon := plugins.Icon(key)
-	common.ApiSuccess(c, taskPluginDetail{Meta: loaded.Meta, Source: source, Layer: "factory", HasIcon: hasIcon, SkippedRoutes: taskPluginSkippedRoutes(key, loaded.Meta.Version)})
+	common.ApiSuccess(c, taskPluginDetail{Meta: loaded.Meta, Source: source, Layer: "factory", HasIcon: hasIcon, SkippedRoutes: taskPluginSkippedRoutes(key, loaded.Meta.Version),
+		taskPluginParts: servedTaskPluginParts(loaded.Meta, !setting.IsTaskPluginFactoryDisabled(key))})
 }
 
 type taskPluginDryRunRequest struct {
@@ -517,7 +594,7 @@ func DeleteTaskPluginVersion(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if err = syncTaskPluginsOnceContext(c.Request.Context()); err != nil {
+	if err = SyncTaskPluginsOnceContext(c.Request.Context()); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -569,7 +646,7 @@ func ActivateTaskPlugin(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if err = syncTaskPluginsOnceContext(c.Request.Context()); err != nil {
+	if err = SyncTaskPluginsOnceContext(c.Request.Context()); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -680,7 +757,7 @@ func SetTaskPluginStatus(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if err := syncTaskPluginsOnceContext(c.Request.Context()); err != nil {
+	if err := SyncTaskPluginsOnceContext(c.Request.Context()); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -742,44 +819,87 @@ func taskPluginPricingIssues(key string) []model.ModelPricingIssue {
 	return issues
 }
 
+type taskPluginMarketplaceSettings struct {
+	Sources          []setting.TaskPluginMarketplaceSource `json:"sources"`
+	CommunityEnabled bool                                  `json:"community_enabled"`
+}
+
 func GetTaskPluginMarketplaceSources(c *gin.Context) {
-	common.ApiSuccess(c, setting.GetTaskPluginMarketplaceSources())
+	common.ApiSuccess(c, taskPluginMarketplaceSettings{
+		Sources: setting.GetTaskPluginMarketplaceSources(), CommunityEnabled: setting.IsTaskPluginCommunityEnabled(),
+	})
 }
 
 func UpdateTaskPluginMarketplaceSources(c *gin.Context) {
-	var sources []setting.TaskPluginMarketplaceSource
-	if err := c.ShouldBindJSON(&sources); err != nil {
+	var raw json.RawMessage
+	if err := common.DecodeJson(c.Request.Body, &raw); err != nil {
 		common.ApiErrorMsg(c, err.Error())
 		return
 	}
-	if sources == nil {
-		sources = []setting.TaskPluginMarketplaceSource{}
+	var request struct {
+		Sources          []setting.TaskPluginMarketplaceSource `json:"sources"`
+		CommunityEnabled *bool                                 `json:"community_enabled"`
 	}
-	for i := range sources {
-		name := strings.TrimSpace(sources[i].Name)
-		indexURL := strings.TrimSpace(sources[i].IndexURL)
-		if name == "" {
-			common.ApiErrorMsg(c, "marketplace source name is required")
+	// Keep accepting the source-array payload used before the community switch.
+	if strings.HasPrefix(strings.TrimSpace(string(raw)), "[") {
+		if err := common.Unmarshal(raw, &request.Sources); err != nil {
+			common.ApiErrorMsg(c, err.Error())
 			return
 		}
-		parsed, err := url.Parse(indexURL)
-		if err != nil || !parsed.IsAbs() || parsed.Host == "" || (!strings.EqualFold(parsed.Scheme, "http") && !strings.EqualFold(parsed.Scheme, "https")) {
-			common.ApiErrorMsg(c, "marketplace source index_url must be an absolute http(s) URL")
+	} else {
+		if !strings.HasPrefix(strings.TrimSpace(string(raw)), "{") {
+			common.ApiErrorMsg(c, "marketplace settings must be an object or source array")
 			return
 		}
-		sources[i].Name = name
-		sources[i].IndexURL = indexURL
+		if err := common.Unmarshal(raw, &request); err != nil {
+			common.ApiErrorMsg(c, err.Error())
+			return
+		}
+		if request.Sources == nil {
+			common.ApiErrorMsg(c, "marketplace settings sources must be an array")
+			return
+		}
+	}
+	sources := make([]setting.TaskPluginMarketplaceSource, 0, len(request.Sources))
+	for _, source := range request.Sources {
+		normalized, err := setting.NormalizeTaskPluginMarketplaceSource(source)
+		if err != nil {
+			common.ApiErrorMsg(c, err.Error())
+			return
+		}
+		if slices.ContainsFunc(sources, func(existing setting.TaskPluginMarketplaceSource) bool {
+			return existing.IndexURL == normalized.IndexURL
+		}) {
+			common.ApiErrorMsg(c, "duplicate marketplace source index_url")
+			return
+		}
+		sources = append(sources, normalized)
 	}
 	encoded, err := common.Marshal(sources)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	if err = model.UpdateOption(setting.TaskPluginMarketplaceSourcesKey, string(encoded)); err != nil {
+	values := map[string]string{setting.TaskPluginMarketplaceSourcesKey: string(encoded)}
+	if request.CommunityEnabled != nil {
+		values[setting.TaskPluginCommunityEnabledKey] = fmt.Sprint(*request.CommunityEnabled)
+	}
+	if err = model.UpdateOptionsBulk(values); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, sources)
+	common.ApiSuccess(c, taskPluginMarketplaceSettings{Sources: sources, CommunityEnabled: setting.IsTaskPluginCommunityEnabled()})
+}
+
+// relayPaths lists the incoming paths of a plugin's relay routes, each once.
+func relayPaths(meta jsplugin.Meta) []string {
+	paths := make([]string, 0, len(meta.Relay))
+	for _, route := range meta.Relay {
+		if path := strings.TrimSpace(route.IncomingPath); !slices.Contains(paths, path) {
+			paths = append(paths, path)
+		}
+	}
+	return paths
 }
 
 func GetTaskPluginOptions(c *gin.Context) {
@@ -797,8 +917,18 @@ func GetTaskPluginOptions(c *gin.Context) {
 			if layer == 1 && setting.IsTaskPluginFactoryDisabled(meta.Key) {
 				continue
 			}
-			if _, ok := jsplugin.DefaultRegistry.Get(meta.Key); !ok {
-				continue
+			loaded, ok := jsplugin.DefaultRegistry.Get(meta.Key)
+			switchedOff := !ok
+			if switchedOff {
+				// With the master switch off, a plugin's request processing
+				// part still runs; its channel parts do not.
+				if loaded, ok = jsplugin.DefaultRegistry.GetIgnoringMasterSwitch(meta.Key); !ok || !loaded.Meta.HasTransformPart() {
+					continue
+				}
+			}
+			parts := loadedTaskPluginParts(loaded)
+			if switchedOff {
+				parts.Task, parts.Provider, parts.Login, parts.Refresh = false, false, false, false
 			}
 			seen[meta.Key] = true
 			hasIcon := false
@@ -809,21 +939,45 @@ func GetTaskPluginOptions(c *gin.Context) {
 			} else {
 				_, _, hasIcon = plugins.Icon(meta.Key)
 			}
-			options = append(options, gin.H{
-				"key":           meta.Key,
-				"name":          meta.Name,
-				"description":   meta.Description,
-				"icon":          meta.Icon,
-				"hasIcon":       hasIcon,
-				"baseUrl":       meta.BaseURL,
-				"sortPriority":  meta.SortPriority,
-				"website":       meta.Website,
-				"models":        meta.Models,
-				"channelTypes":  meta.ChannelTypes,
-				"upstreams":     meta.Upstreams,
-				"usageSchema":   meta.UsageSchema,
-				"usageProfiles": meta.UsageProfiles,
-			})
+			option := gin.H{
+				"key":             meta.Key,
+				"name":            meta.Name,
+				"description":     meta.Description,
+				"icon":            meta.Icon,
+				"hasIcon":         hasIcon,
+				"baseUrl":         meta.BaseURL,
+				"sortPriority":    meta.SortPriority,
+				"website":         meta.Website,
+				"models":          meta.Models,
+				"channelTypes":    meta.ChannelTypes,
+				"upstreams":       meta.Upstreams,
+				"usageSchema":     meta.UsageSchema,
+				"usageProfiles":   meta.UsageProfiles,
+				"configSchema":    meta.ConfigSchema,
+				"task":            parts.Task,
+				"provider":        parts.Provider,
+				"transform":       parts.Transform,
+				"transform_hooks": parts.TransformHooks,
+				"samples":         append([]jsplugin.Sample{}, meta.Samples...),
+				"optional":        meta.Optional,
+				"login":           parts.Login,
+				"refresh":         parts.Refresh,
+
+				// The channel form of a provider or task channel.
+				"channelConfig":      loaded.Meta.ChannelConfig,
+				"keyHint":            nil,
+				"checkKey":           loaded.HasProviderHook("checkKey"),
+				"balance":            loaded.HasProviderHook("buildBalanceRequest") && loaded.HasProviderHook("parseBalance"),
+				"relayPaths":         relayPaths(loaded.Meta),
+				"responsesWebsocket": loaded.Meta.ServesResponsesWebSocket(""),
+			}
+			if len(loaded.Meta.KeyHint) > 0 {
+				option["keyHint"] = loaded.Meta.KeyHint
+			}
+			if meta.NameI18n != nil {
+				option["name_i18n"] = meta.NameI18n
+			}
+			options = append(options, option)
 		}
 	}
 	sort.Slice(options, func(i, j int) bool {
@@ -844,10 +998,13 @@ var taskPluginSyncState = struct {
 }{hashes: map[string]string{}, errors: map[string]string{}}
 
 func syncTaskPluginsOnce() error {
-	return syncTaskPluginsOnceContext(context.Background())
+	return SyncTaskPluginsOnceContext(context.Background())
 }
 
-func syncTaskPluginsOnceContext(ctx context.Context) error {
+// SyncTaskPluginsOnceContext loads the enabled plugin rows into the registry
+// and records the ones this node runs differently from the database as the
+// plugins sync topic's errors. A database error keeps the current plugins.
+func SyncTaskPluginsOnceContext(ctx context.Context) error {
 	started := time.Now()
 	taskPluginSyncState.Lock()
 	defer taskPluginSyncState.Unlock()
@@ -966,6 +1123,23 @@ func syncTaskPluginsOnceContext(ctx context.Context) error {
 	}
 	pluginErrors := jsplugin.DefaultRegistry.RoutingErrors()
 	maps.Copy(pluginErrors, taskPluginSyncState.errors)
+	// Request plugins fail closed on an enabled plugin this node could not
+	// load. The node registry also lists the plugins that still serve an
+	// earlier version because the new one failed; the plugin page shows which.
+	unloaded := map[string]string{}
+	nodeErrors := map[string]string{}
+	for _, plugin := range databasePlugins {
+		message := pluginErrors[plugin.Key]
+		loaded, _ := jsplugin.DefaultRegistry.GetIgnoringMasterSwitch(plugin.Key)
+		if loaded == nil {
+			unloaded[plugin.Key] = message
+		}
+		if loaded == nil || message != "" {
+			nodeErrors[plugin.Key] = message
+		}
+	}
+	requestplugin.SetUnloadedPlugins(unloaded)
+	service.SetSyncTopicErrors(model.SyncTopicPlugins, nodeErrors)
 	pluginErrorCount := len(pluginErrors)
 	status := "success"
 	if pluginErrorCount > 0 {
@@ -998,8 +1172,9 @@ func SyncTaskPluginsOnce() {
 	}
 }
 
+// SyncTaskPlugins reloads the plugins every 30 seconds after the startup sync,
+// for changes that did not bump the plugins sync topic.
 func SyncTaskPlugins() {
-	SyncTaskPluginsOnce()
 	for range time.NewTicker(30 * time.Second).C {
 		SyncTaskPluginsOnce()
 	}

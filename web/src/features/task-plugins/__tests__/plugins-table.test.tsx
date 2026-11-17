@@ -33,17 +33,20 @@ import type { TaskPluginListItem } from '../types'
 
 vi.mock('@/lib/lobe-icon', () => ({ getLobeIcon: () => null }))
 
+const COMMUNITY_INDEX_URL = 'https://community.example/catalog/index.json'
 const clients: QueryClient[] = []
 afterEach(() => {
   for (const client of clients) client.clear()
   clients.length = 0
   localStorage.removeItem('task-plugins-view-mode')
+  vi.unstubAllGlobals()
 })
 
 function renderPlugins(
   enabled: boolean,
   view: 'card' | 'table' = 'card',
-  source: TaskPluginListItem['source'] = 'override'
+  source: TaskPluginListItem['source'] = 'override',
+  overrides?: Partial<TaskPluginListItem>
 ) {
   localStorage.setItem('task-plugins-view-mode', view)
   const item: TaskPluginListItem = {
@@ -64,6 +67,7 @@ function renderPlugins(
     runtime_status: enabled ? 'registered' : 'disabled',
     channel_count: 0,
     in_flight_count: 0,
+    ...overrides,
   }
   if (source === 'override_over_factory') {
     item.factory_meta = { ...item.meta, version: '0.9.0' }
@@ -81,7 +85,11 @@ function renderPlugins(
   })
   render(
     <QueryClientProvider client={client}>
-      <PluginsTable onDetails={() => undefined} onUpload={() => undefined} />
+      <PluginsTable
+        onKindChange={() => undefined}
+        onDetails={() => undefined}
+        onUpload={() => undefined}
+      />
     </QueryClientProvider>
   )
   return screen.getAllByRole('switch', { name: 'Enable plugin example' })[0]
@@ -384,3 +392,122 @@ test('a long pricing notice names five models and counts the rest', async () => 
   expect(screen.getByText('example-m5: No price set')).toBeVisible()
   expect(screen.queryByText('example-m6: No price set')).not.toBeInTheDocument()
 })
+
+test.each([
+  [true, 'Plugin'],
+  [false, 'Task Plugin'],
+] as const)(
+  'table view: a plugin without channel types and provider=%s shows the %s channel type',
+  (provider, label) => {
+    renderPlugins(true, 'table', 'override', { provider })
+
+    const row = screen.getByText('Example').closest('tr')
+    if (!row) throw new Error('no table row for the plugin')
+    expect(within(row).getByText(label, { exact: true })).toBeInTheDocument()
+  }
+)
+
+test('table view: a request processing only plugin shows its tag instead of a channel type', () => {
+  renderPlugins(true, 'table', 'override', {
+    task: false,
+    provider: false,
+    transform: true,
+  })
+
+  const row = screen.getByText('Example').closest('tr')
+  if (!row) throw new Error('no table row for the plugin')
+  expect(within(row).getByText('Request processing')).toBeInTheDocument()
+  expect(within(row).queryByText('Task Plugin')).toBeNull()
+  expect(within(row).queryByText('Plugin', { exact: true })).toBeNull()
+})
+
+test.each([
+  ['card', true],
+  ['table', true],
+  ['card', false],
+  ['table', false],
+] as const)(
+  '%s view: community enabled=%s controls takedown checks and warnings',
+  (view, communityEnabled) => {
+    const fetchMock = vi.fn(async () => new Response('{}'))
+    vi.stubGlobal('fetch', fetchMock)
+    localStorage.setItem('task-plugins-view-mode', view)
+    const digest = 'e'.repeat(64)
+    const item: TaskPluginListItem = {
+      meta: {
+        key: 'alice_foo',
+        name: 'Foo',
+        version: '1.0.0',
+        apiVersion: 1,
+        author: { name: 'alice' },
+        models: [],
+        fetchMode: 'per_task',
+      },
+      source: 'override',
+      enabled: true,
+      active: true,
+      source_hash: digest,
+      remark: '',
+      runtime_status: 'registered',
+      channel_count: 0,
+      in_flight_count: 0,
+    }
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    })
+    clients.push(client)
+    client.setQueryData(
+      ['task-plugins'],
+      [
+        item,
+        {
+          ...item,
+          meta: { ...item.meta, key: 'bob_bar' },
+          source_hash: 'f'.repeat(64),
+        },
+      ]
+    )
+    client.setQueryData(['task-plugin-marketplace-sources'], {
+      sources: [
+        {
+          name: 'Community',
+          index_url: COMMUNITY_INDEX_URL,
+          kind: 'community',
+        },
+      ],
+      community_enabled: communityEnabled,
+    })
+    if (communityEnabled) {
+      client.setQueryData(['task-plugin-marketplace', COMMUNITY_INDEX_URL], {
+        indexVersion: 1,
+        name: '',
+        plugins: [],
+        revoked: [
+          {
+            sha256: digest,
+            reason: { en: 'It sends channel keys away', zh: '会外传渠道密钥' },
+          },
+        ],
+      })
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <PluginsTable
+          onKindChange={() => undefined}
+          onDetails={() => undefined}
+          onUpload={() => undefined}
+        />
+      </QueryClientProvider>
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    const warnings = screen.queryAllByRole('alert')
+    if (!communityEnabled) {
+      expect(warnings).toHaveLength(0)
+      return
+    }
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toHaveTextContent(
+      'This version was taken down from community plugins. Reason: It sends channel keys away'
+    )
+  }
+)

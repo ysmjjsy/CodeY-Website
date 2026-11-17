@@ -63,3 +63,18 @@ func TestTaskPluginDisabledFactoryKeysBadJSONReturnsEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestTaskPluginMarketplaceStartsEmptyAndDoesNotRestoreLegacySources(t *testing.T) {
+	setupTaskPluginDisabledFactoryKeysTest(t)
+	assert.Empty(t, GetTaskPluginMarketplaceSources())
+	assert.False(t, IsTaskPluginCommunityEnabled())
+	for _, raw := range []string{"", "invalid", "null", "[]", `[{"name":"Legacy","index_url":"https://www.newapi.ai/api/v1/plugins/index.json"}]`} {
+		common.OptionMap[TaskPluginMarketplaceSourcesKey] = raw
+		assert.Empty(t, GetTaskPluginMarketplaceSources(), raw)
+	}
+	common.OptionMap[TaskPluginMarketplaceSourcesKey] = `[{"name":"Mirror","index_url":"https://mirror.example.com/index.json"},{"name":"CodeGuys","index_url":"https://market.example.com/index.json","kind":"official"}]`
+	assert.Len(t, GetTaskPluginMarketplaceSources(), 2)
+	assert.Equal(t, TaskPluginMarketplaceKindThirdParty, TaskPluginMarketplaceSourceKind("https://mirror.example.com/index.json"))
+	assert.Equal(t, TaskPluginMarketplaceKindOfficial, TaskPluginMarketplaceSourceKind("https://market.example.com/index.json"))
+	assert.Equal(t, TaskPluginMarketplaceKindThirdParty, TaskPluginMarketplaceSourceKind("https://unknown.example.com/index.json"))
+}
