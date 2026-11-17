@@ -77,6 +77,7 @@ export type MarketplaceInstallTarget = {
 
 type MarketplaceInstallDialogProps = {
   target: MarketplaceInstallTarget | null
+  installStatsEnabled?: boolean
   onOpenChange: (open: boolean) => void
 }
 
@@ -86,6 +87,7 @@ export function MarketplaceInstallDialog(props: MarketplaceInstallDialogProps) {
     <MarketplaceInstallContent
       key={`${props.target.source.index_url}-${props.target.plugin.key}-${props.target.version}`}
       target={props.target}
+      installStatsEnabled={props.installStatsEnabled}
       onOpenChange={props.onOpenChange}
     />
   )
@@ -294,7 +296,10 @@ function MarketplaceInstallContent(
         </>
       }
     >
-      <MarketplaceAuthorLine plugin={target.plugin} />
+      <MarketplaceAuthorLine
+        plugin={target.plugin}
+        installStatsEnabled={props.installStatsEnabled}
+      />
       <div className='space-y-2'>
         <Combobox
           aria-label={t('Select version')}

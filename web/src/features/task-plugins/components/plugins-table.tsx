@@ -16,7 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type { ColumnDef, ColumnFiltersState } from '@tanstack/react-table'
 import { Eye, MoreHorizontal, Trash2, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -46,10 +51,10 @@ import {
   TaskPluginUsageError,
 } from '../api'
 import {
+  availableMarketplaceSources,
   fetchMarketplaceIndex,
   findRevokedEntry,
   isStaleFactoryOverride,
-  marketplaceSourceKind,
 } from '../lib/marketplace'
 import { toastPluginChange } from '../lib/plugin-change-toast'
 import {
@@ -98,8 +103,7 @@ export function PluginsTable(props: PluginsTableProps) {
     queryKey: ['task-plugins'],
     queryFn: listTaskPlugins,
   })
-  // Installed code is checked against the community takedown list only when
-  // the community source is in use and something was uploaded.
+  // Local plugins never need a market index unless revocation checks are opted in.
   const hasUploaded = (pluginsQuery.data ?? []).some(
     (plugin) => plugin.source !== 'factory' && plugin.source_hash
   )
@@ -108,22 +112,25 @@ export function PluginsTable(props: PluginsTableProps) {
     queryFn: listMarketplaceSources,
     enabled: hasUploaded,
   })
-  const communitySource = sourcesQuery.data?.community_enabled
-    ? sourcesQuery.data.sources.find(
-        (source) => marketplaceSourceKind(source) === 'community'
-      )
-    : undefined
-  const communityQuery = useQuery({
-    queryKey: ['task-plugin-marketplace', communitySource?.index_url],
-    queryFn: () => {
-      if (!communitySource) throw new Error('community source is not enabled')
-      return fetchMarketplaceIndex(communitySource.index_url)
-    },
-    enabled: hasUploaded && Boolean(communitySource),
-    retry: false,
-    meta: { errorToast: false },
+  const revocationSources =
+    hasUploaded && sourcesQuery.data?.remote_revocations_enabled === true
+      ? availableMarketplaceSources(sourcesQuery.data)
+      : []
+  const revocationQueries = useQueries({
+    queries: revocationSources.map((source) => ({
+      queryKey: ['task-plugin-marketplace-revocations', source.index_url],
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        fetchMarketplaceIndex(source.index_url, { signal }),
+      retry: false,
+      meta: { errorToast: false },
+    })),
   })
-  const communityIndex = communitySource ? communityQuery.data : undefined
+  const revocationData = revocationQueries.map((query) => query.data?.revoked)
+  const revocationIndex = useMemo(
+    () => ({ revoked: revocationData.flatMap((revoked) => revoked ?? []) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(revocationData)]
+  )
   const statusMutation = useMutation({
     mutationFn: ({
       key,
@@ -220,7 +227,7 @@ export function PluginsTable(props: PluginsTableProps) {
                 <PluginWebsiteLink website={row.original.meta.website} />
                 <RevokedPluginWarning
                   entry={findRevokedEntry(
-                    communityIndex,
+                    revocationIndex,
                     row.original.source_hash
                   )}
                 />
@@ -394,7 +401,7 @@ export function PluginsTable(props: PluginsTableProps) {
         ),
       },
     ],
-    [communityIndex, i18n.language, props, statusMutation, t]
+    [revocationIndex, i18n.language, props, statusMutation, t]
   )
   const plugins = pluginsQuery.data
   const kindCounts = useMemo(
@@ -462,7 +469,10 @@ export function PluginsTable(props: PluginsTableProps) {
           <PluginCard
             row={row}
             kind={kind}
-            revoked={findRevokedEntry(communityIndex, row.original.source_hash)}
+            revoked={findRevokedEntry(
+              revocationIndex,
+              row.original.source_hash
+            )}
           />
         )}
         cardGridClassName='grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3'

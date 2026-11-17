@@ -820,13 +820,20 @@ func taskPluginPricingIssues(key string) []model.ModelPricingIssue {
 }
 
 type taskPluginMarketplaceSettings struct {
-	Sources          []setting.TaskPluginMarketplaceSource `json:"sources"`
-	CommunityEnabled bool                                  `json:"community_enabled"`
+	Sources                  []setting.TaskPluginMarketplaceSource `json:"sources"`
+	CommunityEnabled         bool                                  `json:"community_enabled"`
+	ShortCodesEnabled        bool                                  `json:"short_codes_enabled"`
+	InstallStatsEnabled      bool                                  `json:"install_stats_enabled"`
+	RemoteRevocationsEnabled bool                                  `json:"remote_revocations_enabled"`
 }
 
 func GetTaskPluginMarketplaceSources(c *gin.Context) {
 	common.ApiSuccess(c, taskPluginMarketplaceSettings{
-		Sources: setting.GetTaskPluginMarketplaceSources(), CommunityEnabled: setting.IsTaskPluginCommunityEnabled(),
+		Sources:                  setting.GetTaskPluginMarketplaceSources(),
+		CommunityEnabled:         setting.IsTaskPluginCommunityEnabled(),
+		ShortCodesEnabled:        setting.IsTaskPluginMarketplaceShortCodesEnabled(),
+		InstallStatsEnabled:      setting.IsTaskPluginMarketplaceInstallStatsEnabled(),
+		RemoteRevocationsEnabled: setting.IsTaskPluginMarketplaceRemoteRevocationsEnabled(),
 	})
 }
 
@@ -837,8 +844,11 @@ func UpdateTaskPluginMarketplaceSources(c *gin.Context) {
 		return
 	}
 	var request struct {
-		Sources          []setting.TaskPluginMarketplaceSource `json:"sources"`
-		CommunityEnabled *bool                                 `json:"community_enabled"`
+		Sources                  []setting.TaskPluginMarketplaceSource `json:"sources"`
+		CommunityEnabled         *bool                                 `json:"community_enabled"`
+		ShortCodesEnabled        *bool                                 `json:"short_codes_enabled"`
+		InstallStatsEnabled      *bool                                 `json:"install_stats_enabled"`
+		RemoteRevocationsEnabled *bool                                 `json:"remote_revocations_enabled"`
 	}
 	// Keep accepting the source-array payload used before the community switch.
 	if strings.HasPrefix(strings.TrimSpace(string(raw)), "[") {
@@ -881,14 +891,21 @@ func UpdateTaskPluginMarketplaceSources(c *gin.Context) {
 		return
 	}
 	values := map[string]string{setting.TaskPluginMarketplaceSourcesKey: string(encoded)}
-	if request.CommunityEnabled != nil {
-		values[setting.TaskPluginCommunityEnabledKey] = fmt.Sprint(*request.CommunityEnabled)
+	for key, enabled := range map[string]*bool{
+		setting.TaskPluginCommunityEnabledKey:                    request.CommunityEnabled,
+		setting.TaskPluginMarketplaceShortCodesEnabledKey:        request.ShortCodesEnabled,
+		setting.TaskPluginMarketplaceInstallStatsEnabledKey:      request.InstallStatsEnabled,
+		setting.TaskPluginMarketplaceRemoteRevocationsEnabledKey: request.RemoteRevocationsEnabled,
+	} {
+		if enabled != nil {
+			values[key] = fmt.Sprint(*enabled)
+		}
 	}
 	if err = model.UpdateOptionsBulk(values); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, taskPluginMarketplaceSettings{Sources: sources, CommunityEnabled: setting.IsTaskPluginCommunityEnabled()})
+	GetTaskPluginMarketplaceSources(c)
 }
 
 // relayPaths lists the incoming paths of a plugin's relay routes, each once.

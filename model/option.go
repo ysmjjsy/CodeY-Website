@@ -59,6 +59,9 @@ func InitOptionMap() {
 	jsplugin.DefaultRegistry.SetEnabled(constant.TaskPluginEnabled)
 	common.OptionMap[setting.TaskPluginMarketplaceSourcesKey] = setting.TaskPluginMarketplaceSources2JsonString()
 	common.OptionMap[setting.TaskPluginCommunityEnabledKey] = "false"
+	common.OptionMap[setting.TaskPluginMarketplaceShortCodesEnabledKey] = "false"
+	common.OptionMap[setting.TaskPluginMarketplaceInstallStatsEnabledKey] = "false"
+	common.OptionMap[setting.TaskPluginMarketplaceRemoteRevocationsEnabledKey] = "false"
 	common.OptionMap[setting.TaskPluginDisabledFactoryKeysKey] = "[]"
 	jsplugin.DefaultRegistry.SetDisabledFactoryKeys(nil)
 	common.OptionMap["DataExportEnabled"] = strconv.FormatBool(common.DataExportEnabled)

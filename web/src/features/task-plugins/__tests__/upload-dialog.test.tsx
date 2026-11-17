@@ -117,6 +117,20 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+test('manual file upload succeeds without marketplace configuration or external requests', async () => {
+  const fetchMock = vi.fn()
+  vi.stubGlobal('fetch', fetchMock)
+  uploadTaskPlugin.mockResolvedValue(savedPlugin(true))
+  const user = userEvent.setup()
+  const { onOpenChange } = renderDialog()
+  await uploadSource(user)
+  await screen.findByRole('dialog', { name: 'Plugin uploaded successfully' })
+  await user.click(footerButton('Close'))
+  expect(onOpenChange).toHaveBeenCalledWith(false)
+  expect(uploadTaskPlugin).toHaveBeenCalledWith('const a = 1', '', '')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
 describe('UploadDialog layout', () => {
   test('renders the source editor and hides the native file input from view', () => {
     renderDialog()

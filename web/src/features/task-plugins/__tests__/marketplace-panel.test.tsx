@@ -30,7 +30,11 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { api } from '@/lib/api'
 
 import { MarketplacePanel } from '../components/marketplace-panel'
-import type { MarketplaceIndex, MarketplaceSource } from '../types'
+import type {
+  MarketplaceIndex,
+  MarketplaceSource,
+  MarketplaceSources,
+} from '../types'
 
 const officialSource: MarketplaceSource = {
   name: 'Primary catalog',
@@ -63,7 +67,8 @@ const index: MarketplaceIndex = {
 const clients: QueryClient[] = []
 function renderPanel(
   sources: MarketplaceSource[] = [],
-  communityEnabled = false
+  communityEnabled = false,
+  settings: Partial<MarketplaceSources> = {}
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -71,6 +76,7 @@ function renderPanel(
   client.setQueryData(['task-plugin-marketplace-sources'], {
     sources,
     community_enabled: communityEnabled,
+    ...settings,
   })
   client.setQueryData(['task-plugins'], [])
   clients.push(client)
@@ -109,13 +115,88 @@ test('empty configured sources show setup and request no marketplace resources',
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
+test.each([undefined, false])(
+  'short codes enabled=%s hides lookup even with trusted and community sources',
+  async (enabled) => {
+    const fetchMock = mockIndex()
+    renderPanel([officialSource, communitySource], true, {
+      short_codes_enabled: enabled,
+    })
+    await screen.findByText('Example plugin')
+    expect(screen.getByText('CodeGuys trusted source')).toBeVisible()
+    expect(screen.queryByLabelText('Plugin code')).toBeNull()
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      officialSource.index_url,
+    ])
+  }
+)
+
+test.each([false, true])(
+  'installation statistics enabled=%s controls visible counts and ordering',
+  async (enabled) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          ...index,
+          plugins: [
+            {
+              ...index.plugins[0],
+              key: 'z_popular',
+              name: 'Popular plugin',
+              installs30d: 300,
+            },
+            {
+              ...index.plugins[0],
+              key: 'a_local',
+              name: 'Local plugin',
+              installs30d: 1,
+            },
+          ],
+        })
+      )
+    )
+    renderPanel([officialSource], false, { install_stats_enabled: enabled })
+    const popular = await screen.findByText('Popular plugin')
+    const local = screen.getByText('Local plugin')
+    const first = enabled ? popular : local
+    const second = enabled ? local : popular
+    expect(
+      first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0)
+    expect(screen.queryByText('300 installs in 30 days') !== null).toBe(enabled)
+  }
+)
+
+test('turning short codes off removes cached lookup results', async () => {
+  mockIndex()
+  const user = userEvent.setup()
+  const client = renderPanel([communitySource], true, {
+    short_codes_enabled: true,
+  })
+  await screen.findByText('Example plugin')
+  await user.type(screen.getByLabelText('Plugin code'), '12345678')
+  await user.click(screen.getByRole('button', { name: 'Find' }))
+  await screen.findByText('Result for plugin code 12345678')
+  client.setQueryData(['task-plugin-marketplace-sources'], {
+    sources: [communitySource],
+    community_enabled: true,
+    short_codes_enabled: false,
+  })
+  await waitFor(() => expect(screen.queryByLabelText('Plugin code')).toBeNull())
+  expect(screen.queryByText('Result for plugin code 12345678')).toBeNull()
+})
+
 test('an explicitly configured custom source loads directly with third-party warning', async () => {
   const fetchMock = mockIndex()
   renderPanel([customSource])
   expect(await screen.findByText('Example plugin')).toBeVisible()
   expect(screen.getByText('Third-party — use at your own risk')).toBeVisible()
   expect(fetchMock.mock.calls).toEqual([
-    [customSource.index_url, { cache: 'no-cache' }],
+    [
+      customSource.index_url,
+      { cache: 'no-cache', signal: expect.any(AbortSignal) },
+    ],
   ])
 })
 
@@ -139,7 +220,10 @@ test('a failed configured source displays an error without trying an alternate s
   renderPanel([officialSource, customSource])
   expect(await screen.findByText('Could not load this source')).toBeVisible()
   expect(fetchMock.mock.calls).toEqual([
-    [officialSource.index_url, { cache: 'no-cache' }],
+    [
+      officialSource.index_url,
+      { cache: 'no-cache', signal: expect.any(AbortSignal) },
+    ],
   ])
 })
 
@@ -157,7 +241,7 @@ test('community disabled hides its controls and makes no community background re
 test('community enabled shows configured plugins and resolves a code beside its configured index', async () => {
   const fetchMock = mockIndex()
   const user = userEvent.setup()
-  renderPanel([communitySource], true)
+  renderPanel([communitySource], true, { short_codes_enabled: true })
   expect(await screen.findByText('Example plugin')).toBeVisible()
   expect(
     screen.getByRole('button', { name: 'Community plugins' })
@@ -176,7 +260,9 @@ test('community enabled shows configured plugins and resolves a code beside its 
 test('turning community off hides previously cached community results and stops requests', async () => {
   const fetchMock = mockIndex()
   const user = userEvent.setup()
-  const client = renderPanel([communitySource], true)
+  const client = renderPanel([communitySource], true, {
+    short_codes_enabled: true,
+  })
   await screen.findByText('Example plugin')
   await user.type(screen.getByLabelText('Plugin code'), '12345678')
   await user.click(screen.getByRole('button', { name: 'Find' }))
@@ -214,6 +300,19 @@ test('sources dialog saves source kinds and the explicit community setting', asy
   })
   expect(enabled).not.toBeChecked()
   await user.click(enabled)
+  for (const name of [
+    'Enable plugin short codes',
+    'Show installation statistics',
+    'Enable remote revocation warnings',
+  ]) {
+    const toggle = screen.getByRole('switch', { name })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    expect(toggle).toBeChecked()
+  }
+  expect(
+    screen.getByRole('option', { name: 'CodeGuys trusted source' })
+  ).toHaveValue('official')
   await user.selectOptions(screen.getByLabelText('Source kind'), 'community')
   await user.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() =>
@@ -222,6 +321,9 @@ test('sources dialog saves source kinds and the explicit community setting', asy
       {
         sources: [{ ...customSource, kind: 'community' }],
         community_enabled: true,
+        short_codes_enabled: true,
+        install_stats_enabled: true,
+        remote_revocations_enabled: true,
       },
       expect.any(Object)
     )
@@ -268,7 +370,9 @@ test('an official code lookup opens installation from its configured source whil
   )
   vi.stubGlobal('fetch', fetchMock)
   const user = userEvent.setup()
-  renderPanel([officialSource, communitySource])
+  renderPanel([officialSource, communitySource], false, {
+    short_codes_enabled: true,
+  })
   await screen.findByText('Example plugin')
   await user.type(screen.getByLabelText('Plugin code'), '12345678')
   await user.click(screen.getByRole('button', { name: 'Find' }))

@@ -37,7 +37,7 @@ export function RevokedPluginWarning(props: {
     >
       <TriangleAlert className='mt-0.5 size-4 shrink-0' aria-hidden='true' />
       <span className='min-w-0'>
-        {t('This version was taken down from community plugins.')}
+        {t('This version was taken down by a configured source.')}
         {reason && <> {t('Reason: {{reason}}', { reason })}</>}
       </span>
     </p>

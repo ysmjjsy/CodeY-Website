@@ -3688,6 +3688,53 @@ test('a plugin channel edits the settings its plugin declares, shows its key for
   })
 })
 
+test('a plugin channel keeps a long JSON setting inside a shrinking fieldset and saves its full value', async () => {
+  const options = { payload: 'LongPluginConfiguration'.repeat(500) }
+  pluginOptions = [
+    {
+      key: 'layout-plugin',
+      name: 'Layout Plugin',
+      models: ['custom-model'],
+      channelConfig: {
+        type: 'object',
+        properties: {
+          options: {
+            type: 'object',
+            title: 'Long JSON settings',
+            properties: {
+              payload: { type: 'string', title: 'Payload' },
+            },
+          },
+        },
+      },
+    },
+  ]
+  editingChannel = {
+    ...editingChannel,
+    type: 61,
+    setting: '{"task_plugin_key":"layout-plugin"}',
+    settings: JSON.stringify({ plugin_config: { options } }),
+  }
+  const put = vi
+    .spyOn(api, 'put')
+    .mockResolvedValue({ data: { success: true } })
+  const user = userEvent.setup()
+  render(<ConfigurationHarness currentRow={editingChannel} />)
+  const settings = await screen.findByRole('group', { name: 'Plugin settings' })
+  const editor = within(settings).getByRole('textbox', {
+    name: 'Long JSON settings',
+  })
+  // jsdom does not lay out text; the browser check measures actual containment
+  // and horizontal scrolling. This protects the fieldset's shrink contract.
+  expect(editor.closest('fieldset')).toHaveClass('min-w-0')
+  expect(JSON.parse((editor as HTMLTextAreaElement).value)).toEqual(options)
+  expect(editor).toHaveClass('json-code-editor-textarea')
+  await user.click(screen.getByRole('button', { name: 'Update Channel' }))
+  await waitFor(() => expect(put).toHaveBeenCalled())
+  const payload = put.mock.calls[0]?.[1] as { settings: string }
+  expect(JSON.parse(payload.settings).plugin_config).toEqual({ options })
+})
+
 test.each([true, false])(
   'a plugin channel offers field pass-through and Responses WebSocket only when its plugin relays them (%s)',
   async (relays) => {

@@ -11,9 +11,12 @@ import (
 )
 
 const (
-	TaskPluginMarketplaceSourcesKey  = "TaskPluginMarketplaceSources"
-	TaskPluginCommunityEnabledKey    = "TaskPluginCommunityEnabled"
-	TaskPluginDisabledFactoryKeysKey = "TaskPluginDisabledFactoryKeys"
+	TaskPluginMarketplaceSourcesKey                  = "TaskPluginMarketplaceSources"
+	TaskPluginCommunityEnabledKey                    = "TaskPluginCommunityEnabled"
+	TaskPluginMarketplaceShortCodesEnabledKey        = "TaskPluginMarketplaceShortCodesEnabled"
+	TaskPluginMarketplaceInstallStatsEnabledKey      = "TaskPluginMarketplaceInstallStatsEnabled"
+	TaskPluginMarketplaceRemoteRevocationsEnabledKey = "TaskPluginMarketplaceRemoteRevocationsEnabled"
+	TaskPluginDisabledFactoryKeysKey                 = "TaskPluginDisabledFactoryKeys"
 
 	TaskPluginMarketplaceKindOfficial   = "official"
 	TaskPluginMarketplaceKindCommunity  = "community"
@@ -88,6 +91,26 @@ func IsTaskPluginCommunityEnabled() bool {
 	common.OptionMapRWMutex.RLock()
 	defer common.OptionMapRWMutex.RUnlock()
 	return common.OptionMap[TaskPluginCommunityEnabledKey] == "true"
+}
+
+// These optional market features never activate from the presence of a source.
+// Installation reporting is not implemented, even when install counts are shown.
+func IsTaskPluginMarketplaceShortCodesEnabled() bool {
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+	return common.OptionMap[TaskPluginMarketplaceShortCodesEnabledKey] == "true"
+}
+
+func IsTaskPluginMarketplaceInstallStatsEnabled() bool {
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+	return common.OptionMap[TaskPluginMarketplaceInstallStatsEnabledKey] == "true"
+}
+
+func IsTaskPluginMarketplaceRemoteRevocationsEnabled() bool {
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+	return common.OptionMap[TaskPluginMarketplaceRemoteRevocationsEnabledKey] == "true"
 }
 
 func TaskPluginMarketplaceSources2JsonString() string {

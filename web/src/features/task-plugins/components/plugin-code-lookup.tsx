@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMutation } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 import { findPluginByCode } from '../lib/marketplace'
-import type { MarketplacePlugin, MarketplaceSource } from '../types'
+import type {
+  MarketplacePlugin,
+  MarketplaceSource,
+  MarketplaceSources,
+} from '../types'
 
 /** A plugin found by its code, and the source that lists it. */
 export type PluginCodeMatch = {
@@ -36,10 +40,9 @@ export type PluginCodeMatch = {
 }
 
 type PluginCodeLookupProps = {
-  /** Configured official sources; their indexes list official plugin codes. */
-  officialSources: MarketplaceSource[]
-  /** The configured community source, if any; the site resolves community codes. */
-  communitySource?: MarketplaceSource
+  settings: MarketplaceSources
+  /** Prefer the currently selected community source when browsing that group. */
+  communityIndexUrl?: string
   /** Called after each lookup; null when no plugin has the code. */
   onResult: (match: PluginCodeMatch | null) => void
 }
@@ -51,12 +54,27 @@ const PLUGIN_CODE = /^\d{8}$/
 export function PluginCodeLookup(props: PluginCodeLookupProps) {
   const { t } = useTranslation()
   const [code, setCode] = useState('')
+  const controller = useRef<AbortController | null>(null)
+  useEffect(
+    () => () => controller.current?.abort(),
+    [props.settings, props.communityIndexUrl]
+  )
   const lookup = useMutation({
-    mutationFn: (value: string) =>
-      findPluginByCode(value, props.officialSources, props.communitySource),
+    mutationFn: (value: string) => {
+      controller.current?.abort()
+      controller.current = new AbortController()
+      return findPluginByCode(
+        value,
+        props.settings,
+        props.communityIndexUrl,
+        controller.current.signal
+      )
+    },
     meta: { errorToast: false },
     onSuccess: (found, value) => {
-      props.onResult(found ? { code: value, ...found } : null)
+      if (!controller.current?.signal.aborted) {
+        props.onResult(found ? { code: value, ...found } : null)
+      }
     },
   })
   const trimmed = code.trim()

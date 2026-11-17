@@ -48,6 +48,11 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<DraftRow[]>([])
   const [communityEnabled, setCommunityEnabled] = useState(false)
+  const [services, setServices] = useState({
+    short_codes_enabled: false,
+    install_stats_enabled: false,
+    remote_revocations_enabled: false,
+  })
   const nextRowId = useRef(0)
   const sourcesQuery = useQuery({
     queryKey: ['task-plugin-marketplace-sources'],
@@ -64,6 +69,12 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
         }))
       )
       setCommunityEnabled(sourcesQuery.data.community_enabled === true)
+      setServices({
+        short_codes_enabled: sourcesQuery.data.short_codes_enabled === true,
+        install_stats_enabled: sourcesQuery.data.install_stats_enabled === true,
+        remote_revocations_enabled:
+          sourcesQuery.data.remote_revocations_enabled === true,
+      })
     }
   }, [props.open, sourcesQuery.data])
 
@@ -114,6 +125,7 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
                   kind: marketplaceSourceKind(row),
                 })),
                 community_enabled: communityEnabled,
+                ...services,
               })
             }
           >
@@ -137,6 +149,33 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
         <p className='text-muted-foreground text-sm'>
           {t(
             'Community sources are hidden and are not contacted while disabled.'
+          )}
+        </p>
+        {(
+          [
+            ['short_codes_enabled', t('Enable plugin short codes')],
+            ['install_stats_enabled', t('Show installation statistics')],
+            [
+              'remote_revocations_enabled',
+              t('Enable remote revocation warnings'),
+            ],
+          ] as const
+        ).map(([key, label]) => (
+          <div key={key} className='flex items-center gap-2'>
+            <Switch
+              id={`marketplace-${key}`}
+              checked={services[key]}
+              disabled={!sourcesQuery.data || saveMutation.isPending}
+              onCheckedChange={(checked) =>
+                setServices((current) => ({ ...current, [key]: checked }))
+              }
+            />
+            <Label htmlFor={`marketplace-${key}`}>{label}</Label>
+          </div>
+        ))}
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'Short code lookups and background revocation checks contact only enabled configured sources. Installation statistics are hidden and do not affect sorting while disabled.'
           )}
         </p>
         {draft.length === 0 && (
@@ -201,7 +240,7 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
                 {t('Third-party')}
               </NativeSelectOption>
               <NativeSelectOption value='official'>
-                {t('Official')}
+                {t('CodeGuys trusted source')}
               </NativeSelectOption>
               <NativeSelectOption value='community'>
                 {t('Community')}
@@ -222,6 +261,11 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
           <Plus />
           {t('Add source')}
         </Button>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'A CodeGuys trusted source is an address explicitly trusted by your administrator. No source is trusted by default.'
+          )}
+        </p>
         <Alert>
           <AlertTitle>{t('Third-party source risk')}</AlertTitle>
           <AlertDescription>

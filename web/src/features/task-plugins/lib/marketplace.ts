@@ -29,6 +29,7 @@ import type {
   MarketplaceRevokedEntry,
   MarketplaceSource,
   MarketplaceSourceKind,
+  MarketplaceSources,
   TaskPluginListItem,
 } from '../types'
 import { pluginProtocolClaimsSchema } from './plugin-meta-preview'
@@ -78,7 +79,10 @@ export function resolvePluginSourceUrl(
  * whole source, because the index is only a display cache — admission still
  * happens server-side on the compiled source.
  */
-export function parseMarketplaceIndex(payload: unknown): MarketplaceIndex {
+export function parseMarketplaceIndex(
+  payload: unknown,
+  installStatsEnabled = false
+): MarketplaceIndex {
   if (!payload || typeof payload !== 'object') {
     throw new Error('index is not an object')
   }
@@ -100,14 +104,15 @@ export function parseMarketplaceIndex(payload: unknown): MarketplaceIndex {
   return {
     indexVersion,
     name: typeof raw.name === 'string' ? raw.name : '',
-    // Recommended plugins come first, then the most installed. Only community
-    // lists carry install counts.
+    // Install counts affect ordering only after the administrator opts in.
     plugins: plugins.sort((left, right) => {
       if (Boolean(left.recommended) !== Boolean(right.recommended)) {
         return left.recommended ? -1 : 1
       }
-      const installs = (right.installs30d ?? 0) - (left.installs30d ?? 0)
-      if (installs !== 0) return installs
+      if (installStatsEnabled) {
+        const installs = (right.installs30d ?? 0) - (left.installs30d ?? 0)
+        if (installs !== 0) return installs
+      }
       const difference = (right.sortPriority ?? 0) - (left.sortPriority ?? 0)
       if (difference !== 0) return difference
       if (left.key === right.key) return 0
@@ -459,13 +464,67 @@ export function marketplaceSourceKind(
   return 'third_party'
 }
 
+/** Older responses may be an array or omit settings. Neither enables external services. */
+export function normalizeMarketplaceSources(
+  payload: unknown
+): MarketplaceSources {
+  const raw =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {}
+  const candidates = Array.isArray(payload) ? payload : raw.sources
+  const sources: MarketplaceSource[] = []
+  if (Array.isArray(candidates)) {
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object') continue
+      const source = candidate as Record<string, unknown>
+      if (
+        typeof source.name !== 'string' ||
+        typeof source.index_url !== 'string'
+      ) {
+        continue
+      }
+      const name = source.name.trim()
+      const index_url = source.index_url.trim()
+      if (!name || !index_url) continue
+      const kind =
+        source.kind === 'official' || source.kind === 'community'
+          ? source.kind
+          : 'third_party'
+      sources.push({ name, index_url, kind })
+    }
+  }
+  return {
+    sources,
+    community_enabled: raw.community_enabled === true,
+    short_codes_enabled: raw.short_codes_enabled === true,
+    install_stats_enabled: raw.install_stats_enabled === true,
+    remote_revocations_enabled: raw.remote_revocations_enabled === true,
+  }
+}
+
+/** Only currently configured, enabled sources may be contacted. No fallback URLs. */
+export function availableMarketplaceSources(
+  settings?: MarketplaceSources
+): MarketplaceSource[] {
+  return (settings?.sources ?? []).filter(
+    (source) =>
+      settings?.community_enabled === true ||
+      marketplaceSourceKind(source) !== 'community'
+  )
+}
+
 /** Fetches a marketplace index from the browser. */
 export async function fetchMarketplaceIndex(
-  indexUrl: string
+  indexUrl: string,
+  options?: { installStatsEnabled?: boolean; signal?: AbortSignal }
 ): Promise<MarketplaceIndex> {
   // Revalidate so the hashes checked at install time are the host's current
   // ones rather than a copy cached before a republish.
-  const response = await globalThis.fetch(indexUrl, { cache: 'no-cache' })
+  const response = await globalThis.fetch(indexUrl, {
+    cache: 'no-cache',
+    ...(options?.signal ? { signal: options.signal } : {}),
+  })
   if (!response.ok) {
     throw new Error(
       i18next.t('The source returned HTTP {{status}}', {
@@ -473,7 +532,10 @@ export async function fetchMarketplaceIndex(
       })
     )
   }
-  return parseMarketplaceIndex(await response.json())
+  return parseMarketplaceIndex(
+    await response.json(),
+    options?.installStatsEnabled === true
+  )
 }
 
 /**
@@ -483,12 +545,32 @@ export async function fetchMarketplaceIndex(
  */
 export async function resolveCommunityPlugin(
   code: string,
-  source: MarketplaceSource
+  source: MarketplaceSource,
+  settings?: MarketplaceSources,
+  signal?: AbortSignal
 ): Promise<MarketplacePlugin | null> {
-  if (marketplaceSourceKind(source) !== 'community') return null
+  if (
+    settings?.short_codes_enabled !== true ||
+    marketplaceSourceKind(source) !== 'community'
+  ) {
+    return null
+  }
+  if (
+    !availableMarketplaceSources(settings).some(
+      (item) =>
+        item.index_url === source.index_url &&
+        marketplaceSourceKind(item) === 'community'
+    )
+  ) {
+    return null
+  }
+  signal?.throwIfAborted()
   const url = new URL('resolve', source.index_url)
   url.searchParams.set('code', code.trim())
-  const response = await globalThis.fetch(url, { cache: 'no-cache' })
+  const response = await globalThis.fetch(url, {
+    cache: 'no-cache',
+    ...(signal ? { signal } : {}),
+  })
   if (response.status === 404) return null
   if (!response.ok) {
     throw new Error(
@@ -497,31 +579,57 @@ export async function resolveCommunityPlugin(
       })
     )
   }
-  return parseMarketplaceIndex(await response.json()).plugins[0] ?? null
+  return (
+    parseMarketplaceIndex(
+      await response.json(),
+      settings.install_stats_enabled === true
+    ).plugins[0] ?? null
+  )
 }
 
-/**
- * Finds a plugin by its 8-digit code: the official indexes first, then the
- * community site. Null when no plugin has the code.
- */
+/** Finds a code only in configured sources after an explicit opt-in. */
 export async function findPluginByCode(
   code: string,
-  officialSources: MarketplaceSource[],
-  communitySource: MarketplaceSource | undefined
+  settings?: MarketplaceSources,
+  communityIndexUrl?: string,
+  signal?: AbortSignal
 ): Promise<{ source: MarketplaceSource; plugin: MarketplacePlugin } | null> {
+  if (settings?.short_codes_enabled !== true) return null
+  const sources = availableMarketplaceSources(settings)
+  const catalogs = sources.filter(
+    (source) => marketplaceSourceKind(source) !== 'community'
+  )
+  const communitySource = sources.find(
+    (source) =>
+      marketplaceSourceKind(source) === 'community' &&
+      (!communityIndexUrl || source.index_url === communityIndexUrl)
+  )
   const wanted = code.trim()
   let failure: unknown = null
-  for (const source of officialSources) {
+  for (const source of catalogs) {
+    signal?.throwIfAborted()
     try {
-      const index = await fetchMarketplaceIndex(source.index_url)
+      const index = await fetchMarketplaceIndex(source.index_url, {
+        signal,
+        installStatsEnabled: settings.install_stats_enabled === true,
+      })
+      signal?.throwIfAborted()
       const plugin = index.plugins.find((item) => item.code === wanted)
       if (plugin) return { source, plugin }
     } catch (error) {
+      signal?.throwIfAborted()
       failure = error
     }
   }
+  signal?.throwIfAborted()
   if (communitySource) {
-    const plugin = await resolveCommunityPlugin(wanted, communitySource)
+    const plugin = await resolveCommunityPlugin(
+      wanted,
+      communitySource,
+      settings,
+      signal
+    )
+    signal?.throwIfAborted()
     if (plugin) return { source: communitySource, plugin }
   }
   if (failure) throw failure
@@ -530,7 +638,7 @@ export async function findPluginByCode(
 
 /** The takedown entry for an installed plugin's source, if the index lists one. */
 export function findRevokedEntry(
-  index: MarketplaceIndex | undefined,
+  index: Pick<MarketplaceIndex, 'revoked'> | undefined,
   sourceHash: string | undefined
 ): MarketplaceRevokedEntry | undefined {
   const hash = sourceHash?.trim().toLowerCase()

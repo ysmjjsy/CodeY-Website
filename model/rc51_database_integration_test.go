@@ -10,6 +10,9 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/request_plugin_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -95,6 +98,9 @@ func rc51AssertCatalogPreserved(t *testing.T, before rc51DatabaseManifest) {
 const rc51LegacyPrivate = `{"key":"fixture-key","upstream_task_id":"upstream-rc49","result_url":"https://example.invalid/result","plugin_state":{"cursor":"keep","nested":[1,false,"词"]},"poll_failures":2}`
 const rc51LegacyProperties = `{"input":"preserved 词","upstream_model_name":"vendor-model","origin_model_name":"public-model"}`
 const rc51ExistingInstances = `[{"id":"rp_keep","name":"Keep","plugin":"request-redact","enabled":true,"global":true,"groups":[],"models":[],"config":{"replacement":"[X]"}}]`
+const rc51LegacyMarketplaceSources = `[{"name":"Old official AI","index_url":"https://plugins.newapi.ai/index.json"},{"name":"Old official Pro","index_url":"https://plugins.newapi.pro/index.json","kind":"official"},{"name":"Legacy custom 词","index_url":"https://plugins.example.invalid/index.json"}]`
+const rc51LocalPluginSource = `export const meta = {apiVersion: 1, key: "rc51-local", name: "Offline local fixture", version: "1.0.0", author: {name: "CodeGuys"}};
+export function ingress() { return {action: "continue", effects: [], findings: [{rule: "offline-local", count: 1}]}; }`
 
 func rc51SeedDatabase(t *testing.T) {
 	t.Helper()
@@ -111,9 +117,11 @@ func rc51SeedDatabase(t *testing.T) {
 	active := "rc51-preserve"
 	require.NoError(t, DB.Create(&SystemTask{ID: 510001, TaskID: "systask_rc49_preserved", Type: "rc51-preserve", Status: SystemTaskStatusPending, ActiveKey: &active, Payload: `{"keep":"payload"}`, State: `{"keep":"state"}`}).Error)
 	require.NoError(t, DB.Create(&TaskPlugin{Id: 510001, Key: "rc51-preserve", APIVersion: 1, Version: "1.0.0", Source: LongText("export const fixture = true;"), SourceHash: "fixture-source", Enabled: true, Active: true}).Error)
+	require.NoError(t, DB.Create(&TaskPlugin{Id: 510002, Key: "rc51-local", APIVersion: 1, Version: "1.0.0", Source: LongText(rc51LocalPluginSource), SourceHash: "fixture-local-source", Enabled: true, Active: true}).Error)
 	for key, value := range map[string]string{
 		"CheckSensitiveEnabled": "true", "CheckSensitiveOnPromptEnabled": "true", "StopOnSensitiveEnabled": "false", "SensitiveWords": " Bad \n\n词\r\n", "StreamCacheQueueLength": "3",
 		"request_plugin_setting.instances": rc51ExistingInstances, "rc51.keep": "untouched option 词",
+		"TaskPluginMarketplaceSources": rc51LegacyMarketplaceSources,
 	} {
 		require.NoError(t, DB.Create(&Option{Key: key, Value: value}).Error)
 	}
@@ -196,6 +204,144 @@ func TestRC51DatabaseBaseline(t *testing.T) {
 }
 
 // RC51_CURRENT_ONLY: the rc49 harness is the portable prefix above this line.
+
+func rc51AssertMarketplacePersistence(t *testing.T, instancesJSON string) {
+	t.Helper()
+	var legacy Option
+	require.NoError(t, DB.Where(map[string]any{"key": setting.TaskPluginMarketplaceSourcesKey}).First(&legacy).Error)
+	require.Equal(t, rc51LegacyMarketplaceSources, legacy.Value, "startup must retain the baseline source option")
+	plugins, err := ListTaskPlugins()
+	require.NoError(t, err)
+	snapshot, err := GetTaskPluginSyncSnapshot()
+	require.NoError(t, err)
+	require.Len(t, snapshot.Plugins, 2)
+	catalog := rc51DatabaseManifest{Main: rc51Catalog(t, DB), Log: rc51Catalog(t, LOG_DB)}
+	legacyCustom := []setting.TaskPluginMarketplaceSource{{Name: "Legacy custom 词", IndexURL: "https://plugins.example.invalid/index.json", Kind: setting.TaskPluginMarketplaceKindThirdParty}}
+	explicitSources := []setting.TaskPluginMarketplaceSource{
+		{Name: "CodeGuys trusted 词", IndexURL: "https://plugins.codeguys.example.invalid/index.json", Kind: setting.TaskPluginMarketplaceKindOfficial},
+		{Name: "Third party", IndexURL: "https://third.example.invalid/index.json", Kind: setting.TaskPluginMarketplaceKindThirdParty},
+		{Name: "Community", IndexURL: "https://community.example.invalid/index.json", Kind: setting.TaskPluginMarketplaceKindCommunity},
+	}
+	encodedSources, err := common.Marshal(explicitSources)
+	require.NoError(t, err)
+	switches := []struct {
+		key     string
+		enabled func() bool
+	}{
+		{setting.TaskPluginCommunityEnabledKey, setting.IsTaskPluginCommunityEnabled},
+		{setting.TaskPluginMarketplaceShortCodesEnabledKey, setting.IsTaskPluginMarketplaceShortCodesEnabled},
+		{setting.TaskPluginMarketplaceInstallStatsEnabledKey, setting.IsTaskPluginMarketplaceInstallStatsEnabled},
+		{setting.TaskPluginMarketplaceRemoteRevocationsEnabledKey, setting.IsTaskPluginMarketplaceRemoteRevocationsEnabled},
+	}
+	keys := []string{setting.TaskPluginMarketplaceSourcesKey}
+	for _, feature := range switches {
+		keys = append(keys, feature.key)
+	}
+	cases := []struct {
+		name    string
+		raw     string
+		missing bool
+		enabled bool
+		want    []setting.TaskPluginMarketplaceSource
+	}{
+		{name: "baseline_legacy_sources", raw: rc51LegacyMarketplaceSources, want: legacyCustom},
+		{name: "missing_options", missing: true, want: []setting.TaskPluginMarketplaceSource{}},
+		{name: "persisted_blank", raw: "", want: []setting.TaskPluginMarketplaceSource{}},
+		{name: "persisted_empty_array", raw: "[]", want: []setting.TaskPluginMarketplaceSource{}},
+		{name: "legacy_without_kind", raw: `[{"name":"Legacy custom 词","index_url":"https://plugins.example.invalid/index.json"}]`, want: legacyCustom},
+		{name: "legacy_official_only", raw: `[{"name":"AI","index_url":"https://newapi.ai/index.json","kind":"official"},{"name":"Pro","index_url":"https://newapi.pro/index.json"},{"name":"AI subdomain","index_url":"https://plugins.newapi.ai/index.json"},{"name":"Pro subdomain","index_url":"https://plugins.newapi.pro/index.json","kind":"community"},{"name":"GitHub","index_url":"https://github.com/QuantumNous/new-api-plugins/index.json"},{"name":"Raw GitHub","index_url":"https://raw.githubusercontent.com/QuantumNous/new-api-plugins/main/index.json"}]`, want: []setting.TaskPluginMarketplaceSource{}},
+		{name: "explicit_trust_with_features_off", raw: string(encodedSources), want: explicitSources},
+		{name: "explicit_feature_opt_in", raw: string(encodedSources), enabled: true, want: explicitSources},
+		{name: "disable_after_opt_in", raw: "[]", want: []setting.TaskPluginMarketplaceSource{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.missing {
+				require.NoError(t, DB.Where(map[string]any{"key": keys}).Delete(&Option{}).Error)
+			} else if tc.name != "baseline_legacy_sources" {
+				values := map[string]string{setting.TaskPluginMarketplaceSourcesKey: tc.raw}
+				for _, feature := range switches {
+					values[feature.key] = "false"
+					if tc.enabled {
+						values[feature.key] = "true"
+					}
+				}
+				require.NoError(t, UpdateOptionsBulk(values))
+			}
+			revisions, err := GetLatestSyncRevisions()
+			require.NoError(t, err)
+			for boot := range 2 {
+				require.NoError(t, CloseDB())
+				rc51OpenDatabase(t)
+				InitOptionMap()
+				assert.Equal(t, tc.want, setting.GetTaskPluginMarketplaceSources(), "boot %d: no implicit source or legacy fallback", boot+1)
+				for _, source := range tc.want {
+					assert.Equal(t, source.Kind, setting.TaskPluginMarketplaceSourceKind(source.IndexURL))
+				}
+				assert.Equal(t, setting.TaskPluginMarketplaceKindThirdParty, setting.TaskPluginMarketplaceSourceKind("https://plugins.newapi.ai/index.json"))
+				common.OptionMapRWMutex.RLock()
+				loaded := make(map[string]string, len(keys))
+				for _, key := range keys {
+					loaded[key] = common.OptionMap[key]
+				}
+				common.OptionMapRWMutex.RUnlock()
+				for _, feature := range switches {
+					assert.Equal(t, tc.enabled, feature.enabled(), "boot %d: %s", boot+1, feature.key)
+					want := "false"
+					if tc.enabled {
+						want = "true"
+					}
+					assert.Equal(t, want, loaded[feature.key], "missing options must initialize to explicit false")
+					var stored Option
+					err := DB.Where(map[string]any{"key": feature.key}).First(&stored).Error
+					if tc.missing || tc.name == "baseline_legacy_sources" {
+						assert.ErrorIs(t, err, gorm.ErrRecordNotFound, "defaults need not write rows")
+					} else {
+						require.NoError(t, err)
+						assert.Equal(t, want, stored.Value)
+					}
+				}
+				var stored Option
+				err = DB.Where(map[string]any{"key": setting.TaskPluginMarketplaceSourcesKey}).First(&stored).Error
+				if tc.missing {
+					assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+					assert.Equal(t, "[]", loaded[setting.TaskPluginMarketplaceSourcesKey])
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, tc.raw, stored.Value, "source filtering must not rewrite persisted administrator data")
+					assert.Equal(t, tc.raw, loaded[setting.TaskPluginMarketplaceSourcesKey])
+				}
+				reloaded, err := ListTaskPlugins()
+				require.NoError(t, err)
+				assert.Equal(t, plugins, reloaded, "market settings must not delete or disable installed plugins")
+				after, err := GetTaskPluginSyncSnapshot()
+				require.NoError(t, err)
+				assert.Equal(t, snapshot, after, "local plugin sync must remain available")
+				stored = Option{}
+				require.NoError(t, DB.Where(map[string]any{"key": request_plugin_setting.InstancesOption}).First(&stored).Error)
+				assert.JSONEq(t, instancesJSON, stored.Value, "market settings must retain request instances")
+				runtimeInstances, err := common.Marshal(request_plugin_setting.GetInstances())
+				require.NoError(t, err)
+				assert.JSONEq(t, instancesJSON, string(runtimeInstances), "request instances must load with the market disabled")
+				afterRevisions, err := GetLatestSyncRevisions()
+				require.NoError(t, err)
+				assert.Equal(t, revisions, afterRevisions, "initialization must not enqueue sync writes")
+				assert.Equal(t, catalog.Main, rc51Catalog(t, DB), "main migration must remain idempotent")
+				assert.Equal(t, catalog.Log, rc51Catalog(t, LOG_DB), "independent log migration must remain idempotent")
+			}
+		})
+	}
+	local, err := GetTaskPluginVersion("rc51-local", "1.0.0")
+	require.NoError(t, err)
+	plugin, err := jsplugin.CompilePlugin(string(local.Source), jsplugin.Options{})
+	require.NoError(t, err)
+	result, err := plugin.CallTransform(context.Background(), jsplugin.TransformContext{Stage: "ingress", Format: "openai", Model: "fixture"}, jsplugin.TransformRequest{Body: []byte(`{"model":"fixture"}`)})
+	require.NoError(t, err)
+	assert.Equal(t, "continue", result.Action, "locally installed plugin must run with no marketplace sources or features")
+	require.Len(t, result.Findings, 1)
+	assert.Equal(t, "offline-local", result.Findings[0].Rule)
+	t.Log("marketplace persistence: legacy/missing/blank/empty/explicit sources, four false defaults, explicit opt-in then disable, two actual startups per case; plugin rows/sync/request instances retained and local JS executed offline")
+}
 
 func TestRC51DatabaseIntegration(t *testing.T) {
 	phase := os.Getenv("RC51_DB_PHASE")
@@ -314,6 +460,10 @@ func TestRC51DatabaseIntegration(t *testing.T) {
 		assert.Equal(t, "rollback-word", words.Value)
 		require.NoError(t, DB.Delete(&Option{Key: "SensitiveWords"}).Error)
 		require.NoError(t, DB.Model(&Option{}).Where(map[string]any{"key": migrated.Key}).Update("value", migrated.Value).Error)
+	})
+
+	t.Run("marketplace_persistence", func(t *testing.T) {
+		rc51AssertMarketplacePersistence(t, migrated.Value)
 	})
 
 	stable := rc51DatabaseManifest{Main: rc51Catalog(t, DB), Log: rc51Catalog(t, LOG_DB)}

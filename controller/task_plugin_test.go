@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -1832,6 +1833,9 @@ func TestGetTaskPluginMarketplaceSourcesDefaultWhenUnset(t *testing.T) {
 	require.True(t, response.Success)
 	assert.Empty(t, response.Data.Sources)
 	assert.False(t, response.Data.CommunityEnabled)
+	for _, feature := range []string{"short_codes_enabled", "install_stats_enabled", "remote_revocations_enabled"} {
+		assert.Contains(t, recorder.Body.String(), `"`+feature+`":false`, "marketplace features must explicitly default off")
+	}
 	var count int64
 	require.NoError(t, model.DB.Model(&model.Option{}).Where("key = ?", setting.TaskPluginMarketplaceSourcesKey).Count(&count).Error)
 	assert.Zero(t, count)
@@ -1871,6 +1875,34 @@ func TestUpdateTaskPluginMarketplaceSourcesRoundTrip(t *testing.T) {
 			require.NoError(t, err)
 			assert.JSONEq(t, string(savedSources), saved.Value)
 		})
+	}
+}
+
+func TestTaskPluginMarketplaceFeaturesRequireExplicitOptInAndSurviveLegacyUpdates(t *testing.T) {
+	setupTaskPluginMarketplaceSourcesTest(t)
+	features := map[string]string{
+		"short_codes_enabled":        "TaskPluginMarketplaceShortCodesEnabled",
+		"install_stats_enabled":      "TaskPluginMarketplaceInstallStatsEnabled",
+		"remote_revocations_enabled": "TaskPluginMarketplaceRemoteRevocationsEnabled",
+	}
+	for _, body := range []string{
+		`{"sources":[],"short_codes_enabled":true,"install_stats_enabled":true,"remote_revocations_enabled":true}`,
+		`[]`,
+		`{"sources":[],"community_enabled":false}`,
+		`{"sources":[],"short_codes_enabled":false,"install_stats_enabled":false,"remote_revocations_enabled":false}`,
+	} {
+		recorder := httptest.NewRecorder()
+		context, _ := gin.CreateTestContext(recorder)
+		context.Request = httptest.NewRequest(http.MethodPut, "/api/plugin/task/marketplace/sources", strings.NewReader(body))
+		UpdateTaskPluginMarketplaceSources(context)
+		require.Contains(t, recorder.Body.String(), `"success":true`)
+		want := !strings.Contains(body, `"short_codes_enabled":false`)
+		for feature, option := range features {
+			assert.Contains(t, recorder.Body.String(), fmt.Sprintf(`"%s":%t`, feature, want))
+			var saved model.Option
+			require.NoError(t, model.DB.Where("key = ?", option).First(&saved).Error)
+			assert.Equal(t, fmt.Sprint(want), saved.Value)
+		}
 	}
 }
 
@@ -2207,6 +2239,112 @@ func TestUploadTaskPluginAppliesMarketplaceKeyRulesWithoutTelemetry(t *testing.T
 	var gatewayIDRows int64
 	require.NoError(t, model.DB.Model(&model.Option{}).Where("key = ?", "TaskPluginGatewayID").Count(&gatewayIDRows).Error)
 	assert.Zero(t, gatewayIDRows, "installing must not create a telemetry identifier")
+}
+
+func TestLocalPluginsWorkWithEveryMarketplaceFeatureDisabled(t *testing.T) {
+	setupTaskPluginMarketplaceSourcesTest(t)
+	require.NoError(t, model.DB.AutoMigrate(&model.SystemTask{}))
+	const key = "local-market-off"
+	cleanupTaskPluginControllerRuntime(t, key)
+	originalInstances, err := common.Marshal(request_plugin_setting.GetInstances())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{request_plugin_setting.InstancesOption: string(originalInstances)}))
+	})
+
+	var outbound atomic.Int64
+	reject := taskPluginRejectTransport{requests: &outbound}
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = reject
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	for _, client := range []*http.Client{service.GetHttpClient(), service.GetSSRFProtectedHTTPClient()} {
+		if client != nil {
+			transport := client.Transport
+			client.Transport = reject
+			t.Cleanup(func() { client.Transport = transport })
+		}
+	}
+	call := func(handler gin.HandlerFunc, method, path, body string) string {
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Params = gin.Params{{Key: "key", Value: key}}
+		c.Request = httptest.NewRequest(method, path, strings.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Set("role", common.RoleRootUser)
+		handler(c)
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		require.Contains(t, recorder.Body.String(), `"success":true`, path)
+		return recorder.Body.String()
+	}
+	const disabled = `{"sources":[],"community_enabled":false,"short_codes_enabled":false,"install_stats_enabled":false,"remote_revocations_enabled":false}`
+	settings := call(UpdateTaskPluginMarketplaceSources, http.MethodPut, "/api/plugin/task/marketplace/sources", disabled)
+	var saved struct{ Data json.RawMessage }
+	require.NoError(t, common.Unmarshal([]byte(settings), &saved))
+	assert.JSONEq(t, disabled, string(saved.Data))
+
+	// One locally uploaded plugin exercises all three parts without usage or
+	// billing hooks. No marketplace URL is supplied by the manual upload.
+	source := strings.ReplaceAll(dryRunPluginSource, "dryrun-probe", key)
+	source = strings.Replace(source, `fetchMode: "per_task"`, `fetchMode: "per_task", relay: [{incoming_path: "/v1/chat/completions", upstream_path: "/chat"}]`, 1) + `
+export function prepareRequest(ctx, req) { return {path: "/local/" + req.model}; }
+export function ingress(ctx, req) {
+  return {action: "continue", effects: [{type: "json.patch", ops: [{op: "replace", path: "/prompt", value: "local:" + req.body.prompt}]}]};
+}
+`
+	upload := postTaskPluginUpload(t, map[string]any{"source": source})
+	require.Contains(t, upload.Body.String(), `"success":true`)
+	stored, err := model.GetTaskPluginVersion(key, "")
+	require.NoError(t, err)
+	assert.Equal(t, source, string(stored.Source))
+	require.True(t, stored.Active && stored.Enabled)
+	revisions, err := model.GetLatestSyncRevisions()
+	require.NoError(t, err)
+	assert.NotZero(t, revisions[model.SyncTopicPlugins], "the upload must notify other nodes to reload plugins")
+
+	// Force a fresh runtime load from the shared database, as another node
+	// does, instead of only checking the upload's already compiled registry.
+	require.NoError(t, jsplugin.DefaultRegistry.Unregister(key))
+	require.NoError(t, syncTaskPluginsOnce())
+	loaded, ok := jsplugin.DefaultRegistry.Get(key)
+	require.True(t, ok)
+	prepared, err := loaded.CallPrepareRequest(context.Background(), jsplugin.HookContext{}, jsplugin.PrepareInput{
+		Path: "/v1/chat/completions", Model: "doc-1", Body: []byte(`{"model":"doc-1"}`),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "/local/doc-1", prepared.Path, "the reloaded provider hook must execute")
+	taskResult := call(DryRunTaskPlugin, http.MethodPost, "/api/plugin/task/"+key+"/dryrun", `{"hook":"buildSubmitRequest","args":[{"model":"doc-1"}]}`)
+	require.NoError(t, common.Unmarshal([]byte(taskResult), &saved))
+	assert.JSONEq(t, `{"model":"doc-1"}`, string(saved.Data))
+
+	instances := call(UpdateRequestPluginInstances, http.MethodPut, "/api/request_plugin/instances", `{"instances":[{"id":"rp_localoff","name":"Local","plugin":"local-market-off","enabled":true,"global":true}]}`)
+	assert.Contains(t, instances, `"plugin":"local-market-off"`)
+	requestResult := call(DryRunRequestPlugins, http.MethodPost, "/api/request_plugin/dryrun", `{"format":"openai","model":"doc-1","body":{"model":"doc-1","prompt":"hello"}}`)
+	assert.Contains(t, requestResult, `"prompt":"local:hello"`, "the saved request instance must change the dry-run body")
+	assert.Contains(t, requestResult, `"instance":"rp_localoff"`)
+
+	for _, endpoint := range []struct {
+		handler gin.HandlerFunc
+		path    string
+	}{
+		{ListTaskPlugins, "/api/plugin/task"},
+		{GetTaskPlugin, "/api/plugin/task/" + key},
+		{GetTaskPluginVersions, "/api/plugin/task/" + key + "/versions"},
+		{GetTaskPluginOptions, "/api/task_plugin_options"},
+		{GetRequestPluginInstances, "/api/request_plugin/instances"},
+	} {
+		assert.Contains(t, call(endpoint.handler, http.MethodGet, endpoint.path, ""), key)
+	}
+	for _, enabled := range []bool{false, true} {
+		status := postTaskPluginStatus(t, key, "", fmt.Sprintf(`{"enabled":%t}`, enabled))
+		require.Contains(t, status.Body.String(), `"success":true`)
+		_, registered := jsplugin.DefaultRegistry.Get(key)
+		assert.Equal(t, enabled, registered, "local enable/disable remains available")
+	}
+	deleted := deleteTaskPluginVersionRequest(t, key, "1.0.0")
+	require.Contains(t, deleted.Body.String(), `"success":true`)
+	_, err = model.GetTaskPluginVersion(key, "1.0.0")
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	assert.Zero(t, outbound.Load(), "local upload, sync, hooks and management must not contact a marketplace")
 }
 
 type taskPluginRejectTransport struct {

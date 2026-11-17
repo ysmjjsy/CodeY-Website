@@ -20,6 +20,7 @@ import type { TaskPluginOption } from '@/features/channels/api'
 import { api, type ApiRequestConfig } from '@/lib/api'
 import { createServerError } from '@/lib/server-error-message'
 
+import { normalizeMarketplaceSources } from './lib/marketplace'
 import type {
   ApiResponse,
   MarketplaceSources,
@@ -139,21 +140,19 @@ export async function installMarketplacePlugin(request: {
 }
 
 export async function listMarketplaceSources(): Promise<MarketplaceSources> {
-  const response = await api.get<ApiResponse<MarketplaceSources>>(
+  const response = await api.get<ApiResponse<unknown>>(
     '/api/plugin/task/marketplace/sources'
   )
-  return (
-    requireSuccess(response.data) ?? { sources: [], community_enabled: false }
-  )
+  return normalizeMarketplaceSources(requireSuccess(response.data))
 }
 
 export async function updateMarketplaceSources(settings: MarketplaceSources) {
-  const response = await api.put<ApiResponse<MarketplaceSources>>(
+  const response = await api.put<ApiResponse<unknown>>(
     '/api/plugin/task/marketplace/sources',
     settings,
     mutationConfig
   )
-  return requireSuccess(response.data)
+  return normalizeMarketplaceSources(requireSuccess(response.data))
 }
 
 export async function activateTaskPlugin(key: string, version: string) {

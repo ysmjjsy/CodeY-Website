@@ -776,8 +776,8 @@ describe('community index fields', () => {
     assert.equal(plugin.recommended, false)
   })
 
-  test('puts recommended plugins first, then the most installed', () => {
-    const index = parseMarketplaceIndex({
+  test('puts recommended plugins first, then the most installed only when opted in', () => {
+    const payload = {
       indexVersion: 1,
       plugins: [
         { ...marketplacePlugin({ key: 'a_few' }), installs30d: 3 },
@@ -789,9 +789,13 @@ describe('community index fields', () => {
         },
         marketplacePlugin({ key: 'a_none' }),
       ],
-    })
+    }
     assert.deepEqual(
-      index.plugins.map((plugin) => plugin.key),
+      parseMarketplaceIndex(payload).plugins.map((plugin) => plugin.key),
+      ['a_pick', 'a_few', 'a_many', 'a_none']
+    )
+    assert.deepEqual(
+      parseMarketplaceIndex(payload, true).plugins.map((plugin) => plugin.key),
       ['a_pick', 'a_many', 'a_few', 'a_none']
     )
   })

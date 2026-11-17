@@ -21,20 +21,16 @@ import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { EmptyState } from '@/components/empty-state'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 import { listMarketplaceSources, listTaskPlugins } from '../api'
 import {
+  availableMarketplaceSources,
   deriveInstallState,
   fetchMarketplaceIndex,
   indexHasIntegrityHashes,
@@ -95,15 +91,11 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
     queryFn: listTaskPlugins,
   })
   const communityEnabled = sourcesQuery.data?.community_enabled === true
-  const sources = (sourcesQuery.data?.sources ?? []).filter(
-    (source) =>
-      communityEnabled || marketplaceSourceKind(source) !== 'community'
-  )
+  const shortCodesEnabled = sourcesQuery.data?.short_codes_enabled === true
+  const installStatsEnabled = sourcesQuery.data?.install_stats_enabled === true
+  const sources = availableMarketplaceSources(sourcesQuery.data)
   const catalogSources = sources.filter(
     (source) => marketplaceSourceKind(source) !== 'community'
-  )
-  const officialSources = catalogSources.filter(
-    (source) => marketplaceSourceKind(source) === 'official'
   )
   const communitySources = sources.filter(
     (source) => marketplaceSourceKind(source) === 'community'
@@ -121,6 +113,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
   const communitySource =
     activeGroup === 'community' ? selectedSource : communitySources[0]
   const visibleCodeMatch =
+    shortCodesEnabled &&
     codeMatch &&
     sources.some(
       (source) =>
@@ -134,13 +127,20 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
   // Only the selected source is requested. Alternate sources stay idle until
   // the administrator explicitly switches to them.
   const indexQuery = useQuery({
-    queryKey: ['task-plugin-marketplace', selectedSource?.index_url],
+    queryKey: [
+      'task-plugin-marketplace',
+      selectedSource?.index_url,
+      installStatsEnabled,
+    ],
     enabled: Boolean(selectedSource),
     retry: false,
     meta: { errorToast: false },
-    queryFn: (): Promise<MarketplaceIndex> => {
+    queryFn: ({ signal }): Promise<MarketplaceIndex> => {
       if (!selectedSource) throw new Error('marketplace source is not selected')
-      return fetchMarketplaceIndex(selectedSource.index_url)
+      return fetchMarketplaceIndex(selectedSource.index_url, {
+        installStatsEnabled,
+        signal,
+      })
     },
   })
   const indexPlugins = indexQuery.data?.plugins
@@ -151,8 +151,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
   const kind = props.kind ?? defaultPluginKind(kindCounts)
   const showReviewWarning =
     activeGroup === 'community' && groupSources.length > 0
-  // Codes are looked up in the official indexes and on the community site.
-  const canLookUpCode = officialSources.length > 0 || Boolean(communitySource)
+  const canLookUpCode = shortCodesEnabled && sources.length > 0
   const titleId = useId()
   const selectedKind = selectedSource
     ? marketplaceSourceKind(selectedSource)
@@ -200,10 +199,10 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
               onValueChange={props.onKindChange}
             />
           </div>
-          {canLookUpCode && (
+          {canLookUpCode && sourcesQuery.data && (
             <PluginCodeLookup
-              officialSources={officialSources}
-              communitySource={communitySource}
+              settings={sourcesQuery.data}
+              communityIndexUrl={communitySource?.index_url}
               onResult={setCodeMatch}
             />
           )}
@@ -216,23 +215,23 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
             match={visibleCodeMatch}
             kind={kind}
             installed={installedQuery.data ?? []}
+            installStatsEnabled={installStatsEnabled}
             onInstall={setInstallTarget}
             onClear={() => setCodeMatch(null)}
           />
         )}
 
         {!sourcesQuery.isLoading && groupSources.length === 0 && (
-          <Empty className='border'>
-            <EmptyHeader>
-              <EmptyTitle>{t('No marketplace sources configured.')}</EmptyTitle>
-              <EmptyDescription>
-                {t('Add a source to browse its plugins.')}
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button onClick={() => setSourcesOpen(true)}>
-              {t('Manage sources')}
-            </Button>
-          </Empty>
+          <EmptyState
+            bordered
+            title={t('No marketplace sources configured.')}
+            description={t('Add a source to browse its plugins.')}
+            action={
+              <Button onClick={() => setSourcesOpen(true)}>
+                {t('Manage sources')}
+              </Button>
+            }
+          />
         )}
 
         {selectedSource && (
@@ -243,6 +242,11 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
                 <h3 id={titleId} className='text-sm font-semibold'>
                   {indexQuery.data?.name || selectedSource.name}
                 </h3>
+                {selectedKind === 'official' && (
+                  <Badge variant='secondary'>
+                    {t('CodeGuys trusted source')}
+                  </Badge>
+                )}
                 {selectedKind === 'third_party' && (
                   <Badge variant='destructive'>
                     {t('Third-party — use at your own risk')}
@@ -293,6 +297,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
               isLoading={indexQuery.isLoading}
               error={indexQuery.error}
               installed={installedQuery.data ?? []}
+              installStatsEnabled={installStatsEnabled}
               kind={kind}
               onInstall={setInstallTarget}
             />
@@ -306,6 +311,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
       />
       <MarketplaceInstallDialog
         key={`${installTarget?.plugin.key ?? ''}-${installTarget?.version ?? ''}`}
+        installStatsEnabled={installStatsEnabled}
         target={
           installTarget &&
           sources.some(
@@ -329,6 +335,7 @@ type PluginCodeResultProps = {
   match: PluginCodeMatch
   kind: PluginKind
   installed: Awaited<ReturnType<typeof listTaskPlugins>>
+  installStatsEnabled: boolean
   onInstall: (target: MarketplaceInstallTarget) => void
   onClear: () => void
 }
@@ -346,7 +353,9 @@ function PluginCodeResult(props: PluginCodeResultProps) {
           {t('Result for plugin code {{code}}', { code: props.match.code })}
         </h3>
         <Badge variant='secondary'>
-          {sourceKind === 'official' ? t('Official') : t('Community')}
+          {sourceKind === 'official' && t('CodeGuys trusted source')}
+          {sourceKind === 'community' && t('Community')}
+          {sourceKind === 'third_party' && t('Third-party')}
         </Badge>
         <Button
           variant='ghost'
@@ -363,6 +372,7 @@ function PluginCodeResult(props: PluginCodeResultProps) {
           plugin={plugin}
           indexUrl={source.index_url}
           installState={installState}
+          installStatsEnabled={props.installStatsEnabled}
           installed={props.installed.find(
             (item) => item.meta.key === plugin.key
           )}
@@ -386,6 +396,7 @@ type MarketplaceSourceSectionProps = {
   isLoading: boolean
   error: Error | null
   installed: Awaited<ReturnType<typeof listTaskPlugins>>
+  installStatsEnabled: boolean
   kind: PluginKind
   onInstall: (target: MarketplaceInstallTarget) => void
 }
@@ -423,6 +434,7 @@ function MarketplaceSourceSection(props: MarketplaceSourceSectionProps) {
         plugin={plugin}
         indexUrl={props.source.index_url}
         installState={installState}
+        installStatsEnabled={props.installStatsEnabled}
         installed={props.installed.find((item) => item.meta.key === plugin.key)}
         onInstall={() =>
           props.onInstall({

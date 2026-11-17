@@ -305,6 +305,9 @@ export type MarketplaceSource = {
 export type MarketplaceSources = {
   sources: MarketplaceSource[]
   community_enabled: boolean
+  short_codes_enabled?: boolean
+  install_stats_enabled?: boolean
+  remote_revocations_enabled?: boolean
 }
 
 /**

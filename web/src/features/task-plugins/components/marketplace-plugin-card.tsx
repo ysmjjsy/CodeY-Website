@@ -56,6 +56,7 @@ type MarketplacePluginCardProps = {
   indexUrl?: string
   installState: InstallState
   installed?: TaskPluginListItem
+  installStatsEnabled?: boolean
   onInstall: () => void
 }
 
@@ -107,7 +108,10 @@ export function MarketplacePluginCard(props: MarketplacePluginCardProps) {
       </div>
 
       <PluginWebsiteLink website={plugin.website} />
-      <MarketplaceAuthorLine plugin={plugin} />
+      <MarketplaceAuthorLine
+        plugin={plugin}
+        installStatsEnabled={props.installStatsEnabled}
+      />
 
       {(tags.task || tags.provider || tags.transform) && (
         <div className='flex min-w-0 flex-wrap items-center gap-1.5'>
@@ -181,11 +185,16 @@ export function MarketplacePluginCard(props: MarketplacePluginCardProps) {
 }
 
 /** The author, repository and recent installs of a community plugin. */
-export function MarketplaceAuthorLine(props: { plugin: MarketplacePlugin }) {
+export function MarketplaceAuthorLine(props: {
+  plugin: MarketplacePlugin
+  installStatsEnabled?: boolean
+}) {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const plugin = props.plugin
-  if (!plugin.author && !plugin.repo && plugin.installs30d === undefined) {
+  const showInstalls =
+    props.installStatsEnabled === true && plugin.installs30d !== undefined
+  if (!plugin.author && !plugin.repo && !showInstalls) {
     return null
   }
   const linkClass =
@@ -229,7 +238,7 @@ export function MarketplaceAuthorLine(props: { plugin: MarketplacePlugin }) {
           {t('Repository')}
         </Button>
       )}
-      {plugin.installs30d !== undefined && (
+      {showInstalls && plugin.installs30d !== undefined && (
         <span className='inline-flex items-center gap-1'>
           <Download className='size-3.5' aria-hidden='true' />
           {t('{{installs}} installs in 30 days', {
