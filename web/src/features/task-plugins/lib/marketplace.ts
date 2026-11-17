@@ -16,11 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
+
 import type {
+  MarketplaceDocument,
+  MarketplaceDocumentFile,
   MarketplaceIndex,
   MarketplaceIndexVersion,
   MarketplacePlugin,
+  MarketplacePluginAuthor,
   MarketplacePluginIcon,
+  MarketplaceRevokedEntry,
+  MarketplaceSource,
+  MarketplaceSourceKind,
+  MarketplaceSources,
   TaskPluginListItem,
 } from '../types'
 import { pluginProtocolClaimsSchema } from './plugin-meta-preview'
@@ -70,7 +79,10 @@ export function resolvePluginSourceUrl(
  * whole source, because the index is only a display cache — admission still
  * happens server-side on the compiled source.
  */
-export function parseMarketplaceIndex(payload: unknown): MarketplaceIndex {
+export function parseMarketplaceIndex(
+  payload: unknown,
+  installStatsEnabled = false
+): MarketplaceIndex {
   if (!payload || typeof payload !== 'object') {
     throw new Error('index is not an object')
   }
@@ -92,13 +104,50 @@ export function parseMarketplaceIndex(payload: unknown): MarketplaceIndex {
   return {
     indexVersion,
     name: typeof raw.name === 'string' ? raw.name : '',
+    // Install counts affect ordering only after the administrator opts in.
     plugins: plugins.sort((left, right) => {
+      if (Boolean(left.recommended) !== Boolean(right.recommended)) {
+        return left.recommended ? -1 : 1
+      }
+      if (installStatsEnabled) {
+        const installs = (right.installs30d ?? 0) - (left.installs30d ?? 0)
+        if (installs !== 0) return installs
+      }
       const difference = (right.sortPriority ?? 0) - (left.sortPriority ?? 0)
       if (difference !== 0) return difference
       if (left.key === right.key) return 0
       return left.key < right.key ? -1 : 1
     }),
+    revoked: parseRevokedEntries(raw.revoked),
   }
+}
+
+function parseRevokedEntries(value: unknown): MarketplaceRevokedEntry[] {
+  if (!Array.isArray(value)) return []
+  const entries: MarketplaceRevokedEntry[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const raw = entry as Record<string, unknown>
+    const sha256 =
+      typeof raw.sha256 === 'string' ? raw.sha256.trim().toLowerCase() : ''
+    if (!/^[0-9a-f]{64}$/.test(sha256)) continue
+    entries.push({
+      sha256,
+      key: typeof raw.key === 'string' ? raw.key : undefined,
+      reason: parseMarketplaceDescription(raw.reason),
+    })
+  }
+  return entries
+}
+
+function parseMarketplaceAuthor(
+  value: unknown
+): MarketplacePluginAuthor | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const raw = value as Record<string, unknown>
+  const login = typeof raw.login === 'string' ? raw.login.trim() : ''
+  if (!login || login.length > 64) return undefined
+  return { login, url: getPluginWebsite(raw.url) }
 }
 
 function parseMarketplacePlugin(entry: unknown): MarketplacePlugin | null {
@@ -137,6 +186,8 @@ function parseMarketplacePlugin(entry: unknown): MarketplacePlugin | null {
             ? rawVersion.baseUrl.trim()
             : undefined,
         auth: typeof rawVersion.auth === 'string' ? rawVersion.auth : undefined,
+        readme: parseMarketplaceDocument(rawVersion.readme),
+        changelog: parseMarketplaceDocument(rawVersion.changelog),
       })
     }
   }
@@ -168,7 +219,9 @@ function parseMarketplacePlugin(entry: unknown): MarketplacePlugin | null {
     const rawIconFile = raw.iconFile as Record<string, unknown>
     const iconPath =
       typeof rawIconFile.path === 'string' ? rawIconFile.path.trim() : ''
-    if (/\.(svg|png)$/i.test(iconPath)) {
+    // Community files are named by their digest and carry no extension; the
+    // logo fetch tells SVG from PNG by the bytes.
+    if (/\.(svg|png)$/i.test(iconPath) || /\/[^./]+$/.test(iconPath)) {
       iconFile = {
         path: iconPath,
         sha256:
@@ -181,6 +234,19 @@ function parseMarketplacePlugin(entry: unknown): MarketplacePlugin | null {
 
   return {
     key,
+    author: parseMarketplaceAuthor(raw.author),
+    repo: getPluginWebsite(raw.repo),
+    code:
+      typeof raw.code === 'string' && raw.code.trim()
+        ? raw.code.trim()
+        : undefined,
+    installs30d:
+      typeof raw.installs30d === 'number' &&
+      Number.isSafeInteger(raw.installs30d) &&
+      raw.installs30d >= 0
+        ? raw.installs30d
+        : undefined,
+    recommended: raw.recommended === true,
     sortPriority:
       typeof raw.sortPriority === 'number' &&
       Number.isInteger(raw.sortPriority) &&
@@ -196,6 +262,11 @@ function parseMarketplacePlugin(entry: unknown): MarketplacePlugin | null {
     channelTypes: numberArray(raw.channelTypes),
     models: stringArray(raw.models),
     protocols: pluginProtocolClaimsSchema.safeParse(raw.protocols).data,
+    // The parts the plugin has, named as in the plugin list; an index that
+    // names none lists a task plugin.
+    task: typeof raw.task === 'boolean' ? raw.task : undefined,
+    provider: typeof raw.provider === 'boolean' ? raw.provider : undefined,
+    transform: typeof raw.transform === 'boolean' ? raw.transform : undefined,
     latest,
     versions,
   }
@@ -215,6 +286,73 @@ function parseMarketplaceDescription(
     if (typeof text === 'string') mapped[locale] = text
   }
   return Object.keys(mapped).length > 0 ? mapped : undefined
+}
+
+/** Whether a language tag is already in canonical BCP 47 form, such as zh-CN. */
+export function isCanonicalLanguageTag(tag: string): boolean {
+  try {
+    return Intl.getCanonicalLocales(tag)[0] === tag
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A readme or changelog file needs a path, and a malformed digest drops it.
+ * A malformed page drops only `sourceUrl`; links then use the file itself.
+ */
+function parseMarketplaceDocumentFile(
+  value: unknown
+): MarketplaceDocumentFile | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+  const raw = value as Record<string, unknown>
+  const path = typeof raw.path === 'string' ? raw.path.trim() : ''
+  if (!path) return undefined
+  let sha256: string | undefined
+  if (raw.sha256 != null) {
+    if (typeof raw.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(raw.sha256)) {
+      return undefined
+    }
+    sha256 = raw.sha256.toLowerCase()
+  }
+  // Pages may be http or https; the https website rules check both.
+  let sourceUrl: string | undefined
+  if (typeof raw.sourceUrl === 'string') {
+    const page = raw.sourceUrl.trim()
+    const http = /^http:\/\//i.test(page)
+    if (getPluginWebsite(http ? `https://${page.slice(7)}` : page)) {
+      sourceUrl = page
+    }
+  }
+  return { path, sha256, sourceUrl }
+}
+
+/** Invalid translations are dropped one by one; at most 10 are kept. */
+function parseMarketplaceDocument(
+  value: unknown
+): MarketplaceDocument | undefined {
+  const file = parseMarketplaceDocumentFile(value)
+  if (!file) return undefined
+  const rawTranslations = (value as Record<string, unknown>).translations
+  if (
+    !rawTranslations ||
+    typeof rawTranslations !== 'object' ||
+    Array.isArray(rawTranslations)
+  ) {
+    return file
+  }
+  const translations: Record<string, MarketplaceDocumentFile> = {}
+  let count = 0
+  for (const [tag, entry] of Object.entries(rawTranslations)) {
+    if (count === 10) break
+    const translation = parseMarketplaceDocumentFile(entry)
+    if (tag === 'en' || !isCanonicalLanguageTag(tag) || !translation) continue
+    translations[tag] = translation
+    count++
+  }
+  return count ? { ...file, translations } : file
 }
 
 function stringArray(value: unknown): string[] | undefined {
@@ -316,20 +454,194 @@ export function indexHasIntegrityHashes(index: MarketplaceIndex): boolean {
   )
 }
 
-export const DEFAULT_MARKETPLACE_INDEX_URL =
-  'https://github.com/ysmjjsy/CodeY-Website/raw/main/plugin-marketplace/index.json'
+/** Only the server's configured source kind grants official or community trust. */
+export function marketplaceSourceKind(
+  source: MarketplaceSource
+): MarketplaceSourceKind {
+  if (source.kind === 'official' || source.kind === 'community') {
+    return source.kind
+  }
+  return 'third_party'
+}
 
-export const GITHUB_MARKETPLACE_INDEX_URL =
-  'https://raw.githubusercontent.com/ysmjjsy/CodeY-Website/main/plugin-marketplace/index.json'
+/** Older responses may be an array or omit settings. Neither enables external services. */
+export function normalizeMarketplaceSources(
+  payload: unknown
+): MarketplaceSources {
+  const raw =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {}
+  const candidates = Array.isArray(payload) ? payload : raw.sources
+  const sources: MarketplaceSource[] = []
+  if (Array.isArray(candidates)) {
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object') continue
+      const source = candidate as Record<string, unknown>
+      if (
+        typeof source.name !== 'string' ||
+        typeof source.index_url !== 'string'
+      ) {
+        continue
+      }
+      const name = source.name.trim()
+      const index_url = source.index_url.trim()
+      if (!name || !index_url) continue
+      const kind =
+        source.kind === 'official' || source.kind === 'community'
+          ? source.kind
+          : 'third_party'
+      sources.push({ name, index_url, kind })
+    }
+  }
+  return {
+    sources,
+    community_enabled: raw.community_enabled === true,
+    short_codes_enabled: raw.short_codes_enabled === true,
+    install_stats_enabled: raw.install_stats_enabled === true,
+    remote_revocations_enabled: raw.remote_revocations_enabled === true,
+  }
+}
+
+/** Only currently configured, enabled sources may be contacted. No fallback URLs. */
+export function availableMarketplaceSources(
+  settings?: MarketplaceSources
+): MarketplaceSource[] {
+  return (settings?.sources ?? []).filter(
+    (source) =>
+      settings?.community_enabled === true ||
+      marketplaceSourceKind(source) !== 'community'
+  )
+}
+
+/** Fetches a marketplace index from the browser. */
+export async function fetchMarketplaceIndex(
+  indexUrl: string,
+  options?: { installStatsEnabled?: boolean; signal?: AbortSignal }
+): Promise<MarketplaceIndex> {
+  // Revalidate so the hashes checked at install time are the host's current
+  // ones rather than a copy cached before a republish.
+  const response = await globalThis.fetch(indexUrl, {
+    cache: 'no-cache',
+    ...(options?.signal ? { signal: options.signal } : {}),
+  })
+  if (!response.ok) {
+    throw new Error(
+      i18next.t('The source returned HTTP {{status}}', {
+        status: response.status,
+      })
+    )
+  }
+  return parseMarketplaceIndex(
+    await response.json(),
+    options?.installStatsEnabled === true
+  )
+}
 
 /**
- * Both built-in indexes are maintained by the project. Other configured
- * sources get an explicit at-your-own-risk label.
+ * Looks up a community plugin by its 8-digit code. Returns null
+ * when no listed plugin has that code. The answer has the shape of the index,
+ * so its file paths resolve against the community index address.
  */
-export function isDefaultMarketplaceSource(indexUrl: string): boolean {
-  const normalized = indexUrl.trim()
+export async function resolveCommunityPlugin(
+  code: string,
+  source: MarketplaceSource,
+  settings?: MarketplaceSources,
+  signal?: AbortSignal
+): Promise<MarketplacePlugin | null> {
+  if (
+    settings?.short_codes_enabled !== true ||
+    marketplaceSourceKind(source) !== 'community'
+  ) {
+    return null
+  }
+  if (
+    !availableMarketplaceSources(settings).some(
+      (item) =>
+        item.index_url === source.index_url &&
+        marketplaceSourceKind(item) === 'community'
+    )
+  ) {
+    return null
+  }
+  signal?.throwIfAborted()
+  const url = new URL('resolve', source.index_url)
+  url.searchParams.set('code', code.trim())
+  const response = await globalThis.fetch(url, {
+    cache: 'no-cache',
+    ...(signal ? { signal } : {}),
+  })
+  if (response.status === 404) return null
+  if (!response.ok) {
+    throw new Error(
+      i18next.t('The source returned HTTP {{status}}', {
+        status: response.status,
+      })
+    )
+  }
   return (
-    normalized === DEFAULT_MARKETPLACE_INDEX_URL ||
-    normalized === GITHUB_MARKETPLACE_INDEX_URL
+    parseMarketplaceIndex(
+      await response.json(),
+      settings.install_stats_enabled === true
+    ).plugins[0] ?? null
   )
+}
+
+/** Finds a code only in configured sources after an explicit opt-in. */
+export async function findPluginByCode(
+  code: string,
+  settings?: MarketplaceSources,
+  communityIndexUrl?: string,
+  signal?: AbortSignal
+): Promise<{ source: MarketplaceSource; plugin: MarketplacePlugin } | null> {
+  if (settings?.short_codes_enabled !== true) return null
+  const sources = availableMarketplaceSources(settings)
+  const catalogs = sources.filter(
+    (source) => marketplaceSourceKind(source) !== 'community'
+  )
+  const communitySource = sources.find(
+    (source) =>
+      marketplaceSourceKind(source) === 'community' &&
+      (!communityIndexUrl || source.index_url === communityIndexUrl)
+  )
+  const wanted = code.trim()
+  let failure: unknown = null
+  for (const source of catalogs) {
+    signal?.throwIfAborted()
+    try {
+      const index = await fetchMarketplaceIndex(source.index_url, {
+        signal,
+        installStatsEnabled: settings.install_stats_enabled === true,
+      })
+      signal?.throwIfAborted()
+      const plugin = index.plugins.find((item) => item.code === wanted)
+      if (plugin) return { source, plugin }
+    } catch (error) {
+      signal?.throwIfAborted()
+      failure = error
+    }
+  }
+  signal?.throwIfAborted()
+  if (communitySource) {
+    const plugin = await resolveCommunityPlugin(
+      wanted,
+      communitySource,
+      settings,
+      signal
+    )
+    signal?.throwIfAborted()
+    if (plugin) return { source: communitySource, plugin }
+  }
+  if (failure) throw failure
+  return null
+}
+
+/** The takedown entry for an installed plugin's source, if the index lists one. */
+export function findRevokedEntry(
+  index: Pick<MarketplaceIndex, 'revoked'> | undefined,
+  sourceHash: string | undefined
+): MarketplaceRevokedEntry | undefined {
+  const hash = sourceHash?.trim().toLowerCase()
+  if (!hash) return undefined
+  return index?.revoked?.find((entry) => entry.sha256 === hash)
 }

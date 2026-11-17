@@ -17,43 +17,70 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, Settings2, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { RefreshCw, TriangleAlert } from 'lucide-react'
+import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { EmptyState } from '@/components/empty-state'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 import { listMarketplaceSources, listTaskPlugins } from '../api'
 import {
+  availableMarketplaceSources,
   deriveInstallState,
+  fetchMarketplaceIndex,
   indexHasIntegrityHashes,
-  isDefaultMarketplaceSource,
-  parseMarketplaceIndex,
+  marketplaceSourceKind,
 } from '../lib/marketplace'
-import type { MarketplaceIndex, MarketplaceSource } from '../types'
+import {
+  countPluginKinds,
+  defaultPluginKind,
+  type PluginKind,
+} from '../lib/plugin-kinds'
+import { resolvePluginParts } from '../lib/plugin-parts'
+import type {
+  MarketplaceIndex,
+  MarketplacePlugin,
+  MarketplaceSource,
+} from '../types'
 import {
   MarketplaceInstallDialog,
   type MarketplaceInstallTarget,
 } from './marketplace-install-dialog'
 import { MarketplacePluginCard } from './marketplace-plugin-card'
+import { MarketplaceSourceMenu } from './marketplace-source-menu'
 import { MarketplaceSourcesDialog } from './marketplace-sources-dialog'
+import { PluginCodeLookup, type PluginCodeMatch } from './plugin-code-lookup'
+import {
+  PluginKindSwitch,
+  SEGMENTED_SWITCH_CLASS,
+  SEGMENTED_SWITCH_ITEM_CLASS,
+} from './plugin-kind-switch'
 
-export function MarketplacePanel() {
+type MarketplacePanelProps = {
+  /** The kind the page URL names; without one the default kind is shown. */
+  kind?: PluginKind
+  onKindChange: (kind: PluginKind) => void
+}
+
+const marketplacePluginParts = (plugin: MarketplacePlugin) =>
+  resolvePluginParts({ ...plugin, meta: plugin })
+
+/** Configured catalogs and explicitly enabled community catalogs. */
+type MarketplaceGroup = 'catalog' | 'community'
+
+export function MarketplacePanel(props: MarketplacePanelProps) {
   const { t } = useTranslation()
   const [sourcesOpen, setSourcesOpen] = useState(false)
+  const [group, setGroup] = useState<MarketplaceGroup | null>(null)
   const [selectedSourceUrl, setSelectedSourceUrl] = useState('')
   const [installTarget, setInstallTarget] =
     useState<MarketplaceInstallTarget | null>(null)
+  const [codeMatch, setCodeMatch] = useState<PluginCodeMatch | null>(null)
 
   const sourcesQuery = useQuery({
     queryKey: ['task-plugin-marketplace-sources'],
@@ -63,117 +90,218 @@ export function MarketplacePanel() {
     queryKey: ['task-plugins'],
     queryFn: listTaskPlugins,
   })
-  const sources = sourcesQuery.data ?? []
+  const communityEnabled = sourcesQuery.data?.community_enabled === true
+  const shortCodesEnabled = sourcesQuery.data?.short_codes_enabled === true
+  const installStatsEnabled = sourcesQuery.data?.install_stats_enabled === true
+  const sources = availableMarketplaceSources(sourcesQuery.data)
+  const catalogSources = sources.filter(
+    (source) => marketplaceSourceKind(source) !== 'community'
+  )
+  const communitySources = sources.filter(
+    (source) => marketplaceSourceKind(source) === 'community'
+  )
+  let activeGroup: MarketplaceGroup = group ?? 'catalog'
+  if (!group && catalogSources.length === 0 && communitySources.length > 0) {
+    activeGroup = 'community'
+  }
+  if (!communityEnabled) activeGroup = 'catalog'
+  const groupSources =
+    activeGroup === 'catalog' ? catalogSources : communitySources
   const selectedSource =
-    sources.find((source) => source.index_url === selectedSourceUrl) ??
-    sources[0]
+    groupSources.find((source) => source.index_url === selectedSourceUrl) ??
+    groupSources[0]
+  const communitySource =
+    activeGroup === 'community' ? selectedSource : communitySources[0]
+  const visibleCodeMatch =
+    shortCodesEnabled &&
+    codeMatch &&
+    sources.some(
+      (source) =>
+        source.index_url === codeMatch.source.index_url &&
+        marketplaceSourceKind(source) ===
+          marketplaceSourceKind(codeMatch.source)
+    )
+      ? codeMatch
+      : null
 
   // Only the selected source is requested. Alternate sources stay idle until
   // the administrator explicitly switches to them.
   const indexQuery = useQuery({
-    queryKey: ['task-plugin-marketplace', selectedSource?.index_url],
+    queryKey: [
+      'task-plugin-marketplace',
+      selectedSource?.index_url,
+      installStatsEnabled,
+    ],
     enabled: Boolean(selectedSource),
     retry: false,
     meta: { errorToast: false },
-    queryFn: async (): Promise<MarketplaceIndex> => {
+    queryFn: ({ signal }): Promise<MarketplaceIndex> => {
       if (!selectedSource) throw new Error('marketplace source is not selected')
-      // Revalidate so the hashes checked at install time are the host's
-      // current ones rather than a copy cached before a republish.
-      const response = await fetch(selectedSource.index_url, {
-        cache: 'no-cache',
+      return fetchMarketplaceIndex(selectedSource.index_url, {
+        installStatsEnabled,
+        signal,
       })
-      if (!response.ok) {
-        throw new Error(
-          t('Index request failed with HTTP {{status}}', {
-            status: response.status,
-          })
-        )
-      }
-      return parseMarketplaceIndex(await response.json())
     },
   })
+  const indexPlugins = indexQuery.data?.plugins
+  const kindCounts = useMemo(
+    () => countPluginKinds((indexPlugins ?? []).map(marketplacePluginParts)),
+    [indexPlugins]
+  )
+  const kind = props.kind ?? defaultPluginKind(kindCounts)
+  const showReviewWarning =
+    activeGroup === 'community' && groupSources.length > 0
+  const canLookUpCode = shortCodesEnabled && sources.length > 0
+  const titleId = useId()
+  const selectedKind = selectedSource
+    ? marketplaceSourceKind(selectedSource)
+    : undefined
+  const missingHashes = indexQuery.data
+    ? !indexHasIntegrityHashes(indexQuery.data)
+    : false
 
   return (
     <>
       <div className='h-full space-y-4 overflow-y-auto'>
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          <p className='text-muted-foreground text-sm'>
-            {t(
-              'Plugin indexes are fetched by your browser. Installing runs the same review and admission pipeline as a manual upload.'
+        {/* What to browse on the left, finding a plugin by its code on the right. */}
+        <div className='flex flex-wrap items-start justify-between gap-x-6 gap-y-2'>
+          <div className='flex min-w-0 flex-wrap items-center gap-2'>
+            {communityEnabled && (
+              <ToggleGroup
+                value={[activeGroup]}
+                onValueChange={(value) => {
+                  const next = (['catalog', 'community'] as const).find(
+                    (item) => item !== activeGroup && value.includes(item)
+                  )
+                  if (next) setGroup(next)
+                }}
+                aria-label={t('Marketplace')}
+                spacing={1}
+                className={SEGMENTED_SWITCH_CLASS}
+              >
+                <ToggleGroupItem
+                  value='catalog'
+                  className={SEGMENTED_SWITCH_ITEM_CLASS}
+                >
+                  {t('Configured sources')}
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value='community'
+                  className={SEGMENTED_SWITCH_ITEM_CLASS}
+                >
+                  {t('Community plugins')}
+                </ToggleGroupItem>
+              </ToggleGroup>
             )}
-          </p>
-          <div className='flex shrink-0 gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={!selectedSource || indexQuery.isFetching}
-              onClick={() => void indexQuery.refetch()}
-            >
-              <RefreshCw />
-              {t('Refresh')}
-            </Button>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => setSourcesOpen(true)}
-            >
-              <Settings2 />
-              {t('Manage sources')}
-            </Button>
+            <PluginKindSwitch
+              value={kind}
+              counts={kindCounts}
+              onValueChange={props.onKindChange}
+            />
           </div>
+          {canLookUpCode && sourcesQuery.data && (
+            <PluginCodeLookup
+              settings={sourcesQuery.data}
+              communityIndexUrl={communitySource?.index_url}
+              onResult={setCodeMatch}
+            />
+          )}
         </div>
 
         {sourcesQuery.isLoading && <Skeleton className='h-24 w-full' />}
 
-        {!sourcesQuery.isLoading && sources.length === 0 && (
-          <Empty className='border'>
-            <EmptyHeader>
-              <EmptyTitle>{t('No marketplace sources configured.')}</EmptyTitle>
-              <EmptyDescription>
-                {t('Add an index URL to browse installable plugins.')}
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button onClick={() => setSourcesOpen(true)}>
-              {t('Manage sources')}
-            </Button>
-          </Empty>
+        {visibleCodeMatch && (
+          <PluginCodeResult
+            match={visibleCodeMatch}
+            kind={kind}
+            installed={installedQuery.data ?? []}
+            installStatsEnabled={installStatsEnabled}
+            onInstall={setInstallTarget}
+            onClear={() => setCodeMatch(null)}
+          />
         )}
 
-        {sources.length > 1 && selectedSource && (
-          <ToggleGroup
-            value={[selectedSource.index_url]}
-            onValueChange={(value) => {
-              const nextSourceUrl = value.find(
-                (item) => item !== selectedSource.index_url
-              )
-              if (nextSourceUrl) setSelectedSourceUrl(nextSourceUrl)
-            }}
-            aria-label={t('Marketplace sources')}
-            variant='outline'
-            size='sm'
-            className='max-w-full overflow-x-auto'
-          >
-            {sources.map((source) => (
-              <ToggleGroupItem
-                key={`${source.index_url}|${source.name}`}
-                value={source.index_url}
-              >
-                {t(source.name)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+        {!sourcesQuery.isLoading && groupSources.length === 0 && (
+          <EmptyState
+            bordered
+            title={t('No marketplace sources configured.')}
+            description={t('Add a source to browse its plugins.')}
+            action={
+              <Button onClick={() => setSourcesOpen(true)}>
+                {t('Manage sources')}
+              </Button>
+            }
+          />
         )}
 
         {selectedSource && (
-          <MarketplaceSourceSection
-            key={`${selectedSource.index_url}|${selectedSource.name}`}
-            source={selectedSource}
-            index={indexQuery.data}
-            isLoading={indexQuery.isLoading}
-            error={indexQuery.error}
-            installed={installedQuery.data ?? []}
-            onInstall={setInstallTarget}
-          />
+          <section aria-labelledby={titleId} className='space-y-3'>
+            {/* The list's name on the left; where it is downloaded from on the right. */}
+            <div className='flex flex-wrap items-center justify-between gap-2'>
+              <div className='flex min-w-0 flex-wrap items-center gap-2'>
+                <h3 id={titleId} className='text-sm font-semibold'>
+                  {indexQuery.data?.name || selectedSource.name}
+                </h3>
+                {selectedKind === 'official' && (
+                  <Badge variant='secondary'>
+                    {t('CodeGuys trusted source')}
+                  </Badge>
+                )}
+                {selectedKind === 'third_party' && (
+                  <Badge variant='destructive'>
+                    {t('Third-party — use at your own risk')}
+                  </Badge>
+                )}
+                {missingHashes && (
+                  <Badge variant='destructive'>
+                    <TriangleAlert aria-hidden='true' />
+                    {t('No integrity verification')}
+                  </Badge>
+                )}
+              </div>
+              <div className='flex max-w-full items-center gap-2'>
+                <MarketplaceSourceMenu
+                  sources={groupSources}
+                  selected={selectedSource}
+                  onSelect={(source) => setSelectedSourceUrl(source.index_url)}
+                  onManage={() => setSourcesOpen(true)}
+                />
+                <Button
+                  variant='outline'
+                  size='sm'
+                  disabled={indexQuery.isFetching}
+                  onClick={() => void indexQuery.refetch()}
+                >
+                  <RefreshCw />
+                  {t('Refresh')}
+                </Button>
+              </div>
+            </div>
+
+            {showReviewWarning && (
+              <p className='flex items-start gap-2 text-sm'>
+                <TriangleAlert
+                  className='mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400'
+                  aria-hidden='true'
+                />
+                {t(
+                  'Community plugins are published and maintained by their authors. Check the source before you install.'
+                )}
+              </p>
+            )}
+
+            <MarketplaceSourceSection
+              key={`${selectedSource.index_url}|${selectedSource.name}`}
+              source={selectedSource}
+              index={indexQuery.data}
+              isLoading={indexQuery.isLoading}
+              error={indexQuery.error}
+              installed={installedQuery.data ?? []}
+              installStatsEnabled={installStatsEnabled}
+              kind={kind}
+              onInstall={setInstallTarget}
+            />
+          </section>
         )}
       </div>
 
@@ -183,12 +311,82 @@ export function MarketplacePanel() {
       />
       <MarketplaceInstallDialog
         key={`${installTarget?.plugin.key ?? ''}-${installTarget?.version ?? ''}`}
-        target={installTarget}
+        installStatsEnabled={installStatsEnabled}
+        target={
+          installTarget &&
+          sources.some(
+            (source) =>
+              source.index_url === installTarget.source.index_url &&
+              marketplaceSourceKind(source) ===
+                marketplaceSourceKind(installTarget.source)
+          )
+            ? installTarget
+            : null
+        }
         onOpenChange={(open) => {
           if (!open) setInstallTarget(null)
         }}
       />
     </>
+  )
+}
+
+type PluginCodeResultProps = {
+  match: PluginCodeMatch
+  kind: PluginKind
+  installed: Awaited<ReturnType<typeof listTaskPlugins>>
+  installStatsEnabled: boolean
+  onInstall: (target: MarketplaceInstallTarget) => void
+  onClear: () => void
+}
+
+/** The plugin a code lookup found, as a card; installing starts from its button. */
+function PluginCodeResult(props: PluginCodeResultProps) {
+  const { t } = useTranslation()
+  const { source, plugin } = props.match
+  const sourceKind = marketplaceSourceKind(source)
+  const installState = deriveInstallState(plugin, props.installed)
+  return (
+    <section className='space-y-3'>
+      <div className='flex flex-wrap items-center gap-2'>
+        <h3 className='text-sm font-semibold'>
+          {t('Result for plugin code {{code}}', { code: props.match.code })}
+        </h3>
+        <Badge variant='secondary'>
+          {sourceKind === 'official' && t('CodeGuys trusted source')}
+          {sourceKind === 'community' && t('Community')}
+          {sourceKind === 'third_party' && t('Third-party')}
+        </Badge>
+        <Button
+          variant='ghost'
+          size='sm'
+          className='ml-auto'
+          onClick={props.onClear}
+        >
+          {t('Clear')}
+        </Button>
+      </div>
+      <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3'>
+        <MarketplacePluginCard
+          kind={props.kind}
+          plugin={plugin}
+          indexUrl={source.index_url}
+          installState={installState}
+          installStatsEnabled={props.installStatsEnabled}
+          installed={props.installed.find(
+            (item) => item.meta.key === plugin.key
+          )}
+          onInstall={() =>
+            props.onInstall({
+              source,
+              plugin,
+              version: plugin.latest,
+              installState,
+            })
+          }
+        />
+      </div>
+    </section>
   )
 }
 
@@ -198,37 +396,60 @@ type MarketplaceSourceSectionProps = {
   isLoading: boolean
   error: Error | null
   installed: Awaited<ReturnType<typeof listTaskPlugins>>
+  installStatsEnabled: boolean
+  kind: PluginKind
   onInstall: (target: MarketplaceInstallTarget) => void
 }
 
+/** The selected list's plugins of the chosen kind; the panel draws its header. */
 function MarketplaceSourceSection(props: MarketplaceSourceSectionProps) {
   const { t } = useTranslation()
-  const isOfficial = isDefaultMarketplaceSource(props.source.index_url)
-  const missingHashes = props.index
-    ? !indexHasIntegrityHashes(props.index)
-    : false
+  const sourceKind = marketplaceSourceKind(props.source)
+  const kindPlugins = (props.index?.plugins ?? []).filter(
+    (plugin) => marketplacePluginParts(plugin)[props.kind]
+  )
+  // Recommendations are trusted only for explicitly configured source kinds.
+  const recommended =
+    sourceKind === 'third_party'
+      ? []
+      : kindPlugins.filter((plugin) => plugin.recommended)
+  const groups = [{ title: '', plugins: kindPlugins }]
+  if (recommended.length > 0 && recommended.length < kindPlugins.length) {
+    groups.splice(
+      0,
+      1,
+      { title: t('Recommended'), plugins: recommended },
+      {
+        title: t('More plugins'),
+        plugins: kindPlugins.filter((plugin) => !plugin.recommended),
+      }
+    )
+  }
+  const renderCard = (plugin: MarketplacePlugin) => {
+    const installState = deriveInstallState(plugin, props.installed)
+    return (
+      <MarketplacePluginCard
+        key={plugin.key}
+        kind={props.kind}
+        plugin={plugin}
+        indexUrl={props.source.index_url}
+        installState={installState}
+        installStatsEnabled={props.installStatsEnabled}
+        installed={props.installed.find((item) => item.meta.key === plugin.key)}
+        onInstall={() =>
+          props.onInstall({
+            source: props.source,
+            plugin,
+            version: plugin.latest,
+            installState,
+          })
+        }
+      />
+    )
+  }
 
   return (
-    <section className='space-y-3'>
-      <div className='flex flex-wrap items-center gap-2'>
-        <h3 className='text-sm font-semibold'>
-          {props.index?.name || props.source.name}
-        </h3>
-        {isOfficial ? (
-          <Badge variant='secondary'>{t('Official')}</Badge>
-        ) : (
-          <Badge variant='destructive'>
-            {t('Third-party — use at your own risk')}
-          </Badge>
-        )}
-        {missingHashes && (
-          <Badge variant='destructive'>
-            <TriangleAlert aria-hidden='true' />
-            {t('No integrity verification')}
-          </Badge>
-        )}
-      </div>
-
+    <>
       {props.isLoading && (
         <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3'>
           <Skeleton className='h-40 w-full' />
@@ -242,46 +463,38 @@ function MarketplaceSourceSection(props: MarketplaceSourceSectionProps) {
           <TriangleAlert />
           <AlertTitle>{t('Could not load this source')}</AlertTitle>
           <AlertDescription>
-            {t(
-              'The index could not be fetched or parsed: {{message}}. The host may block cross-origin requests.',
-              { message: props.error.message }
-            )}
+            {t('Check the source address and try again. Details: {{message}}', {
+              message: props.error.message,
+            })}
           </AlertDescription>
         </Alert>
       )}
 
       {props.index && props.index.plugins.length === 0 && (
         <p className='text-muted-foreground text-sm'>
-          {t('This source lists no installable task plugins.')}
+          {t('This source lists no plugins.')}
         </p>
       )}
 
-      {props.index && props.index.plugins.length > 0 && (
-        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3'>
-          {props.index.plugins.map((plugin) => {
-            const installState = deriveInstallState(plugin, props.installed)
-            return (
-              <MarketplacePluginCard
-                key={plugin.key}
-                plugin={plugin}
-                indexUrl={props.source.index_url}
-                installState={installState}
-                installed={props.installed.find(
-                  (item) => item.meta.key === plugin.key
-                )}
-                onInstall={() =>
-                  props.onInstall({
-                    source: props.source,
-                    plugin,
-                    version: plugin.latest,
-                    installState,
-                  })
-                }
-              />
-            )
-          })}
-        </div>
-      )}
-    </section>
+      {props.index &&
+        props.index.plugins.length > 0 &&
+        kindPlugins.length === 0 && (
+          <p className='text-muted-foreground text-sm'>
+            {t('This source lists no plugins of this kind.')}
+          </p>
+        )}
+
+      {kindPlugins.length > 0 &&
+        groups.map((item) => (
+          <div key={item.title} className='space-y-2'>
+            {item.title && (
+              <h4 className='text-sm font-medium'>{item.title}</h4>
+            )}
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3'>
+              {item.plugins.map(renderCard)}
+            </div>
+          </div>
+        ))}
+    </>
   )
 }

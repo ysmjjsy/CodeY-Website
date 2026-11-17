@@ -29,21 +29,25 @@ import {
 import { api } from '@/lib/api'
 
 import { PluginsTable } from '../components/plugins-table'
-import type { TaskPluginListItem } from '../types'
+import type { MarketplaceSources, TaskPluginListItem } from '../types'
 
 vi.mock('@/lib/lobe-icon', () => ({ getLobeIcon: () => null }))
 
+const COMMUNITY_INDEX_URL = 'https://community.example/catalog/index.json'
 const clients: QueryClient[] = []
 afterEach(() => {
   for (const client of clients) client.clear()
   clients.length = 0
   localStorage.removeItem('task-plugins-view-mode')
+  vi.unstubAllGlobals()
 })
 
 function renderPlugins(
   enabled: boolean,
   view: 'card' | 'table' = 'card',
-  source: TaskPluginListItem['source'] = 'override'
+  source: TaskPluginListItem['source'] = 'override',
+  overrides?: Partial<TaskPluginListItem>,
+  settings?: MarketplaceSources
 ) {
   localStorage.setItem('task-plugins-view-mode', view)
   const item: TaskPluginListItem = {
@@ -64,6 +68,7 @@ function renderPlugins(
     runtime_status: enabled ? 'registered' : 'disabled',
     channel_count: 0,
     in_flight_count: 0,
+    ...overrides,
   }
   if (source === 'override_over_factory') {
     item.factory_meta = { ...item.meta, version: '0.9.0' }
@@ -76,12 +81,19 @@ function renderPlugins(
   })
   clients.push(client)
   client.setQueryData(['task-plugins'], [item])
+  if (settings) {
+    client.setQueryData(['task-plugin-marketplace-sources'], settings)
+  }
   vi.spyOn(api, 'get').mockResolvedValue({
     data: { success: true, data: [{ ...item, enabled: !enabled }] },
   })
   render(
     <QueryClientProvider client={client}>
-      <PluginsTable onDetails={() => undefined} onUpload={() => undefined} />
+      <PluginsTable
+        onKindChange={() => undefined}
+        onDetails={() => undefined}
+        onUpload={() => undefined}
+      />
     </QueryClientProvider>
   )
   return screen.getAllByRole('switch', { name: 'Enable plugin example' })[0]
@@ -384,3 +396,235 @@ test('a long pricing notice names five models and counts the rest', async () => 
   expect(screen.getByText('example-m5: No price set')).toBeVisible()
   expect(screen.queryByText('example-m6: No price set')).not.toBeInTheDocument()
 })
+
+test.each([
+  [true, 'Plugin'],
+  [false, 'Task Plugin'],
+] as const)(
+  'table view: a plugin without channel types and provider=%s shows the %s channel type',
+  (provider, label) => {
+    renderPlugins(true, 'table', 'override', { provider })
+
+    const row = screen.getByText('Example').closest('tr')
+    if (!row) throw new Error('no table row for the plugin')
+    expect(within(row).getByText(label, { exact: true })).toBeInTheDocument()
+  }
+)
+
+test('table view: a request processing only plugin shows its tag instead of a channel type', () => {
+  renderPlugins(true, 'table', 'override', {
+    task: false,
+    provider: false,
+    transform: true,
+  })
+
+  const row = screen.getByText('Example').closest('tr')
+  if (!row) throw new Error('no table row for the plugin')
+  expect(within(row).getByText('Request processing')).toBeInTheDocument()
+  expect(within(row).queryByText('Task Plugin')).toBeNull()
+  expect(within(row).queryByText('Plugin', { exact: true })).toBeNull()
+})
+
+test.each([undefined, false])(
+  'remote revocations=%s keeps local plugins and upload actions available without fetching indexes',
+  async (enabled) => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async () =>
+      Response.json({ indexVersion: 1, plugins: [] })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    renderPlugins(
+      true,
+      'table',
+      'override',
+      { source_hash: 'e'.repeat(64) },
+      {
+        sources: [
+          {
+            name: 'Community',
+            index_url: COMMUNITY_INDEX_URL,
+            kind: 'community',
+          },
+        ],
+        community_enabled: true,
+        remote_revocations_enabled: enabled,
+      }
+    )
+    await act(async () => {})
+    expect(screen.getByText('Example')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+    expect(
+      await screen.findByRole('menuitem', { name: 'Upload new version' })
+    ).toBeEnabled()
+    expect(fetchMock).not.toHaveBeenCalled()
+  }
+)
+
+test.each(['official', 'community', 'third_party'] as const)(
+  'enabled revocations fetch only the current available %s source and stop after removal',
+  async (kind) => {
+    const digest = 'e'.repeat(64)
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json({
+          indexVersion: 1,
+          plugins: [],
+          revoked: [{ sha256: digest, reason: 'Withdrawn' }],
+        })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    renderPlugins(
+      true,
+      'table',
+      'override',
+      { source_hash: digest },
+      {
+        sources: [
+          { name: 'Current source', index_url: COMMUNITY_INDEX_URL, kind },
+        ],
+        community_enabled: true,
+        remote_revocations_enabled: true,
+      }
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Withdrawn')
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      COMMUNITY_INDEX_URL,
+    ])
+    await act(async () => {
+      clients[0].setQueryData(['task-plugin-marketplace-sources'], {
+        sources: [],
+        community_enabled: true,
+        remote_revocations_enabled: true,
+      })
+    })
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(screen.getByText('Example')).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  }
+)
+
+test.each([false, true])(
+  'remote revocations enabled with community=%s and no available sources never uses stored plugin URLs',
+  async (communityEnabled) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const record = {
+      source_hash: 'e'.repeat(64),
+      marketplace_index_url: 'https://removed.example/index.json',
+    }
+    renderPlugins(true, 'table', 'override', record, {
+      sources: communityEnabled
+        ? []
+        : [
+            {
+              name: 'Community',
+              index_url: COMMUNITY_INDEX_URL,
+              kind: 'community',
+            },
+          ],
+      community_enabled: communityEnabled,
+      remote_revocations_enabled: true,
+    })
+    await act(async () => {})
+    expect(screen.getByText('Example')).toBeVisible()
+    expect(fetchMock).not.toHaveBeenCalled()
+  }
+)
+
+test.each([
+  ['card', true],
+  ['table', true],
+  ['card', false],
+  ['table', false],
+] as const)(
+  '%s view: community enabled=%s controls takedown checks and warnings',
+  (view, communityEnabled) => {
+    const fetchMock = vi.fn(async () => new Response('{}'))
+    vi.stubGlobal('fetch', fetchMock)
+    localStorage.setItem('task-plugins-view-mode', view)
+    const digest = 'e'.repeat(64)
+    const item: TaskPluginListItem = {
+      meta: {
+        key: 'alice_foo',
+        name: 'Foo',
+        version: '1.0.0',
+        apiVersion: 1,
+        author: { name: 'alice' },
+        models: [],
+        fetchMode: 'per_task',
+      },
+      source: 'override',
+      enabled: true,
+      active: true,
+      source_hash: digest,
+      remark: '',
+      runtime_status: 'registered',
+      channel_count: 0,
+      in_flight_count: 0,
+    }
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    })
+    clients.push(client)
+    client.setQueryData(
+      ['task-plugins'],
+      [
+        item,
+        {
+          ...item,
+          meta: { ...item.meta, key: 'bob_bar' },
+          source_hash: 'f'.repeat(64),
+        },
+      ]
+    )
+    client.setQueryData(['task-plugin-marketplace-sources'], {
+      sources: [
+        {
+          name: 'Community',
+          index_url: COMMUNITY_INDEX_URL,
+          kind: 'community',
+        },
+      ],
+      community_enabled: communityEnabled,
+      remote_revocations_enabled: communityEnabled,
+    })
+    if (communityEnabled) {
+      client.setQueryData(
+        ['task-plugin-marketplace-revocations', COMMUNITY_INDEX_URL],
+        {
+          indexVersion: 1,
+          name: '',
+          plugins: [],
+          revoked: [
+            {
+              sha256: digest,
+              reason: {
+                en: 'It sends channel keys away',
+                zh: '会外传渠道密钥',
+              },
+            },
+          ],
+        }
+      )
+    }
+    render(
+      <QueryClientProvider client={client}>
+        <PluginsTable
+          onKindChange={() => undefined}
+          onDetails={() => undefined}
+          onUpload={() => undefined}
+        />
+      </QueryClientProvider>
+    )
+    expect(fetchMock).not.toHaveBeenCalled()
+    const warnings = screen.queryAllByRole('alert')
+    if (!communityEnabled) {
+      expect(warnings).toHaveLength(0)
+      return
+    }
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toHaveTextContent(
+      'This version was taken down by a configured source. Reason: It sends channel keys away'
+    )
+  }
+)

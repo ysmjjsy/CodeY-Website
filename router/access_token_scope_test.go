@@ -33,6 +33,8 @@ var accessTokenExemptRoutes = []string{
 	"GET /api/home_page_content",
 	"GET /api/ratio_config",
 	"GET /api/user/groups",
+	// Public avatar files use unguessable filenames and are cacheable.
+	"GET /api/avatar/:filename",
 
 	// Anonymous account entry points.
 	"GET /api/verification",

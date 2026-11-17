@@ -55,7 +55,11 @@ func UnbindTaskPlugin(channelID int, key string) (bool, error) {
 	}
 	setting.TaskExtendPluginKeys = slices.DeleteFunc(setting.TaskExtendPluginKeys, func(bound string) bool { return bound == key })
 	channel.SetSetting(setting)
-	return true, DB.Model(&Channel{}).Where("id = ?", channelID).Update("setting", channel.Setting).Error
+	if err = DB.Model(&Channel{}).Where("id = ?", channelID).Update("setting", channel.Setting).Error; err != nil {
+		return true, err
+	}
+	BumpSyncTopic(SyncTopicChannels)
+	return true, nil
 }
 
 // LongText is a string column sized for plugin payloads on every supported
@@ -100,7 +104,7 @@ func (plugin TaskPlugin) HasIcon() bool {
 }
 
 func SaveTaskPlugin(plugin *TaskPlugin) error {
-	return DB.Transaction(func(tx *gorm.DB) error {
+	err := DB.Transaction(func(tx *gorm.DB) error {
 		var existing TaskPlugin
 		err := tx.Where(&TaskPlugin{Key: plugin.Key, Version: plugin.Version}).First(&existing).Error
 		if err == nil {
@@ -131,6 +135,10 @@ func SaveTaskPlugin(plugin *TaskPlugin) error {
 		plugin.Active = count == 0
 		return tx.Create(plugin).Error
 	})
+	if err == nil {
+		BumpSyncTopic(SyncTopicPlugins)
+	}
+	return err
 }
 
 func ListTaskPluginVersions(key string) ([]TaskPlugin, error) {
@@ -242,7 +250,7 @@ func GetTaskPluginSource(id int64) (LongText, error) {
 }
 
 func ActivateTaskPlugin(key, version string) error {
-	return DB.Transaction(func(tx *gorm.DB) error {
+	err := DB.Transaction(func(tx *gorm.DB) error {
 		var target TaskPlugin
 		if err := tx.Where(&TaskPlugin{Key: key, Version: version}).First(&target).Error; err != nil {
 			return err
@@ -252,6 +260,10 @@ func ActivateTaskPlugin(key, version string) error {
 		}
 		return tx.Model(&target).Updates(map[string]any{"active": true, "enabled": true}).Error
 	})
+	if err == nil {
+		BumpSyncTopic(SyncTopicPlugins)
+	}
+	return err
 }
 
 func SetTaskPluginEnabled(key string, enabled bool) error {
@@ -262,6 +274,7 @@ func SetTaskPluginEnabled(key string, enabled bool) error {
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
 	}
+	BumpSyncTopic(SyncTopicPlugins)
 	return nil
 }
 
@@ -303,5 +316,8 @@ func DeleteTaskPluginVersion(key, version string) (TaskPluginDeleteResult, error
 		result.Promoted = &promoted
 		return nil
 	})
+	if err == nil {
+		BumpSyncTopic(SyncTopicPlugins)
+	}
 	return result, err
 }

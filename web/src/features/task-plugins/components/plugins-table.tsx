@@ -16,7 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type { ColumnDef, ColumnFiltersState } from '@tanstack/react-table'
 import { Eye, MoreHorizontal, Trash2, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -40,20 +45,39 @@ import { resolveLocalizedText } from '@/lib/localized-text'
 
 import {
   deleteTaskPluginVersion,
+  listMarketplaceSources,
   listTaskPlugins,
   setTaskPluginStatus,
   TaskPluginUsageError,
 } from '../api'
-import { isStaleFactoryOverride } from '../lib/marketplace'
+import {
+  availableMarketplaceSources,
+  fetchMarketplaceIndex,
+  findRevokedEntry,
+  isStaleFactoryOverride,
+} from '../lib/marketplace'
 import { toastPluginChange } from '../lib/plugin-change-toast'
+import {
+  countPluginKinds,
+  defaultPluginKind,
+  type PluginKind,
+} from '../lib/plugin-kinds'
+import { localizedPluginName } from '../lib/plugin-name'
+import { resolvePluginParts } from '../lib/plugin-parts'
 import type { TaskPluginListItem, TaskPluginUsage } from '../types'
 import { PluginCard } from './plugin-card'
 import { PluginIcon } from './plugin-icon'
+import { PluginKindSwitch } from './plugin-kind-switch'
+import { PluginPartsBadges } from './plugin-parts-badges'
 import { PluginWebsiteLink } from './plugin-website-link'
+import { RevokedPluginWarning } from './revoked-plugin-warning'
 
 const VIEW_MODE_STORAGE_KEY = 'task-plugins-view-mode'
 
 type PluginsTableProps = {
+  /** The kind the page URL names; without one the default kind is shown. */
+  kind?: PluginKind
+  onKindChange: (kind: PluginKind) => void
   onDetails: (plugin: TaskPluginListItem) => void
   onUpload: (key: string) => void
 }
@@ -79,6 +103,34 @@ export function PluginsTable(props: PluginsTableProps) {
     queryKey: ['task-plugins'],
     queryFn: listTaskPlugins,
   })
+  // Local plugins never need a market index unless revocation checks are opted in.
+  const hasUploaded = (pluginsQuery.data ?? []).some(
+    (plugin) => plugin.source !== 'factory' && plugin.source_hash
+  )
+  const sourcesQuery = useQuery({
+    queryKey: ['task-plugin-marketplace-sources'],
+    queryFn: listMarketplaceSources,
+    enabled: hasUploaded,
+  })
+  const revocationSources =
+    hasUploaded && sourcesQuery.data?.remote_revocations_enabled === true
+      ? availableMarketplaceSources(sourcesQuery.data)
+      : []
+  const revocationQueries = useQueries({
+    queries: revocationSources.map((source) => ({
+      queryKey: ['task-plugin-marketplace-revocations', source.index_url],
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        fetchMarketplaceIndex(source.index_url, { signal }),
+      retry: false,
+      meta: { errorToast: false },
+    })),
+  })
+  const revocationData = revocationQueries.map((query) => query.data?.revoked)
+  const revocationIndex = useMemo(
+    () => ({ revoked: revocationData.flatMap((revoked) => revoked ?? []) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(revocationData)]
+  )
   const statusMutation = useMutation({
     mutationFn: ({
       key,
@@ -143,7 +195,8 @@ export function PluginsTable(props: PluginsTableProps) {
     () => [
       {
         id: 'plugin',
-        accessorFn: (row) => `${row.meta.name} ${row.meta.key}`,
+        accessorFn: (row) =>
+          `${localizedPluginName(row.meta, i18n.language)} ${row.meta.name} ${row.meta.key}`,
         header: t('Plugin'),
         cell: ({ row }) => {
           const description = resolveLocalizedText(
@@ -166,12 +219,18 @@ export function PluginsTable(props: PluginsTableProps) {
               </span>
               <div className='min-w-0'>
                 <div className='truncate text-sm font-medium'>
-                  {row.original.meta.name}
+                  {localizedPluginName(row.original.meta, i18n.language)}
                 </div>
                 <div className='text-muted-foreground truncate font-mono text-xs'>
                   {row.original.meta.key}
                 </div>
                 <PluginWebsiteLink website={row.original.meta.website} />
+                <RevokedPluginWarning
+                  entry={findRevokedEntry(
+                    revocationIndex,
+                    row.original.source_hash
+                  )}
+                />
               </div>
             </div>
           )
@@ -189,7 +248,7 @@ export function PluginsTable(props: PluginsTableProps) {
         header: t('Source'),
         cell: ({ row }) => {
           if (row.original.source === 'factory') {
-            return <Badge variant='secondary'>{t('Factory')}</Badge>
+            return <Badge variant='secondary'>{t('Built-in')}</Badge>
           }
           if (row.original.source === 'override_over_factory') {
             const factoryVersion = row.original.factory_meta?.version
@@ -202,7 +261,7 @@ export function PluginsTable(props: PluginsTableProps) {
             return (
               <div className='flex min-w-0 flex-col gap-0.5' title={staleHint}>
                 <Badge>
-                  {t('Custom (overrides factory {{version}})', {
+                  {t('Custom (replaces built-in {{version}})', {
                     version: factoryVersion,
                   })}
                 </Badge>
@@ -221,17 +280,31 @@ export function PluginsTable(props: PluginsTableProps) {
         id: 'channelType',
         header: t('Channel type'),
         cell: ({ row }) => {
+          const parts = resolvePluginParts(row.original)
           const channelTypes = row.original.meta.channelTypes ?? []
-          if (channelTypes.length === 0) {
-            return <span className='text-xs'>{t('Task Plugin')}</span>
+          // A plugin that only processes requests is never a channel type.
+          let channelType = null
+          if (channelTypes.length > 0) {
+            channelType = (
+              <span className='text-xs'>
+                {t(getChannelTypeLabel(channelTypes[0]))}
+                <span className='text-muted-foreground ml-1'>
+                  {channelTypes.map((type) => `#${type}`).join(' ')}
+                </span>
+              </span>
+            )
+          } else if (parts.task || parts.provider) {
+            channelType = (
+              <span className='text-xs'>
+                {parts.provider ? t('Plugin') : t('Task Plugin')}
+              </span>
+            )
           }
           return (
-            <span className='text-xs'>
-              {t(getChannelTypeLabel(channelTypes[0]))}
-              <span className='text-muted-foreground ml-1'>
-                {channelTypes.map((type) => `#${type}`).join(' ')}
-              </span>
-            </span>
+            <div className='flex flex-wrap items-center gap-1.5'>
+              {channelType}
+              <PluginPartsBadges transform={parts.transform} />
+            </div>
           )
         },
       },
@@ -281,7 +354,7 @@ export function PluginsTable(props: PluginsTableProps) {
             return (
               <Badge variant='secondary'>
                 {row.original.factory_meta
-                  ? t('Disabled; fell back to factory')
+                  ? t('Disabled; using built-in')
                   : t('Disabled; platform unavailable')}
               </Badge>
             )
@@ -328,14 +401,24 @@ export function PluginsTable(props: PluginsTableProps) {
         ),
       },
     ],
-    [i18n.language, props, statusMutation, t]
+    [revocationIndex, i18n.language, props, statusMutation, t]
+  )
+  const plugins = pluginsQuery.data
+  const kindCounts = useMemo(
+    () => countPluginKinds((plugins ?? []).map(resolvePluginParts)),
+    [plugins]
+  )
+  const kind = props.kind ?? defaultPluginKind(kindCounts)
+  const kindPlugins = useMemo(
+    () => (plugins ?? []).filter((plugin) => resolvePluginParts(plugin)[kind]),
+    [plugins, kind]
   )
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const { table } = useDataTable({
-    data: pluginsQuery.data ?? [],
+    data: kindPlugins,
     columns,
-    totalCount: pluginsQuery.data?.length ?? 0,
+    totalCount: kindPlugins.length,
     columnFilters,
     onColumnFiltersChange: setColumnFilters,
     globalFilter,
@@ -376,15 +459,33 @@ export function PluginsTable(props: PluginsTableProps) {
         columns={columns}
         isLoading={pluginsQuery.isLoading}
         isFetching={pluginsQuery.isFetching}
-        emptyTitle={t('No task plugins found')}
-        emptyDescription={t('Upload a task plugin to add a platform.')}
+        emptyTitle={t('No plugins of this kind')}
+        emptyDescription={t('Upload a JavaScript plugin.')}
         skeletonKeyPrefix='task-plugin'
         applyHeaderSize
         enableCardView
         viewModeStorageKey={VIEW_MODE_STORAGE_KEY}
-        renderCard={(row) => <PluginCard row={row} />}
+        renderCard={(row) => (
+          <PluginCard
+            row={row}
+            kind={kind}
+            revoked={findRevokedEntry(
+              revocationIndex,
+              row.original.source_hash
+            )}
+          />
+        )}
         cardGridClassName='grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3'
-        toolbarProps={{ searchPlaceholder: t('Filter plugins...') }}
+        toolbarProps={{
+          searchPlaceholder: t('Filter plugins...'),
+          additionalSearch: (
+            <PluginKindSwitch
+              value={kind}
+              counts={kindCounts}
+              onValueChange={props.onKindChange}
+            />
+          ),
+        }}
       />
       <ConfirmDialog
         open={Boolean(statusConfirmation)}
@@ -399,13 +500,21 @@ export function PluginsTable(props: PluginsTableProps) {
         desc={
           statusConfirmation?.enabled
             ? t('Are you sure you want to enable plugin {{name}} ({{key}})?', {
-                name: statusConfirmation.plugin.meta.name,
+                name: localizedPluginName(
+                  statusConfirmation.plugin.meta,
+                  i18n.language
+                ),
                 key: statusConfirmation.plugin.meta.key,
               })
             : t(
                 'Disable plugin {{name}} ({{key}})? Requests using this plugin may be affected.',
                 {
-                  name: statusConfirmation?.plugin.meta.name,
+                  name:
+                    statusConfirmation &&
+                    localizedPluginName(
+                      statusConfirmation.plugin.meta,
+                      i18n.language
+                    ),
                   key: statusConfirmation?.plugin.meta.key,
                 }
               )
@@ -437,10 +546,10 @@ export function PluginsTable(props: PluginsTableProps) {
         desc={
           hasFactoryFallback
             ? t(
-                'Deleting this custom version does not disable the platform. The same-name factory plugin will be restored automatically.'
+                'After deleting it, the built-in plugin of the same name takes over.'
               )
             : t(
-                'This plugin has no factory fallback. Deleting or disabling it makes this platform unavailable.'
+                'Channels that use this plugin stop working after it is deleted or turned off.'
               )
         }
       />

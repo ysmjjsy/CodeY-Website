@@ -22,59 +22,59 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { Dialog } from '@/components/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { Switch } from '@/components/ui/switch'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { listMarketplaceSources, updateMarketplaceSources } from '../api'
-import { isDefaultMarketplaceSource } from '../lib/marketplace'
-import type { MarketplaceSource } from '../types'
+import { marketplaceSourceKind } from '../lib/marketplace'
+import type { MarketplaceSource, MarketplaceSourceKind } from '../types'
 
 type MarketplaceSourcesDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-/**
- * Rows carry a client-only identity so React keys survive edits and removals.
- * Keying by position would hand a deleted row's input state to its successor,
- * and an index URL is not unique until the administrator finishes typing it.
- */
+/** Client-only identities keep edited inputs attached to their original row. */
 type DraftRow = MarketplaceSource & { rowId: string }
 
 export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<DraftRow[]>([])
+  const [communityEnabled, setCommunityEnabled] = useState(false)
+  const [services, setServices] = useState({
+    short_codes_enabled: false,
+    install_stats_enabled: false,
+    remote_revocations_enabled: false,
+  })
   const nextRowId = useRef(0)
-  const makeRowId = () => {
-    nextRowId.current += 1
-    return `row-${nextRowId.current}`
-  }
   const sourcesQuery = useQuery({
     queryKey: ['task-plugin-marketplace-sources'],
     queryFn: listMarketplaceSources,
     enabled: props.open,
   })
 
-  // The dialog edits a local copy so a half-typed row is never pushed to the
-  // server; it is re-seeded whenever the dialog opens with fresh server data.
   useEffect(() => {
     if (props.open && sourcesQuery.data) {
       setDraft(
-        sourcesQuery.data.map((source) => ({ ...source, rowId: makeRowId() }))
+        sourcesQuery.data.sources.map((source) => ({
+          ...source,
+          rowId: `row-${++nextRowId.current}`,
+        }))
       )
+      setCommunityEnabled(sourcesQuery.data.community_enabled === true)
+      setServices({
+        short_codes_enabled: sourcesQuery.data.short_codes_enabled === true,
+        install_stats_enabled: sourcesQuery.data.install_stats_enabled === true,
+        remote_revocations_enabled:
+          sourcesQuery.data.remote_revocations_enabled === true,
+      })
     }
   }, [props.open, sourcesQuery.data])
 
@@ -88,7 +88,6 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
     },
     onError: (error) => handleServerError(error),
   })
-
   const updateRow = (index: number, patch: Partial<MarketplaceSource>) => {
     setDraft((rows) =>
       rows.map((row, position) =>
@@ -96,120 +95,186 @@ export function MarketplaceSourcesDialog(props: MarketplaceSourcesDialogProps) {
       )
     )
   }
-
   const invalidRow = draft.some(
     (row) => !row.name.trim() || !row.index_url.trim()
   )
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className='max-w-2xl'>
-        <DialogHeader>
-          <DialogTitle>{t('Marketplace sources')}</DialogTitle>
-          <DialogDescription>
-            {t(
-              'Each source serves an index.json listing installable plugins. Indexes are fetched by your browser; the gateway makes no outbound requests.'
-            )}
-          </DialogDescription>
-        </DialogHeader>
-        <div className='space-y-3'>
-          {draft.length === 0 && (
-            <p className='text-muted-foreground text-sm'>
-              {t('No marketplace sources configured.')}
-            </p>
-          )}
-          {draft.map((row, index) => (
-            <div key={row.rowId} className='space-y-2 rounded-md border p-3'>
-              <div className='flex items-center justify-between gap-2'>
-                <Label htmlFor={`marketplace-source-name-${row.rowId}`}>
-                  {t('Source name')}
-                </Label>
-                <div className='flex items-center gap-2'>
-                  {isDefaultMarketplaceSource(row.index_url) ? (
-                    <Badge variant='secondary'>{t('Official')}</Badge>
-                  ) : (
-                    <Badge variant='destructive'>
-                      {t('Third-party — use at your own risk')}
-                    </Badge>
-                  )}
-                  <Button
-                    variant='ghost'
-                    size='icon-sm'
-                    aria-label={t('Remove source {{name}}', {
-                      name: row.name || row.index_url,
-                    })}
-                    onClick={() =>
-                      setDraft((rows) =>
-                        rows.filter((_, position) => position !== index)
-                      )
-                    }
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </div>
-              <Input
-                id={`marketplace-source-name-${row.rowId}`}
-                value={row.name}
-                onChange={(event) =>
-                  updateRow(index, { name: event.target.value })
-                }
-              />
-              <Label htmlFor={`marketplace-source-url-${row.rowId}`}>
-                {t('Index URL')}
-              </Label>
-              <Input
-                id={`marketplace-source-url-${row.rowId}`}
-                type='url'
-                inputMode='url'
-                value={row.index_url}
-                placeholder='https://example.com/index.json'
-                onChange={(event) =>
-                  updateRow(index, { index_url: event.target.value })
-                }
-              />
-            </div>
-          ))}
-          <Button
-            variant='outline'
-            onClick={() =>
-              setDraft((rows) => [
-                ...rows,
-                { name: '', index_url: '', rowId: makeRowId() },
-              ])
-            }
-          >
-            <Plus />
-            {t('Add source')}
-          </Button>
-          <Alert>
-            <AlertTitle>{t('Third-party source risk')}</AlertTitle>
-            <AlertDescription>
-              {t(
-                'Anyone can publish an index. A plugin installed from a third-party source has the same access as one you upload by hand: review its source before installing.'
-              )}
-            </AlertDescription>
-          </Alert>
-        </div>
-        <DialogFooter>
+    <Dialog
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      title={t('Marketplace sources')}
+      description={t('The marketplace lists the plugins these sources offer.')}
+      footer={
+        <>
           <Button variant='outline' onClick={() => props.onOpenChange(false)}>
             {t('Cancel')}
           </Button>
           <Button
-            disabled={invalidRow || saveMutation.isPending}
+            disabled={
+              invalidRow ||
+              !sourcesQuery.data ||
+              sourcesQuery.isError ||
+              saveMutation.isPending
+            }
             onClick={() =>
-              saveMutation.mutate(
-                draft.map((row) => ({
+              saveMutation.mutate({
+                sources: draft.map((row) => ({
                   name: row.name.trim(),
                   index_url: row.index_url.trim(),
-                }))
-              )
+                  kind: marketplaceSourceKind(row),
+                })),
+                community_enabled: communityEnabled,
+                ...services,
+              })
             }
           >
             {saveMutation.isPending ? t('Saving...') : t('Save')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className='space-y-3'>
+        <div className='flex items-center gap-2'>
+          <Switch
+            id='marketplace-community-enabled'
+            checked={communityEnabled}
+            disabled={!sourcesQuery.data || saveMutation.isPending}
+            onCheckedChange={setCommunityEnabled}
+          />
+          <Label htmlFor='marketplace-community-enabled'>
+            {t('Enable community plugins')}
+          </Label>
+        </div>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'Community sources are hidden and are not contacted while disabled.'
+          )}
+        </p>
+        {(
+          [
+            ['short_codes_enabled', t('Enable plugin short codes')],
+            ['install_stats_enabled', t('Show installation statistics')],
+            [
+              'remote_revocations_enabled',
+              t('Enable remote revocation warnings'),
+            ],
+          ] as const
+        ).map(([key, label]) => (
+          <div key={key} className='flex items-center gap-2'>
+            <Switch
+              id={`marketplace-${key}`}
+              checked={services[key]}
+              disabled={!sourcesQuery.data || saveMutation.isPending}
+              onCheckedChange={(checked) =>
+                setServices((current) => ({ ...current, [key]: checked }))
+              }
+            />
+            <Label htmlFor={`marketplace-${key}`}>{label}</Label>
+          </div>
+        ))}
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'Short code lookups and background revocation checks contact only enabled configured sources. Installation statistics are hidden and do not affect sorting while disabled.'
+          )}
+        </p>
+        {draft.length === 0 && (
+          <p className='text-muted-foreground text-sm'>
+            {t('No marketplace sources configured.')}
+          </p>
+        )}
+        {draft.map((row, index) => (
+          <div key={row.rowId} className='space-y-2 rounded-md border p-3'>
+            <div className='flex items-center justify-between gap-2'>
+              <Label htmlFor={`marketplace-source-name-${row.rowId}`}>
+                {t('Source name')}
+              </Label>
+              <Button
+                variant='ghost'
+                size='icon-sm'
+                aria-label={t('Remove source {{name}}', {
+                  name: row.name || row.index_url,
+                })}
+                onClick={() =>
+                  setDraft((rows) =>
+                    rows.filter((_, position) => position !== index)
+                  )
+                }
+              >
+                <Trash2 />
+              </Button>
+            </div>
+            <Input
+              id={`marketplace-source-name-${row.rowId}`}
+              value={row.name}
+              onChange={(event) =>
+                updateRow(index, { name: event.target.value })
+              }
+            />
+            <Label htmlFor={`marketplace-source-url-${row.rowId}`}>
+              {t('Source address')}
+            </Label>
+            <Input
+              id={`marketplace-source-url-${row.rowId}`}
+              type='url'
+              inputMode='url'
+              value={row.index_url}
+              placeholder='https://example.com/index.json'
+              onChange={(event) =>
+                updateRow(index, { index_url: event.target.value })
+              }
+            />
+            <Label htmlFor={`marketplace-source-kind-${row.rowId}`}>
+              {t('Source kind')}
+            </Label>
+            <NativeSelect
+              id={`marketplace-source-kind-${row.rowId}`}
+              value={marketplaceSourceKind(row)}
+              onChange={(event) =>
+                updateRow(index, {
+                  kind: event.target.value as MarketplaceSourceKind,
+                })
+              }
+            >
+              <NativeSelectOption value='third_party'>
+                {t('Third-party')}
+              </NativeSelectOption>
+              <NativeSelectOption value='official'>
+                {t('CodeGuys trusted source')}
+              </NativeSelectOption>
+              <NativeSelectOption value='community'>
+                {t('Community')}
+              </NativeSelectOption>
+            </NativeSelect>
+          </div>
+        ))}
+        <Button
+          variant='outline'
+          onClick={() => {
+            const rowId = `row-${++nextRowId.current}`
+            setDraft((rows) => [
+              ...rows,
+              { name: '', index_url: '', kind: 'third_party', rowId },
+            ])
+          }}
+        >
+          <Plus />
+          {t('Add source')}
+        </Button>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'A CodeGuys trusted source is an address explicitly trusted by your administrator. No source is trusted by default.'
+          )}
+        </p>
+        <Alert>
+          <AlertTitle>{t('Third-party source risk')}</AlertTitle>
+          <AlertDescription>
+            {t(
+              'Third-party sources are run by others. Read the plugin code before installing it.'
+            )}
+          </AlertDescription>
+        </Alert>
+      </div>
     </Dialog>
   )
 }
