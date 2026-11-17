@@ -79,10 +79,10 @@ test('the account page renders without the sidebar or its toggle', async () => {
   expect(document.querySelector('[data-slot="sidebar-trigger"]')).toBeNull()
 })
 
-test('console pages keep the sidebar and its toggle', async () => {
+test('console pages keep the sidebar without a header toggle', async () => {
   await renderLayout('/dashboard')
 
   expect(await screen.findByText('Console page')).toBeVisible()
   expect(document.querySelector('[data-slot="sidebar"]')).not.toBeNull()
-  expect(document.querySelector('[data-slot="sidebar-trigger"]')).not.toBeNull()
+  expect(document.querySelector('[data-slot="sidebar-trigger"]')).toBeNull()
 })

@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Coins, Store } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,12 @@ interface HeroProps {
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
   const openAuthDialog = useAuthDialogStore((state) => state.openAuthDialog)
+
+  const handleTopUp = () => {
+    if (!props.isAuthenticated) {
+      openAuthDialog('sign-up')
+    }
+  }
 
   return (
     <section className='relative overflow-hidden px-6 pt-24 pb-16 md:pt-28 md:pb-20'>
@@ -69,38 +75,48 @@ export function Hero(props: HeroProps) {
       <div className='relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-8'>
         <div className='flex flex-col items-start text-left lg:col-span-6'>
           <p className='text-muted-foreground mb-5 text-xs font-medium tracking-widest uppercase'>
-            {t('CodeGuys · Unified API gateway')}
+            {t('CodeGuys · Model token market')}
           </p>
 
           <h1 className='text-[clamp(2.25rem,4.5vw,3.25rem)] leading-[1.12] font-bold tracking-tight'>
-            {t('One entry for every model')}
+            {t('Every model, priced by the token')}
           </h1>
           <p className='text-muted-foreground mt-5 max-w-xl text-base leading-relaxed'>
             {t(
-              'CodeGuys is a unified API gateway. One protocol reaches OpenAI, Claude, Gemini, and dozens of other upstreams, with billing, quotas, rate limits, and load balancing built in.'
+              'CodeGuys is a market for model tokens. Browse providers side by side, compare prices, top up once, and call them all through one API.'
             )}
           </p>
 
           <div className='mt-8 flex flex-wrap items-center gap-3'>
+            <Button
+              className='group h-11 rounded-lg px-5 text-sm font-medium'
+              render={<Link to='/pricing' />}
+            >
+              <Store className='mr-1.5 size-4' />
+              {t('Browse the market')}
+              <ArrowRight className='ml-1.5 size-4 transition-transform duration-150 group-hover:translate-x-0.5' />
+            </Button>
             {props.isAuthenticated ? (
               <Button
-                className='group h-11 rounded-lg px-5 text-sm font-medium'
-                render={<Link to='/dashboard' />}
+                variant='outline'
+                className='h-11 rounded-lg px-5 text-sm font-medium'
+                render={<Link to='/wallet' />}
               >
-                {t('Go to Dashboard')}
-                <ArrowRight className='ml-1.5 size-4 transition-transform duration-150 group-hover:translate-x-0.5' />
+                <Coins className='mr-1.5 size-4' />
+                {t('Top up credit')}
               </Button>
             ) : (
               <Button
-                className='group h-11 rounded-lg px-5 text-sm font-medium'
-                onClick={() => openAuthDialog('sign-up')}
+                variant='outline'
+                className='h-11 rounded-lg px-5 text-sm font-medium'
+                onClick={handleTopUp}
               >
-                {t('Get Started')}
-                <ArrowRight className='ml-1.5 size-4 transition-transform duration-150 group-hover:translate-x-0.5' />
+                <Coins className='mr-1.5 size-4' />
+                {t('Top up credit')}
               </Button>
             )}
             <Button
-              variant='outline'
+              variant='ghost'
               className='h-11 rounded-lg px-5 text-sm font-medium'
               render={<Link to='/docs' />}
             >

@@ -115,6 +115,11 @@ export function AppHeader({
     <Header showSidebarTrigger={showSidebarTrigger}>
       <div className='flex min-w-0 flex-1 items-center gap-1'>
         <SystemBrand variant='inline' />
+        {showTopNav && (
+          <div className='ms-2 hidden lg:block'>
+            <TopNav links={links} />
+          </div>
+        )}
       </div>
 
       {leftContent ? (
@@ -123,11 +128,6 @@ export function AppHeader({
 
       {rightContent ?? (
         <div className='ms-auto flex shrink-0 items-center gap-1 sm:gap-2'>
-          {showTopNav && (
-            <div className='me-1 hidden lg:block'>
-              <TopNav links={links} />
-            </div>
-          )}
           {showSearch && (
             <Search className='w-8 flex-none [&>span]:hidden sm:[&>span]:inline' />
           )}

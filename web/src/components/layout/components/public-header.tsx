@@ -211,9 +211,9 @@ export function PublicHeader(props: PublicHeaderProps) {
             className='bg-primary absolute inset-x-0 top-0 h-0.5 origin-left'
             style={{ transform: `scaleX(${scrollProgress})` }}
           />
-          <nav className='mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 md:px-6'>
+          <nav className='mx-auto flex h-14 max-w-[1408px] items-center gap-2 px-4 md:px-6'>
             {/* Logo */}
-            <div className='@container/system-brand flex min-w-0 flex-1 items-center gap-1 lg:min-w-36'>
+            <div className='@container/system-brand flex min-w-0 items-center gap-1 lg:min-w-36'>
               <Link
                 to={homeUrl}
                 className='group flex min-w-0 items-center gap-2.5'
@@ -308,7 +308,13 @@ export function PublicHeader(props: PublicHeaderProps) {
                   </Link>
                 )
               })}
+            </div>
 
+            {/* Spacer — pushes the right cluster to the content edge */}
+            <div className='flex-1' />
+
+            {/* Desktop right cluster */}
+            <div className='hidden min-w-0 items-center gap-0.5 lg:flex'>
               {(showLanguageSwitcher ||
                 showThemeSwitch ||
                 showNotifications) && (

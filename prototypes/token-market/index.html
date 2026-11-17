@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080d16" />
+    <meta name="description" content="CodeGuys 模型 Token 调用与交易市场高保真交互原型。价格与用量均为演示数据。" />
+    <title>CodeGuys — AI 能力，按需调用</title>
+    <link rel="icon" type="image/png" href="./codeguys.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <svg class="icon-definitions" aria-hidden="true">
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 5 7 7-7 7" /></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></symbol>
+      <symbol id="icon-wallet" viewBox="0 0 24 24"><path d="M5 6h13a2 2 0 0 1 2 2v10H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11" /><path d="M15 11h5v4h-5a2 2 0 0 1 0-4Z" /></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6" /></symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+    </svg>
+
+    <a class="skip-link" href="#market">跳至模型市场</a>
+    <div class="prototype-flag">交互原型 · 模型价格与账户数据均为演示</div>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="CodeGuys 首页">
+          <img src="./codeguys.png" alt="" />
+          <span>CodeGuys<span class="brand-period">.</span></span>
+        </a>
+        <nav class="desktop-nav" aria-label="主导航">
+          <a href="#market" class="is-active">模型市场</a>
+          <a href="#billing">额度与计费</a>
+          <a href="#providers">模型提供方</a>
+          <a href="#developers">开发者</a>
+        </nav>
+        <div class="header-actions">
+          <button class="text-button" data-action="signin">登录</button>
+          <a class="button button-small button-dark" href="#market">进入模型市场<svg><use href="#icon-arrow" /></svg></a>
+        </div>
+        <button class="menu-button" aria-label="打开导航" aria-expanded="false" aria-controls="mobile-nav"><svg><use href="#icon-menu" /></svg></button>
+      </div>
+      <nav class="mobile-nav" id="mobile-nav" aria-label="移动端导航" hidden>
+        <a href="#market">模型市场</a><a href="#billing">额度与计费</a><a href="#providers">模型提供方</a><a href="#developers">开发者</a>
+        <button class="text-button" data-action="signin">登录</button>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero section-shell" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="section-label"><span class="live-dot"></span>模型调用市场</p>
+          <h1 id="hero-title">AI 能力，<br /><span>按需调用。</span></h1>
+          <p class="hero-description">发现来自不同提供者的模型。充值获得调用额度，按公示价格与计量方式使用；每次调用的用量、费用与余额变化都有记录。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#market">进入模型市场<svg><use href="#icon-arrow" /></svg></a>
+            <button class="button button-quiet" data-open="topup-dialog"><svg><use href="#icon-wallet" /></svg>充值额度</button>
+          </div>
+          <p class="publisher-invitation">拥有模型能力？<a href="#providers">发布到 CodeGuys<svg><use href="#icon-arrow" /></svg></a></p>
+          <div class="hero-footnote"><span>按量使用</span><span>价格透明</span><span>调用有记录</span></div>
+        </div>
+
+        <div class="quote-stage" aria-label="Token 交换中枢交互演示">
+          <div class="stage-topline"><span>TOKEN EXCHANGE / 001</span><span class="demo-chip">交互演示</span></div>
+          <div class="exchange-scene" aria-hidden="true">
+            <div class="scene-glow"></div>
+            <svg class="signal-map" viewBox="-100 0 900 380" fill="none">
+              <defs>
+                <linearGradient id="signal-in" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#78dce8" stop-opacity=".05"/><stop offset=".55" stop-color="#78dce8"/><stop offset="1" stop-color="#ff6347"/></linearGradient>
+                <linearGradient id="signal-out" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ff6347"/><stop offset="1" stop-color="#ffbea8" stop-opacity=".05"/></linearGradient>
+                <radialGradient id="core-glow"><stop stop-color="#ff6347" stop-opacity=".3"/><stop offset="1" stop-color="#ff6347" stop-opacity="0"/></radialGradient>
+              </defs>
+              <g class="grid-plane"><path d="M-70 330H770M-40 280H740M5 230H695M55 180H645M120 130H580M350 20V375M230 30 290 375M470 30 410 375M110 40 240 375M590 40 460 375"/></g>
+              <g class="orbit-ring"><ellipse cx="350" cy="150" rx="138" ry="50" transform="rotate(-22 350 150)"/><ellipse cx="350" cy="150" rx="153" ry="63" transform="rotate(32 350 150)"/></g>
+              <g class="signal-paths">
+                <path id="route-claude" class="signal-path is-active" d="M85 75 266 129 316 142"/>
+                <path id="route-openai" class="signal-path" d="M55 182 247 162 314 151"/>
+                <path id="route-deepseek" class="signal-path" d="M98 284 275 196 324 165"/>
+                <path class="signal-path output-path" d="M385 144 455 110 650 92"/>
+                <path class="signal-path output-path secondary" d="M385 157 475 196 645 226"/>
+              </g>
+              <g class="signal-packets">
+                <rect id="input-signal" width="24" height="2" rx="1"><animateMotion dur="2.8s" repeatCount="indefinite" path="M85 75 266 129 316 142"/></rect>
+                <rect width="20" height="2" rx="1"><animateMotion dur="2.4s" begin=".7s" repeatCount="indefinite" path="M385 144 455 110 650 92"/></rect>
+                <rect width="18" height="2" rx="1"><animateMotion dur="2.6s" begin="1.2s" repeatCount="indefinite" path="M385 157 475 196 645 226"/></rect>
+              </g>
+              <g class="scene-ticks"><path d="M30 28h18M39 19v18M650 328h18M659 319v18M613 170h24M625 158v24"/></g>
+            </svg>
+            <div class="signal-node node-claude"><span>C/</span><div>CLAUDE<small>MODEL INPUT</small></div></div>
+            <div class="signal-node node-openai"><span>O/</span><div>OPENAI<small>MODEL INPUT</small></div></div>
+            <div class="signal-node node-deepseek"><span>D/</span><div>DEEPSEEK<small>MODEL INPUT</small></div></div>
+            <div class="signal-node node-api"><span>↗</span><div>UNIFIED API<small>ONE ENDPOINT</small></div></div>
+            <div class="signal-node node-usage"><span>Σ</span><div>USAGE LEDGER<small>EVERY CALL TRACKED</small></div></div>
+            <div class="exchange-core">
+              <div class="core-aura"></div><div class="core-orbit orbit-a"></div><div class="core-orbit orbit-b"></div>
+              <div class="core-hex"><div><img src="./codeguys-mark.png" alt="" /><span>CODEGUYS</span></div></div>
+              <span class="core-coordinate coord-top">CG / EXCHANGE</span><span class="core-coordinate coord-bottom">TOKENS IN MOTION</span>
+            </div>
+            <div class="scene-readout"><span class="live-dot"></span><span id="scene-model">CLAUDE / CONNECTED</span><span id="scene-tokens">20K → 4K</span></div>
+          </div>
+          <div class="receipt-strip"><span class="receipt-check"><svg><use href="#icon-check" /></svg></span><div><span class="mini-label">CALL RECEIPT / 调用回执</span><p>请求完成，费用进入用量记录</p></div><span class="receipt-status">DEMO · RECORDED</span></div>
+        </div>
+
+        <div class="quote-board" aria-label="模型报价演示控制台">
+          <div class="quote-segment quote-model">
+            <span class="mini-label">SELECT MODEL / 选择调用模型</span>
+            <div class="quote-model-row"><span class="model-monogram" id="quote-monogram">C/</span><div><h2 id="quote-name">Claude Sonnet 4.5</h2><span class="quote-provider" id="quote-provider">Anthropic · 对话与推理</span></div></div>
+            <div class="model-selector" role="group" aria-label="选择报价模型">
+              <button class="model-choice is-selected" data-model="claude" aria-pressed="true"><span>C/</span>Claude</button><button class="model-choice" data-model="openai" aria-pressed="false"><span>O/</span>OpenAI</button><button class="model-choice" data-model="deepseek" aria-pressed="false"><span>D/</span>DeepSeek</button>
+            </div>
+          </div>
+          <div class="quote-segment quote-pricing">
+            <span class="mini-label">PRICE / 1M TOKENS</span>
+            <div class="quote-prices"><div><span>输入</span><strong id="quote-input">¥ 21.60</strong></div><div><span>输出</span><strong id="quote-output">¥ 108.00</strong></div></div>
+          </div>
+          <div class="quote-segment estimate-control">
+            <div class="estimate-label"><label for="token-range">估算一次调用</label><output for="token-range" id="token-output">20K 输入 · 4K 输出</output></div>
+            <input type="range" id="token-range" min="1" max="10" value="4" step="1" aria-valuetext="2 万输入 Token，4 千输出 Token" />
+            <div class="range-labels"><span>轻量请求</span><span>长文本请求</span></div>
+          </div>
+          <div class="quote-segment quote-total">
+            <span class="mini-label">ESTIMATED / 预计调用</span>
+            <div class="quote-total-row"><strong id="quote-total">¥ 0.864</strong><span>实际以返回用量为准</span></div>
+          </div>
+          <button class="button button-primary quote-action" data-scroll="market">探索模型市场<svg><use href="#icon-arrow" /></svg></button>
+        </div>
+      </section>
+
+      <section class="trust-line" aria-label="平台能力"><div class="section-shell"><p>从模型到调用，只保留必要步骤。</p><div><span>多提供方模型</span><span>统一调用入口</span><span>透明用量明细</span><span>模型开放发布</span></div></div></section>
+
+      <section class="market section-shell section-space" id="market" aria-labelledby="market-title">
+        <div class="section-heading split-heading"><div><p class="section-label">模型市场</p><h2 id="market-title">为下一次调用，<br />找到合适的模型。</h2></div><p>比较模型能力、提供者和调用价格，把额度用在适合当前需求的能力上。</p></div>
+        <div class="market-toolbar">
+          <div class="market-filters" role="group" aria-label="筛选模型类别"><button class="filter-button is-active" data-filter="all" aria-pressed="true">全部模型</button><button class="filter-button" data-filter="reasoning" aria-pressed="false">复杂推理</button><button class="filter-button" data-filter="coding" aria-pressed="false">代码开发</button><button class="filter-button" data-filter="efficient" aria-pressed="false">高性价比</button></div>
+          <label class="search-field"><svg><use href="#icon-search" /></svg><input id="model-search" type="search" placeholder="搜索模型或提供方" aria-label="搜索模型或提供方" /></label>
+        </div>
+        <div class="market-table-wrap">
+          <table class="market-table">
+            <thead><tr><th scope="col">模型 / 提供方</th><th scope="col">输入 / 1M Token</th><th scope="col">输出 / 1M Token</th><th scope="col">适用能力</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead>
+            <tbody id="model-list">
+              <tr data-tags="reasoning coding" data-search="claude sonnet 4.5 anthropic"><td><div class="table-model"><span class="model-monogram">C/</span><div><strong>Claude Sonnet 4.5</strong><span>Anthropic</span></div></div></td><td>¥ 21.60</td><td>¥ 108.00</td><td><div class="capability-tags"><span>复杂推理</span><span>代码开发</span></div></td><td><button class="table-action" data-details="claude">查看报价<svg><use href="#icon-chevron" /></svg></button></td></tr>
+              <tr data-tags="reasoning coding" data-search="gpt 5.2 openai"><td><div class="table-model"><span class="model-monogram">O/</span><div><strong>GPT-5.2</strong><span>OpenAI</span></div></div></td><td>¥ 12.50</td><td>¥ 100.00</td><td><div class="capability-tags"><span>复杂推理</span><span>代码开发</span></div></td><td><button class="table-action" data-details="openai">查看报价<svg><use href="#icon-chevron" /></svg></button></td></tr>
+              <tr data-tags="coding efficient" data-search="deepseek v3.2 deepseek"><td><div class="table-model"><span class="model-monogram">D/</span><div><strong>DeepSeek V3.2</strong><span>DeepSeek</span></div></div></td><td>¥ 2.00</td><td>¥ 3.00</td><td><div class="capability-tags"><span>高性价比</span><span>代码开发</span></div></td><td><button class="table-action" data-details="deepseek">查看报价<svg><use href="#icon-chevron" /></svg></button></td></tr>
+              <tr data-tags="efficient reasoning" data-search="gemini 3 pro google"><td><div class="table-model"><span class="model-monogram">G/</span><div><strong>Gemini 3 Pro</strong><span>Google</span></div></div></td><td>¥ 14.20</td><td>¥ 85.20</td><td><div class="capability-tags"><span>多模态</span><span>复杂推理</span></div></td><td><button class="table-action" data-details="gemini">查看报价<svg><use href="#icon-chevron" /></svg></button></td></tr>
+            </tbody>
+          </table>
+          <div class="market-empty" id="market-empty" hidden><p>没有匹配的模型</p><button class="text-button" id="clear-search">清除筛选</button></div>
+        </div>
+        <div class="market-caption"><p><span class="demo-dot"></span>当前为静态演示报价，实际接入后读取模型广场真实数据。</p><button class="inline-link" data-action="all-models">查看全部模型与价格<svg><use href="#icon-arrow" /></svg></button></div>
+      </section>
+
+      <section class="billing-section section-space" id="billing" aria-labelledby="billing-title">
+        <div class="section-shell">
+          <div class="section-heading split-heading"><div><p class="section-label">额度与计费</p><h2 id="billing-title">充值一次，<br />按量使用。</h2></div><p>不同模型可按 Token、请求次数或其他方式计费。具体价格与计量单位，以模型详情为准。</p></div>
+          <div class="billing-flow">
+            <div class="flow-copy"><span class="flow-verb">充值</span><h3>额度进入账户</h3><p>选择金额完成充值，余额用于支付模型调用。</p></div><div class="flow-connector" aria-hidden="true"></div>
+            <div class="flow-copy"><span class="flow-verb">调用</span><h3>按模型规则计量</h3><p>Token、请求或其他用量按公示规则计算。</p></div><div class="flow-connector" aria-hidden="true"></div>
+            <div class="flow-copy"><span class="flow-verb">记录</span><h3>每笔消耗可追溯</h3><p>查看模型、用量、费用和余额变化。</p></div>
+          </div>
+          <div class="wallet-demo">
+            <div class="wallet-balance"><div class="wallet-title"><svg><use href="#icon-wallet" /></svg><span>账户额度</span><span class="demo-chip">演示账户</span></div><strong>¥ 200.00</strong><p>充值不是购买固定数量的 Token，实际可用量随所选模型与计费规则变化。</p><button class="button button-primary" data-open="topup-dialog">充值额度<svg><use href="#icon-plus" /></svg></button></div>
+            <div class="usage-ledger"><div class="ledger-heading"><h3>调用回执</h3><span>示例记录</span></div><dl><div><dt>调用模型</dt><dd>Claude Sonnet 4.5</dd></div><div><dt>输入用量</dt><dd>20,000 Token</dd></div><div><dt>输出用量</dt><dd>4,000 Token</dd></div><div class="ledger-total"><dt>本次费用</dt><dd>¥ 0.864</dd></div></dl><div class="ledger-footer"><span class="receipt-check"><svg><use href="#icon-check" /></svg></span>计费规则以模型详情与实际返回用量为准</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="providers section-shell section-space" id="providers" aria-labelledby="providers-title">
+        <div class="section-heading split-heading"><div><p class="section-label">模型提供方</p><h2 id="providers-title">把你的模型，<br />带到市场中。</h2></div><div><p>接入模型、完善介绍与调用价格，发布给 CodeGuys 用户。让模型成为可被购买和使用的服务。</p><button class="inline-link" data-open="publish-dialog">了解发布流程<svg><use href="#icon-arrow" /></svg></button></div></div>
+        <div class="provider-journey">
+          <button class="journey-step is-active" data-step="connect" aria-pressed="true"><span class="step-marker"></span><span class="step-name">接入模型</span><span class="step-caption">连接已有模型服务</span></button>
+          <button class="journey-step" data-step="describe" aria-pressed="false"><span class="step-marker"></span><span class="step-name">描述能力</span><span class="step-caption">让用户知道何时选择</span></button>
+          <button class="journey-step" data-step="price" aria-pressed="false"><span class="step-marker"></span><span class="step-name">配置价格</span><span class="step-caption">明确价格与计量单位</span></button>
+          <button class="journey-step" data-step="publish" aria-pressed="false"><span class="step-marker"></span><span class="step-name">开放调用</span><span class="step-caption">发布给市场用户</span></button>
+        </div>
+        <div class="provider-detail">
+          <div class="provider-story"><p class="section-label" id="journey-label">从已有能力开始</p><h3 id="journey-title">把模型带到统一的调用入口。</h3><p id="journey-description">连接你的模型服务，填写接口和能力信息。发布前检查可用性，让用户能够稳定找到并调用它。</p><button class="button button-dark" data-open="publish-dialog">发布模型<svg><use href="#icon-arrow" /></svg></button></div>
+          <div class="listing-preview"><div class="listing-top"><span class="demo-chip">模型页预览</span><span class="listing-state" id="listing-state">接入配置</span></div><div class="listing-model"><span class="model-monogram">Y/</span><div><h3 id="listing-name">你的模型</h3><p id="listing-provider">你的团队 · 模型提供方</p></div></div><p class="listing-description" id="listing-description">用清晰的一句话，说明模型最擅长解决什么问题。</p><div class="listing-data"><div><span>能力标签</span><strong id="listing-tags">等待填写</strong></div><div><span>调用价格</span><strong id="listing-price">等待配置</strong></div><div><span>开放状态</span><strong id="listing-status">尚未发布</strong></div></div></div>
+        </div>
+        <p class="provider-note">具体发布权限、定价规则、收益分配与结算方式，以正式提供者协议为准。</p>
+      </section>
+
+      <section class="developer-section section-space" id="developers" aria-labelledby="developer-title"><div class="section-shell developer-grid"><div class="developer-copy"><p class="section-label">开发者</p><h2 id="developer-title">选好模型，<br />一次调用就能开始。</h2><p>使用账户 API 密钥，通过兼容接口调用市场中的模型。替换 Base URL、选择模型并发送请求，用量与费用进入账户记录。</p><a class="inline-link" href="#code-example">查看调用示例<svg><use href="#icon-arrow" /></svg></a></div><div class="code-example" id="code-example"><div class="code-top"><span>调用示例</span><button class="copy-button" data-copy="code"><svg><use href="#icon-copy" /></svg><span>复制</span></button></div><pre><code id="code-snippet"><span class="code-muted">curl</span> https://api.codeguys.example/v1/chat/completions \
+  -H <span class="code-string">"Authorization: Bearer $CODEGUYS_KEY"</span> \
+  -H <span class="code-string">"Content-Type: application/json"</span> \
+  -d <span class="code-string">'{
+    "model": "your-model",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'</span></code></pre><div class="code-footer"><span class="live-dot"></span>示例地址与模型名 · 请替换为实际配置</div></div></div></section>
+
+      <section class="closing section-shell section-space" aria-labelledby="closing-title"><p class="section-label">CodeGuys 模型调用市场</p><h2 id="closing-title">需要模型，直接调用。<br />拥有模型，开放调用。</h2><div class="closing-actions"><a class="button button-primary" href="#market">进入模型市场<svg><use href="#icon-arrow" /></svg></a><button class="button button-quiet" data-open="publish-dialog">发布模型</button></div></section>
+    </main>
+
+    <footer class="site-footer"><div class="section-shell footer-inner"><a class="brand" href="#top"><img src="./codeguys.png" alt="" /><span>CodeGuys.</span></a><p>模型、额度与每一次调用，清楚可见。</p><a class="codey-link" href="#codey" id="codey"><img src="./codey-mark.svg" alt="" /><span><strong>CodeY</strong><small>CodeGuys 旗下产品</small></span><svg><use href="#icon-arrow" /></svg></a></div><div class="section-shell footer-bottom"><span>高保真交互原型 · 2026</span><span>所有价格、模型名称、余额及用量仅为设计演示，非实时服务承诺。</span></div></footer>
+
+    <dialog class="modal topup-modal" id="topup-dialog" aria-labelledby="topup-title"><div class="modal-header"><div><p class="section-label">额度与计费</p><h2 id="topup-title">充值调用额度</h2></div><button class="icon-button" data-close aria-label="关闭充值弹窗"><svg><use href="#icon-close" /></svg></button></div><div class="modal-body"><div class="demo-notice">这是交互演示，不会发起真实支付。</div><div class="topup-balance"><span>当前演示余额</span><strong id="modal-balance">¥ 200.00</strong></div><fieldset class="amount-options"><legend>选择充值金额</legend><button type="button" data-amount="50" aria-pressed="false">¥ 50</button><button type="button" data-amount="100" class="is-selected" aria-pressed="true">¥ 100</button><button type="button" data-amount="200" aria-pressed="false">¥ 200</button><button type="button" data-amount="500" aria-pressed="false">¥ 500</button></fieldset><div class="conversion-note"><span>充值后获得</span><strong id="topup-credit">¥ 100.00 调用额度</strong><p>不同模型消耗速度不同，请在调用前查看模型价格与计量单位。</p></div><button class="button button-primary modal-primary" id="demo-payment">确认演示充值</button><p class="modal-footnote">实际支付渠道、折扣、有效期和退款规则以正式产品为准。</p></div></dialog>
+
+    <dialog class="modal publish-modal" id="publish-dialog" aria-labelledby="publish-title"><div class="modal-header"><div><p class="section-label">模型提供方</p><h2 id="publish-title">让模型被市场看见</h2></div><button class="icon-button" data-close aria-label="关闭发布弹窗"><svg><use href="#icon-close" /></svg></button></div><div class="modal-body"><ol class="publish-steps"><li><span>1</span><div><h3>连接模型服务</h3><p>填写模型接口与基本信息，检查服务可用性。</p></div></li><li><span>2</span><div><h3>完善介绍与计费</h3><p>说明适用场景、能力标签、价格和计量单位。</p></div></li><li><span>3</span><div><h3>检查并开放调用</h3><p>确认模型页信息，按照平台规则发布。</p></div></li></ol><div class="demo-notice">自助发布入口、审核流程、收益分配与结算规则需以正式产品能力为准。</div><button class="button button-primary modal-primary" data-close>了解发布流程</button></div></dialog>
+
+    <dialog class="modal model-modal" id="model-dialog" aria-labelledby="detail-title"><div class="modal-header"><div><p class="section-label">模型演示报价</p><h2 id="detail-title">模型详情</h2></div><button class="icon-button" data-close aria-label="关闭模型详情"><svg><use href="#icon-close" /></svg></button></div><div class="modal-body"><p id="detail-description" class="detail-description"></p><div class="detail-price-grid"><div><span>输入 / 1M Token</span><strong id="detail-input"></strong></div><div><span>输出 / 1M Token</span><strong id="detail-output"></strong></div></div><div class="demo-notice">演示报价，不代表当前线上价格。实际能力、计费方式和可用性以模型详情为准。</div><button class="button button-primary modal-primary" data-close data-open-next="topup-dialog">充值后调用</button></div></dialog>
+
+    <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden><span class="receipt-check"><svg><use href="#icon-check" /></svg></span><span id="toast-message"></span></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
 import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import { GatewayRoutes } from '../gateway-routes'
@@ -26,6 +27,21 @@ import { RouteLine } from '../route-line'
 import { Features } from '../sections/features'
 import { HowItWorks } from '../sections/how-it-works'
 import { Stats } from '../sections/stats'
+
+vi.mock('@/features/pricing/hooks/use-pricing-data', () => ({
+  usePricingData: vi.fn(),
+}))
+
+const usePricingDataMock = vi.mocked(usePricingData)
+
+// Stats reads its numbers from the live pricing payload; tests pin a fixture.
+function setMarketData(models: number, vendors: number, isLoading = false) {
+  usePricingDataMock.mockReturnValue({
+    models: Array.from({ length: models }, (_, i) => ({ id: i })),
+    vendors: Array.from({ length: vendors }, (_, i) => ({ id: i })),
+    isLoading,
+  } as unknown as ReturnType<typeof usePricingData>)
+}
 
 /**
  * The homepage motion has one rule: reduced motion shows the finished frame.
@@ -228,16 +244,27 @@ describe('the route line', () => {
 })
 
 describe('the numbers the line reaches', () => {
-  it('shows the final stat straight away when motion is reduced', () => {
+  it('shows the resolved market counts straight away when motion is reduced', () => {
+    setMarketData(120, 40)
     render(<Stats />)
 
-    expect(screen.getAllByText('50+')).toHaveLength(2)
-    expect(screen.getByText('100+')).toBeInTheDocument()
-    expect(screen.getByText('10+')).toBeInTheDocument()
+    expect(screen.getByText('40+')).toBeInTheDocument()
+    expect(screen.getByText('120+')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.queryByText('0+')).not.toBeInTheDocument()
+  })
+
+  it('shows a placeholder until the market data resolves', () => {
+    setMarketData(0, 0, true)
+    render(<Stats />)
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     expect(screen.queryByText('0+')).not.toBeInTheDocument()
   })
 
   it('holds a stat at zero until the line reaches it', () => {
+    setMarketData(120, 40)
     vi.stubGlobal(
       'matchMedia',
       (query: string): MediaQueryList =>
@@ -252,10 +279,10 @@ describe('the numbers the line reaches', () => {
 
     const stat = screen.getAllByText('0+')[0]
     expect(stat).toHaveAttribute('data-route-mark')
-    expect(screen.queryByText('50+')).not.toBeInTheDocument()
+    expect(screen.queryByText('40+')).not.toBeInTheDocument()
 
     stat.setAttribute('data-reached', '')
-    return screen.findByText('50+').then((counted) => {
+    return screen.findByText('40+').then((counted) => {
       expect(counted).toBe(stat)
     })
   })

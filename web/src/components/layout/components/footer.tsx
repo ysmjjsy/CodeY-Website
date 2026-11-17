@@ -27,6 +27,8 @@ import { cn } from '@/lib/utils'
 interface FooterLink {
   text: string
   href: string
+  /** TanStack Router params for routes like /docs/$section. */
+  params?: Record<string, string>
 }
 
 interface FooterColumnProps {
@@ -40,6 +42,9 @@ interface FooterProps {
   columns?: FooterColumnProps[]
   copyright?: string
   className?: string
+  /** Optional product/CTA card rendered on the right end of the brand row
+   * (the CodeY card on the marketing homepage). */
+  ctaCard?: React.ReactNode
 }
 
 const CODEGUYS_REPOSITORY_URL = 'https://github.com/ysmjjsy/CodeY-Website'
@@ -59,6 +64,20 @@ function FooterLinkItem(props: { link: FooterLink }) {
       >
         {label}
       </a>
+    )
+  }
+
+  if (props.link.params) {
+    return (
+      <Link
+        // Parametric footer links use a route pattern + params object; the
+        // cast keeps the loose string href working like the plain links.
+        to={props.link.href as string}
+        params={props.link.params as Record<string, string>}
+        className='text-muted-foreground hover:text-foreground text-sm transition-colors duration-200'
+      >
+        {label}
+      </Link>
     )
   }
 
@@ -228,8 +247,9 @@ export function Footer(props: FooterProps) {
             </p>
           </div>
 
-          {/* Links columns */}
-          {isDemoSiteMode && (
+          {/* Links columns — shown when the site opts into the link grid
+             (demo flag on, or an explicit columns prop on the homepage). */}
+          {(isDemoSiteMode || props.columns) && displayColumns.length > 0 && (
             <div className='grid grid-cols-3 gap-8 md:gap-16'>
               {displayColumns.map((column) => (
                 <div key={column.title}>
@@ -247,6 +267,8 @@ export function Footer(props: FooterProps) {
               ))}
             </div>
           )}
+
+          {props.ctaCard}
         </div>
 
         {/* Copyright and optional legal links. */}

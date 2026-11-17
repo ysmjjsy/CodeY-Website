@@ -21,6 +21,7 @@ For commercial licensing, please contact support@quantumnous.com
 @import 'shadcn/tailwind.css';
 @import './theme.css';
 @import './theme-presets.css';
+@import './token-market.css';
 
 @layer base {
   :root {

@@ -25,9 +25,15 @@ import {
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
+
 import { CTA } from '../sections/cta'
 import { Hero } from '../sections/hero'
 import { Stats } from '../sections/stats'
+
+vi.mock('@/features/pricing/hooks/use-pricing-data', () => ({
+  usePricingData: vi.fn(),
+}))
 
 /**
  * The homepage background is three layers: coordinate paper behind the hero
@@ -70,8 +76,10 @@ describe('the homepage background', () => {
     expect(section?.className).toContain('overflow-hidden')
 
     // Two open arcs, centers off the page, drawn in the border color and
-    // never filled. They live only in the hero.
-    const arcs = section?.querySelectorAll('circle') ?? []
+    // never filled. They live only in the hero's decorative svg; the copy's
+    // buttons can render their own <circle> icons, so scope to that svg.
+    const arcsSvg = section?.querySelector('svg.text-border')
+    const arcs = arcsSvg?.querySelectorAll('circle') ?? []
     expect(arcs).toHaveLength(2)
     for (const arc of arcs) {
       expect(arc.getAttribute('fill')).not.toBe('currentColor')
@@ -85,6 +93,11 @@ describe('the homepage background', () => {
   })
 
   it('raises the stats band off the page background', () => {
+    vi.mocked(usePricingData).mockReturnValue({
+      models: [],
+      vendors: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof usePricingData>)
     const { container } = render(<Stats />)
     const band = container.firstElementChild
 

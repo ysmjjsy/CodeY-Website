@@ -18,6 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from '@tanstack/react-router'
+import { ArrowRight } from 'lucide-react'
 
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
@@ -26,8 +28,7 @@ import { useTheme } from '@/context/theme-provider'
 import { isLikelyHtml } from '@/lib/content-format'
 import { useAuthStore } from '@/stores/auth-store'
 
-import { CTA, Features, Hero, HowItWorks, Products, Stats } from './components'
-import { RouteLine } from './components/route-line'
+import { TokenMarketHome } from './components/tm/token-market-home'
 import { useHomePageContent } from './hooks'
 
 export function Home() {
@@ -123,14 +124,52 @@ export function Home() {
 
   return (
     <PublicLayout showMainContainer={false}>
-      <RouteLine />
-      <Hero isAuthenticated={isAuthenticated} />
-      <Stats />
-      <Features />
-      <HowItWorks />
-      <Products />
-      <CTA isAuthenticated={isAuthenticated} />
-      <Footer />
+      <TokenMarketHome isAuthenticated={isAuthenticated} />
+      <Footer
+        columns={[
+          {
+            title: 'Product',
+            links: [
+              { text: 'Model market', href: '/pricing' },
+              { text: 'Rankings', href: '/rankings' },
+            ],
+          },
+          {
+            title: 'Developers',
+            links: [
+              { text: 'API docs', href: '/docs' },
+              {
+                text: 'Quick start',
+                href: '/docs/$section',
+                params: { section: 'getting-started' },
+              },
+            ],
+          },
+          {
+            title: 'About',
+            links: [
+              { text: 'About', href: '/about' },
+              { text: 'User Agreement', href: '/user-agreement' },
+              { text: 'Privacy Policy', href: '/privacy-policy' },
+            ],
+          },
+        ]}
+        ctaCard={
+          <Link to='/products/codey' className='tm-codey-card group'>
+            <img src='/codey-mark.svg' alt='' className='size-8' />
+            <span className='flex min-w-0 flex-col'>
+              <strong className='text-sm font-semibold'>CodeY</strong>
+              <small className='text-muted-foreground/60 text-xs'>
+                {t('CodeGuys product family')}
+              </small>
+            </span>
+            <ArrowRight
+              className='text-muted-foreground/50 ml-auto size-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground'
+              aria-hidden='true'
+            />
+          </Link>
+        }
+      />
     </PublicLayout>
   )
 }

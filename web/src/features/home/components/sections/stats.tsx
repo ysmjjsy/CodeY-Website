@@ -19,9 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { usePricingData } from '@/features/pricing/hooks/use-pricing-data'
+
 interface CounterProps {
   end: number
   suffix?: string
+  /** True once the backing data has resolved; counting only runs then. */
+  ready: boolean
 }
 
 /**
@@ -30,13 +34,13 @@ interface CounterProps {
  * number shows its final value straight away, which is the finished frame.
  */
 function Counter(props: CounterProps) {
-  const { end, suffix = '' } = props
+  const { end, suffix = '', ready } = props
   const ref = useRef<HTMLSpanElement>(null)
   const startedRef = useRef(false)
 
   const animate = useCallback(() => {
     const el = ref.current
-    if (!el || startedRef.current) return
+    if (!el || startedRef.current || !ready) return
     startedRef.current = true
     const duration = 900
     const start = performance.now()
@@ -47,11 +51,11 @@ function Counter(props: CounterProps) {
       if (progress < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
-  }, [end, suffix])
+  }, [end, suffix, ready])
 
   useEffect(() => {
     const el = ref.current
-    if (!el) return
+    if (!el || !ready) return
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       el.textContent = `${end}${suffix}`
@@ -70,11 +74,11 @@ function Counter(props: CounterProps) {
     })
     if (el.hasAttribute('data-reached')) animate()
     return () => observer.disconnect()
-  }, [animate, end, suffix])
+  }, [animate, end, suffix, ready])
 
   return (
     <span ref={ref} data-route-mark className='tabular-nums'>
-      0{suffix}
+      {ready ? `0${suffix}` : '—'}
     </span>
   )
 }
@@ -91,12 +95,34 @@ interface StatItem {
 
 export function Stats(_props: StatsProps) {
   const { t } = useTranslation()
+  const { models, vendors, isLoading } = usePricingData()
+
+  // Market-angle numbers from the live pricing payload.
+  const ready = !isLoading
+  const providerCount = vendors.length
+  const modelCount = models.length
 
   const stats: StatItem[] = [
-    { end: 50, suffix: '+', label: t('upstream services integrated') },
-    { end: 100, suffix: '+', label: t('model billing support') },
-    { end: 50, suffix: '+', label: t('compatible API routes') },
-    { end: 10, suffix: '+', label: t('scheduling controls') },
+    {
+      end: providerCount,
+      suffix: '+',
+      label: t('providers in the market'),
+    },
+    {
+      end: modelCount,
+      suffix: '+',
+      label: t('models listed & priced'),
+    },
+    {
+      end: 1,
+      suffix: '',
+      label: t('balance to pay for them all'),
+    },
+    {
+      end: 100,
+      suffix: '%',
+      label: t('of calls logged & billed'),
+    },
   ]
 
   return (
@@ -113,7 +139,7 @@ export function Stats(_props: StatsProps) {
               }
             >
               <span className='font-mono text-3xl font-semibold tracking-tight md:text-4xl'>
-                <Counter end={s.end} suffix={s.suffix} />
+                <Counter end={s.end} suffix={s.suffix} ready={ready} />
               </span>
               <span
                 aria-hidden='true'
