@@ -218,7 +218,7 @@ it('requests channel models and distinguishes catalog policy from availability u
   const warning = screen
     .getAllByText('Unavailable')[0]
     .closest('[data-slot="status-badge"]')
-  expect(warning).toHaveClass('text-warning')
+  expect(warning).toHaveClass('text-warning-strong')
   expect(warning?.querySelector('svg')).toBeInTheDocument()
   expect(warning).not.toHaveClass('text-success')
   expect(screen.getAllByText('Missing metadata')).toHaveLength(2)
@@ -429,7 +429,7 @@ it('uses backend square states for success, warning, hidden, and partial rows in
   expect(screen.getByRole('button', { name: 'Display policy' })).toBeVisible()
   for (const label of ['Unavailable', 'Partly shown']) {
     const badge = screen.getByText(label).closest('[data-slot="status-badge"]')
-    expect(badge).toHaveClass('text-warning')
+    expect(badge).toHaveClass('text-warning-strong')
     expect(badge?.querySelector('svg')).toBeInTheDocument()
     expect(badge).not.toHaveClass('text-success')
   }
@@ -437,7 +437,7 @@ it('uses backend square states for success, warning, hidden, and partial rows in
   expect(displayed).toHaveLength(2)
   for (const label of displayed) {
     expect(label.closest('[data-slot="status-badge"]')).toHaveClass(
-      'text-success'
+      'text-success-strong'
     )
   }
   const hidden = screen.getAllByText('Listing hidden')

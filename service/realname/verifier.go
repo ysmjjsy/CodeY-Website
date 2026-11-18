@@ -23,7 +23,7 @@ const (
 	// CurrentConsentVersion names the consent text a submission agreed to. It
 	// changed when purchases started to require verification, because the
 	// earlier text only covered seller eligibility.
-	CurrentConsentVersion = "2026-11-18.2"
+	CurrentConsentVersion = "2026-11-18.3"
 )
 
 var (

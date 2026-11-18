@@ -170,7 +170,7 @@ export function TaskDetailsDialog(props: TaskDetailsDialogProps) {
             icon={
               <HugeiconsIcon
                 icon={Shield01Icon}
-                className='size-3.5 text-blue-500'
+                className='text-info size-3.5'
                 strokeWidth={2}
               />
             }
@@ -233,7 +233,7 @@ export function TaskDetailsDialog(props: TaskDetailsDialogProps) {
             icon={
               <HugeiconsIcon
                 icon={Wrench01Icon}
-                className='size-3.5 text-amber-500'
+                className='text-warning size-3.5'
                 strokeWidth={2}
               />
             }

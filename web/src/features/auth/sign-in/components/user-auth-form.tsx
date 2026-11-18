@@ -393,13 +393,14 @@ export function UserAuthForm({
                   </FormControl>
                   <FormMessage />
                   {onForgotPassword ? (
-                    <button
+                    <Button
                       type='button'
-                      className='text-muted-foreground absolute end-0 -top-0.5 z-10 text-sm font-medium hover:opacity-75'
+                      variant='link'
+                      className='text-muted-foreground hover:text-foreground absolute end-0 -top-0.5 z-10 h-auto p-0 text-sm font-medium'
                       onClick={onForgotPassword}
                     >
                       {t('Forgot password?')}
-                    </button>
+                    </Button>
                   ) : (
                     <Link
                       to='/forgot-password'

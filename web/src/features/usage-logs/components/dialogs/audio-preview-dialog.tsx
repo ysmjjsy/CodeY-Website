@@ -16,11 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ExternalLink, Copy, Music } from 'lucide-react'
+import { ExternalLink, Music } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -107,18 +107,15 @@ function AudioClipCard({ clip }: { clip: AudioClip }) {
               <ExternalLink className='h-3 w-3' />
               {t('Open in new tab')}
             </Button>
-            <Button
+            <CopyButton
+              value={audioUrl}
               variant='outline'
               size='sm'
               className='h-7 gap-1 text-xs'
-              onClick={() => {
-                navigator.clipboard.writeText(audioUrl)
-                toast.success(t('Copied'))
-              }}
+              iconClassName='h-3 w-3'
             >
-              <Copy className='h-3 w-3' />
               {t('Copy Link')}
-            </Button>
+            </CopyButton>
           </div>
         ) : (
           <audio

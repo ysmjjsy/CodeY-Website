@@ -52,6 +52,8 @@ const headerNavSchema = z.object({
   home: z.boolean(),
   console: z.boolean(),
   products: z.boolean(),
+  subscription: z.boolean(),
+  market: z.boolean(),
   pricingEnabled: z.boolean(),
   pricingRequireAuth: z.boolean(),
   rankingsEnabled: z.boolean(),
@@ -78,6 +80,14 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
     config.products === undefined
       ? HEADER_NAV_DEFAULT.products
       : Boolean(config.products),
+  subscription:
+    config.subscription === undefined
+      ? HEADER_NAV_DEFAULT.subscription
+      : Boolean(config.subscription),
+  market:
+    config.market === undefined
+      ? HEADER_NAV_DEFAULT.market
+      : Boolean(config.market),
   pricingEnabled:
     config.pricing?.enabled === undefined
       ? HEADER_NAV_DEFAULT.pricing.enabled
@@ -125,6 +135,8 @@ export function HeaderNavigationSection({
       home: values.home,
       console: values.console,
       products: values.products,
+      subscription: values.subscription,
+      market: values.market,
       docs: values.docs,
       about: values.about,
       pricing: {
@@ -173,6 +185,16 @@ export function HeaderNavigationSection({
       key: 'products',
       title: t('Products'),
       description: t('The products built on the gateway, starting with CodeY.'),
+    },
+    {
+      key: 'subscription',
+      title: t('Subscription'),
+      description: t('Public subscription plans page.'),
+    },
+    {
+      key: 'market',
+      title: t('Token market'),
+      description: t('Public token package marketplace.'),
     },
     {
       key: 'docs',

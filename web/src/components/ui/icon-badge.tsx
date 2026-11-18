@@ -28,9 +28,9 @@ const iconBadgeVariants = cva(
       tone: {
         neutral: 'bg-muted text-muted-foreground',
         primary: 'bg-primary/10 text-primary',
-        success: 'bg-success/10 text-success',
-        warning: 'bg-warning/10 text-warning',
-        info: 'bg-info/10 text-info',
+        success: 'bg-success/10 text-success-strong',
+        warning: 'bg-warning/10 text-warning-strong',
+        info: 'bg-info/10 text-info-strong',
         destructive: 'bg-destructive/10 text-destructive',
         'chart-1': 'bg-chart-1/10 text-chart-1',
         'chart-2': 'bg-chart-2/10 text-chart-2',

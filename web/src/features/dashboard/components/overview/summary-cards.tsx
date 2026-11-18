@@ -338,7 +338,7 @@ export function SummaryCards() {
                   className={cn(
                     'mt-1.5 truncate text-xs font-semibold tabular-nums',
                     healthLevel === 'critical' && 'text-destructive',
-                    healthLevel === 'caution' && 'text-warning'
+                    healthLevel === 'caution' && 'text-warning-strong'
                   )}
                 >
                   {runwayDisplay}
@@ -350,10 +350,7 @@ export function SummaryCards() {
           <Button
             className='justify-between'
             render={
-              <Link
-                to='/account/$section'
-                params={{ section: 'wallet' }}
-              />
+              <Link to='/account/$section' params={{ section: 'wallet' }} />
             }
           >
             <span>{t('Wallet')}</span>

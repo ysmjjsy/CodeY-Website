@@ -37,7 +37,7 @@ export const Connection: ConnectionLineComponent = ({
     <circle
       cx={toX}
       cy={toY}
-      fill='#fff'
+      fill='var(--background)'
       r={3}
       stroke='var(--color-ring)'
       strokeWidth={1}

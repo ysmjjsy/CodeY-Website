@@ -28,15 +28,20 @@ type pluginLoginCallbackRequest struct {
 	Params map[string]string `json:"params"`
 }
 
-// pluginLoginIdentity is the administrator session a login flow belongs to:
-// a browser session, or a scoped access token with its own session.
-func pluginLoginIdentity(c *gin.Context) (service.PluginLoginIdentity, bool) {
+// pluginLoginIdentity is the session a login flow belongs to: a browser
+// session, or a scoped access token with its own session. ownerScoped limits
+// the flow to a channel owned by the caller.
+func pluginLoginIdentity(c *gin.Context, ownerScoped bool) (service.PluginLoginIdentity, bool) {
 	identity, ok := middleware.GetStepUpIdentity(c)
 	if !ok {
 		writeSecurityOperationError(c, service.ErrAuthTokenInvalid)
 		return service.PluginLoginIdentity{}, false
 	}
-	return service.PluginLoginIdentity{UserID: identity.UserID, SessionID: identity.SessionID}, true
+	loginIdentity := service.PluginLoginIdentity{UserID: identity.UserID, SessionID: identity.SessionID}
+	if ownerScoped {
+		loginIdentity.OwnerUserID = c.GetInt("id")
+	}
+	return loginIdentity, true
 }
 
 func pluginLoginChannelID(c *gin.Context) (int, bool) {
@@ -49,26 +54,28 @@ func pluginLoginChannelID(c *gin.Context) (int, bool) {
 }
 
 // finishPluginLogin answers a login call; a done step stored a credential, so
-// the channel cache is reloaded and the change is audited.
+// the channel cache is reloaded. Administrator logins keep their audit entry;
+// seller logins are ordinary owner operations.
 func finishPluginLogin(c *gin.Context, result service.PluginLoginResult, data gin.H) {
 	if credential := result.Step.Credential; credential != nil {
 		model.InitChannelCache()
-		recordManageAudit(c, "channel.update", map[string]any{
-			"id":             result.ChannelID,
-			"name":           result.ChannelName,
-			"changed_fields": []string{"key"},
-			"source":         "plugin_login",
-			"label":          credential.Label,
-			"account_id":     credential.AccountID,
-		})
+		if c.GetInt("role") >= common.RoleAdminUser {
+			recordManageAudit(c, "channel.update", map[string]any{
+				"id":             result.ChannelID,
+				"name":           result.ChannelName,
+				"changed_fields": []string{"key"},
+				"source":         "plugin_login",
+				"label":          credential.Label,
+				"account_id":     credential.AccountID,
+			})
+		}
 	}
 	data["step"] = result.Step
 	common.ApiSuccess(c, data)
 }
 
-// StartPluginLogin opens a plugin login flow on a channel.
-func StartPluginLogin(c *gin.Context) {
-	identity, ok := pluginLoginIdentity(c)
+func startPluginLogin(c *gin.Context, ownerScoped bool) {
+	identity, ok := pluginLoginIdentity(c, ownerScoped)
 	if !ok {
 		return
 	}
@@ -89,9 +96,18 @@ func StartPluginLogin(c *gin.Context) {
 	finishPluginLogin(c, result, gin.H{"flow": result.Flow})
 }
 
-// ContinuePluginLogin submits the browser's input to a login flow.
-func ContinuePluginLogin(c *gin.Context) {
-	identity, ok := pluginLoginIdentity(c)
+// StartPluginLogin opens a plugin login flow on an administrator channel.
+func StartPluginLogin(c *gin.Context) {
+	startPluginLogin(c, false)
+}
+
+// StartUserPluginLogin opens a plugin login flow on a seller-owned channel.
+func StartUserPluginLogin(c *gin.Context) {
+	startPluginLogin(c, true)
+}
+
+func continuePluginLogin(c *gin.Context, ownerScoped bool) {
+	identity, ok := pluginLoginIdentity(c, ownerScoped)
 	if !ok {
 		return
 	}
@@ -112,10 +128,18 @@ func ContinuePluginLogin(c *gin.Context) {
 	finishPluginLogin(c, result, gin.H{})
 }
 
-// CompletePluginLoginCallback receives the query of the vendor's redirect to
-// a plugin's callback page.
-func CompletePluginLoginCallback(c *gin.Context) {
-	identity, ok := pluginLoginIdentity(c)
+// ContinuePluginLogin submits the browser's input to an administrator flow.
+func ContinuePluginLogin(c *gin.Context) {
+	continuePluginLogin(c, false)
+}
+
+// ContinueUserPluginLogin submits the browser's input to a seller flow.
+func ContinueUserPluginLogin(c *gin.Context) {
+	continuePluginLogin(c, true)
+}
+
+func completePluginLoginCallback(c *gin.Context, ownerScoped bool) {
+	identity, ok := pluginLoginIdentity(c, ownerScoped)
 	if !ok {
 		return
 	}
@@ -132,11 +156,26 @@ func CompletePluginLoginCallback(c *gin.Context) {
 	finishPluginLogin(c, result, gin.H{"channel_id": result.ChannelID})
 }
 
-// GetPluginCredentials lists a channel's credentials without their secrets.
-func GetPluginCredentials(c *gin.Context) {
+// CompletePluginLoginCallback receives an administrator flow callback.
+func CompletePluginLoginCallback(c *gin.Context) {
+	completePluginLoginCallback(c, false)
+}
+
+// CompleteUserPluginLoginCallback receives a seller flow callback.
+func CompleteUserPluginLoginCallback(c *gin.Context) {
+	completePluginLoginCallback(c, true)
+}
+
+func getPluginCredentials(c *gin.Context, ownerScoped bool) {
 	channelID, ok := pluginLoginChannelID(c)
 	if !ok {
 		return
+	}
+	if ownerScoped {
+		if _, err := model.GetChannelForOwner(channelID, c.GetInt("id")); err != nil {
+			common.ApiError(c, model.ErrChannelNotFound)
+			return
+		}
 	}
 	channel, err := model.GetChannelById(channelID, true)
 	if err != nil {
@@ -144,4 +183,14 @@ func GetPluginCredentials(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{"items": service.PluginCredentialViews(channel)})
+}
+
+// GetPluginCredentials lists an administrator channel's credential summaries.
+func GetPluginCredentials(c *gin.Context) {
+	getPluginCredentials(c, false)
+}
+
+// GetUserPluginCredentials lists a seller-owned channel's credential summaries.
+func GetUserPluginCredentials(c *gin.Context) {
+	getPluginCredentials(c, true)
 }

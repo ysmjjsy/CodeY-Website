@@ -33,9 +33,9 @@ export function GroupMultiplierBadge(props: {
   let colorClassName =
     'border-muted-foreground/30 bg-muted text-muted-foreground'
   if (props.ratio != null && props.ratio > 1) {
-    colorClassName = 'border-warning/30 bg-warning/10 text-warning'
+    colorClassName = 'border-warning/30 bg-warning/10 text-warning-strong'
   } else if (props.ratio != null && props.ratio < 1) {
-    colorClassName = 'border-info/30 bg-info/10 text-info'
+    colorClassName = 'border-info/30 bg-info/10 text-info-strong'
   }
 
   return (

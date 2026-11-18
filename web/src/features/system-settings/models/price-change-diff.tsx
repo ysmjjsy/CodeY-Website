@@ -53,7 +53,7 @@ export function PriceChangeBadge(props: { kind: PriceChangeKind }) {
     <StatusBadge
       label={t(CHANGE_LABELS[props.kind])}
       copyable={false}
-      className='shrink-0 bg-amber-500/10 px-2 text-amber-800 ring-1 ring-amber-500/25 ring-inset dark:text-amber-200'
+      className='bg-warning/10 text-warning-strong ring-warning/25 shrink-0 px-2 ring-1 ring-inset'
     />
   )
 }
@@ -220,7 +220,7 @@ function PriceValues(props: {
                 <dd className='leading-5 font-medium break-all tabular-nums'>
                   {compared &&
                   compared.get(priceLineKey(group, line)) !== line.value ? (
-                    <mark className='rounded-sm bg-amber-500/25 px-0.5 text-inherit'>
+                    <mark className='bg-warning/25 rounded-sm px-0.5 text-inherit'>
                       {line.value}
                     </mark>
                   ) : (
@@ -261,7 +261,7 @@ export function PriceChangeCard(props: { row: ModelRow; onUndo: () => void }) {
         <div className='flex items-center gap-2 text-sm font-medium'>
           <span
             aria-hidden='true'
-            className='size-1.5 rounded-full bg-amber-500'
+            className='bg-warning size-1.5 rounded-full'
           />
           {t('Unsaved price changes')}
         </div>

@@ -25,7 +25,11 @@ import {
   useState,
 } from 'react'
 
-import { continuePluginLogin, startPluginLogin } from '../api'
+import {
+  continuePluginLogin,
+  startPluginLogin,
+  type PluginLoginScope,
+} from '../api'
 import {
   INITIAL_PLUGIN_LOGIN_STATE,
   PLUGIN_LOGIN_BROADCAST_CHANNEL,
@@ -41,6 +45,7 @@ type UsePluginLoginOptions = {
   channelId: number
   keyIndex: number | null
   add?: boolean
+  scope?: PluginLoginScope
   onDone?: () => void
 }
 
@@ -57,6 +62,7 @@ export function usePluginLogin(options: UsePluginLoginOptions) {
   const channelId = options.channelId
   const keyIndex = options.keyIndex
   const add = options.add ?? false
+  const scope = options.scope ?? 'admin'
   const alive = useRef(true)
   const generation = useRef(0)
   const started = useRef(false)
@@ -76,7 +82,12 @@ export function usePluginLogin(options: UsePluginLoginOptions) {
       dispatch({ type: 'request', request })
       try {
         if (request.kind === 'start') {
-          const result = await startPluginLogin(channelId, keyIndex, add)
+          const result = await startPluginLogin(
+            channelId,
+            keyIndex,
+            add,
+            scope
+          )
           if (!stale()) {
             dispatch({ type: 'started', flow: result.flow, step: result.step })
           }
@@ -85,14 +96,15 @@ export function usePluginLogin(options: UsePluginLoginOptions) {
         const step = await continuePluginLogin(
           channelId,
           flow ?? '',
-          request.input
+          request.input,
+          scope
         )
         if (!stale()) dispatch({ type: 'received', step })
       } catch (error) {
         if (!stale()) dispatch({ type: 'failed', error })
       }
     },
-    [channelId, keyIndex, add]
+    [channelId, keyIndex, add, scope]
   )
 
   // Refs survive StrictMode's simulated remount, so one dialog opens one flow.

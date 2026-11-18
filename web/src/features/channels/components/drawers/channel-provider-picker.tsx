@@ -61,6 +61,10 @@ type ChannelProviderPickerProps = {
   plugins: TaskPluginOption[]
   currentProvider?: ChannelProviderTarget | null
   canBindPlugin: boolean
+  /** Restrict the picker to an explicit set of built-in channel types. */
+  allowedTypes?: readonly number[]
+  /** Hide the free-form numeric type entry. */
+  allowCustomTypeNumber?: boolean
   loading: boolean
   failed: boolean
   disabled: boolean
@@ -73,14 +77,19 @@ export function ChannelProviderPicker(props: ChannelProviderPickerProps) {
   const shouldReduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [search, setSearch] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
+  const allowedTypeSet = useMemo(
+    () => (props.allowedTypes ? new Set(props.allowedTypes) : null),
+    [props.allowedTypes]
+  )
+  const canBindPlugin =
+    props.canBindPlugin &&
+    (!allowedTypeSet || allowedTypeSet.has(CHANNEL_TYPE_TASK_PLUGIN))
   const filter =
-    !props.canBindPlugin && selectedFilter === 'plugin' ? 'all' : selectedFilter
+    !canBindPlugin && selectedFilter === 'plugin' ? 'all' : selectedFilter
   const keyword = search.trim().toLocaleLowerCase()
   const options = useMemo(() => {
     const availablePlugins =
-      props.canBindPlugin && !props.loading && !props.failed
-        ? props.plugins
-        : []
+      canBindPlugin && !props.loading && !props.failed ? props.plugins : []
     const pluginAliases = new Map<string, string>()
     const replacedTypes = new Set<number>()
     if (props.isCreating) {
@@ -116,7 +125,7 @@ export function ChannelProviderPicker(props: ChannelProviderPickerProps) {
     }> = []
     for (const option of CHANNEL_TYPE_OPTIONS) {
       if (option.value === CHANNEL_TYPE_TASK_PLUGIN) {
-        if (!props.canBindPlugin || (filter !== 'all' && filter !== 'plugin')) {
+        if (!canBindPlugin || (filter !== 'all' && filter !== 'plugin')) {
           continue
         }
         for (const plugin of props.plugins) {
@@ -133,6 +142,7 @@ export function ChannelProviderPicker(props: ChannelProviderPickerProps) {
           })
         }
       } else if (filter !== 'plugin') {
+        if (allowedTypeSet && !allowedTypeSet.has(option.value)) continue
         // Keep legacy Zhipu available when editing existing channels.
         if (props.isCreating && option.value === 16) continue
         if (props.isCreating && option.value === 7) continue
@@ -185,23 +195,25 @@ export function ChannelProviderPicker(props: ChannelProviderPickerProps) {
     i18n.language,
     keyword,
     props.isCreating,
-    props.canBindPlugin,
+    canBindPlugin,
     props.currentProvider,
     props.loading,
     props.failed,
     props.plugins,
     t,
+    allowedTypeSet,
   ])
 
   const customType = Number(search.trim())
   const canUseCustomType =
+    props.allowCustomTypeNumber !== false &&
     (filter === 'all' || filter === 'custom') &&
     /^\d+$/.test(search.trim()) &&
     Number.isSafeInteger(customType) &&
     customType > 0 &&
     !CHANNEL_TYPE_OPTIONS.some((option) => option.value === customType)
   const showPluginStatus =
-    props.canBindPlugin && (filter === 'all' || filter === 'plugin')
+    canBindPlugin && (filter === 'all' || filter === 'plugin')
   let currentProviderId: string | undefined
   if (props.currentProvider?.kind === 'builtin') {
     currentProviderId = `builtin:${props.currentProvider.type}`
@@ -225,7 +237,7 @@ export function ChannelProviderPicker(props: ChannelProviderPickerProps) {
         <TabsTrigger value='builtin' className='h-auto'>
           {t('Built-in')}
         </TabsTrigger>
-        {props.canBindPlugin && (
+        {canBindPlugin && (
           <TabsTrigger value='plugin' className='h-auto'>
             {t('Plugins')}
           </TabsTrigger>

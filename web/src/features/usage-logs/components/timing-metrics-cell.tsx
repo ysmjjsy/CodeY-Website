@@ -192,7 +192,7 @@ export function StreamTpsCell(props: StreamTpsCellProps) {
       <span
         className={cn(
           'inline-flex items-center gap-1 font-medium',
-          props.isStream ? 'text-info' : 'text-muted-foreground'
+          props.isStream ? 'text-info-strong' : 'text-muted-foreground'
         )}
       >
         {streamLabel}

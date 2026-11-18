@@ -83,16 +83,16 @@ const Toaster = (props: ToasterProps) => {
             'color-mix(in oklch, var(--success) 16%, var(--popover))',
           '--success-border':
             'color-mix(in oklch, var(--success) 35%, var(--border))',
-          '--success-text': 'var(--success)',
+          '--success-text': 'var(--success-strong)',
           '--info-bg': 'color-mix(in oklch, var(--info) 16%, var(--popover))',
           '--info-border':
             'color-mix(in oklch, var(--info) 35%, var(--border))',
-          '--info-text': 'var(--info)',
+          '--info-text': 'var(--info-strong)',
           '--warning-bg':
             'color-mix(in oklch, var(--warning) 18%, var(--popover))',
           '--warning-border':
             'color-mix(in oklch, var(--warning) 38%, var(--border))',
-          '--warning-text': 'var(--warning)',
+          '--warning-text': 'var(--warning-strong)',
           '--error-bg':
             'color-mix(in oklch, var(--destructive) 16%, var(--popover))',
           '--error-border':

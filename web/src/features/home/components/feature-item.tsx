@@ -30,7 +30,7 @@ export function FeatureItem({ title, description, icon }: FeatureItemProps) {
     <div className='group/feature text-foreground flex flex-col gap-4 p-4'>
       {/* Icon */}
       <div className='flex items-center self-start'>
-        <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 shadow-inner ring-1 ring-amber-500/20 transition-all duration-300 group-hover/feature:scale-110 group-hover/feature:ring-amber-500/40'>
+        <div className='from-primary/20 to-primary/10 ring-primary/20 group-hover/feature:ring-primary/40 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-inner ring-1 transition-all duration-300 group-hover/feature:scale-110'>
           {icon}
         </div>
       </div>

@@ -496,7 +496,7 @@ function TryResult(props: {
                 bytes={change.to.bytes}
               >
                 {saved > 0 && (
-                  <span className='text-success text-2xl font-semibold tabular-nums'>
+                  <span className='text-success-strong text-2xl font-semibold tabular-nums'>
                     −{formatNumber(Math.round(saved * 100), locale)}%
                   </span>
                 )}

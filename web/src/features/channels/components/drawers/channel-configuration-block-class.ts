@@ -16,10 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { createFileRoute } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
 
-import { Seller } from '@/features/seller'
+import type { ChannelConfigurationStatus } from '../../lib/channel-configuration'
 
-export const Route = createFileRoute('/_authenticated/seller/')({
-  component: Seller,
-})
+export function channelConfigurationBlockClassName(
+  status: ChannelConfigurationStatus,
+  className?: string
+) {
+  return cn(
+    'border-border/60 rounded-lg border p-4 transition-colors',
+    status === 'configured' && 'border-primary/35 ring-primary/20 ring-1',
+    status === 'error' && 'border-destructive/50 ring-destructive/20 ring-1',
+    className
+  )
+}

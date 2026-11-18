@@ -281,7 +281,7 @@ export function MarketplacePanel(props: MarketplacePanelProps) {
             {showReviewWarning && (
               <p className='flex items-start gap-2 text-sm'>
                 <TriangleAlert
-                  className='mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400'
+                  className='text-warning mt-0.5 size-4 shrink-0'
                   aria-hidden='true'
                 />
                 {t(

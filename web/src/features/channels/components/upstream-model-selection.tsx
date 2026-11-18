@@ -147,9 +147,7 @@ function ModelCategory(props: ModelCategoryProps) {
               {props.redirectOnly.has(normalizeModelName(model)) && (
                 <Tooltip>
                   <TooltipTrigger
-                    render={
-                      <Info className='size-3.5 shrink-0 text-amber-500' />
-                    }
+                    render={<Info className='text-warning size-3.5 shrink-0' />}
                   />
                   <TooltipContent>
                     {t('From model redirect, not yet added to models list')}

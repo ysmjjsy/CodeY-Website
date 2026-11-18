@@ -28,6 +28,8 @@ const (
 	KeyAllowedChannelTypes    = OptionPrefix + "allowed_channel_types"
 	KeyAdminSkipReview        = OptionPrefix + "admin_skip_review"
 	KeyLowBalanceRatio        = OptionPrefix + "low_balance_ratio"
+	KeyPortWhitelistEnabled   = OptionPrefix + "port_whitelist_enabled"
+	KeyAllowedPorts           = OptionPrefix + "allowed_ports"
 )
 
 // DefaultAllowedChannelTypes lists standard protocol channel types allowed for
@@ -62,6 +64,8 @@ var DefaultAllowedChannelTypes = []int{
 	constant.ChannelTypeNewAPI,
 }
 
+var DefaultAllowedSellerPorts = []int{80, 443, 8080, 8443}
+
 type TokenPackageSetting struct {
 	Enabled                bool     `json:"enabled"`
 	SellerGroups           []string `json:"seller_groups"`
@@ -75,6 +79,8 @@ type TokenPackageSetting struct {
 	AllowedChannelTypes    []int    `json:"allowed_channel_types"`
 	AdminSkipReview        bool     `json:"admin_skip_review"`
 	LowBalanceRatio        float64  `json:"low_balance_ratio"`
+	PortWhitelistEnabled   bool     `json:"port_whitelist_enabled"`
+	AllowedPorts           []int    `json:"allowed_ports"`
 }
 
 var tokenPackageSetting = defaultTokenPackageSetting()
@@ -93,6 +99,8 @@ func defaultTokenPackageSetting() TokenPackageSetting {
 		AllowedChannelTypes:    slices.Clone(DefaultAllowedChannelTypes),
 		AdminSkipReview:        true,
 		LowBalanceRatio:        0.1,
+		PortWhitelistEnabled:   true,
+		AllowedPorts:           slices.Clone(DefaultAllowedSellerPorts),
 	}
 }
 
@@ -107,6 +115,7 @@ func GetTokenPackageSetting() TokenPackageSetting {
 	snapshot := tokenPackageSetting
 	snapshot.SellerGroups = slices.Clone(tokenPackageSetting.SellerGroups)
 	snapshot.AllowedChannelTypes = slices.Clone(tokenPackageSetting.AllowedChannelTypes)
+	snapshot.AllowedPorts = slices.Clone(tokenPackageSetting.AllowedPorts)
 	return snapshot
 }
 
@@ -115,10 +124,29 @@ func IsEnabled() bool {
 }
 
 func IsChannelTypeAllowed(channelType int) bool {
+	// Plugin channels bind a registered plugin instead of a built-in protocol.
+	// Their availability follows the plugin registry, so a newly enabled plugin
+	// reaches seller channels without editing the built-in type list.
+	if channelType == constant.ChannelTypeTaskPlugin {
+		return true
+	}
 	if !isPermittableChannelType(channelType) {
 		return false
 	}
 	return slices.Contains(GetTokenPackageSetting().AllowedChannelTypes, channelType)
+}
+
+// PermittableChannelTypes returns the built-in channel types an administrator
+// may enable for the marketplace. Plugin channels are handled separately and
+// are not part of this list.
+func PermittableChannelTypes() []int {
+	channelTypes := make([]int, 0, constant.ChannelTypeDummy)
+	for channelType := constant.ChannelTypeUnknown + 1; channelType < constant.ChannelTypeDummy; channelType++ {
+		if isPermittableChannelType(channelType) {
+			channelTypes = append(channelTypes, channelType)
+		}
+	}
+	return channelTypes
 }
 
 func IsSellerGroupAllowed(group string) bool {
@@ -126,6 +154,21 @@ func IsSellerGroupAllowed(group string) bool {
 		return false
 	}
 	return slices.Contains(GetTokenPackageSetting().SellerGroups, group)
+}
+
+// AllowedSellerChannelPorts returns the live port policy for seller channels.
+// An empty list means any port is allowed; a disabled whitelist therefore maps
+// to an empty list. If the whitelist is enabled without any ports, return an
+// impossible port so an invalid configuration fails closed.
+func AllowedSellerChannelPorts() []int {
+	snapshot := GetTokenPackageSetting()
+	if !snapshot.PortWhitelistEnabled {
+		return nil
+	}
+	if len(snapshot.AllowedPorts) == 0 {
+		return []int{-1}
+	}
+	return slices.Clone(snapshot.AllowedPorts)
 }
 
 func isPermittableChannelType(channelType int) bool {
@@ -157,7 +200,7 @@ func ValidateTokenPackageOption(key, value string) error {
 		return nil
 	}
 	current := GetTokenPackageSetting()
-	return validateSingleOption(key, value, current.MultiplierMin, current.MultiplierMax)
+	return validateSingleOption(key, value, current.MultiplierMin, current.MultiplierMax, current.PortWhitelistEnabled)
 }
 
 // ValidateTokenPackageOptionMap validates one or more token_package_setting.* keys
@@ -189,18 +232,38 @@ func ValidateTokenPackageOptionMap(values map[string]string) error {
 		return fmt.Errorf("%s (%g) cannot exceed %s (%g)", KeyMultiplierMin, effectiveMin, KeyMultiplierMax, effectiveMax)
 	}
 
+	effectivePortWhitelistEnabled := current.PortWhitelistEnabled
+	effectiveAllowedPorts := slices.Clone(current.AllowedPorts)
+	if rawEnabled, ok := values[KeyPortWhitelistEnabled]; ok {
+		enabled, err := strconv.ParseBool(rawEnabled)
+		if err != nil {
+			return fmt.Errorf("%s must be a boolean", KeyPortWhitelistEnabled)
+		}
+		effectivePortWhitelistEnabled = enabled
+	}
+	if rawPorts, ok := values[KeyAllowedPorts]; ok {
+		ports, err := parseAllowedPorts(rawPorts)
+		if err != nil {
+			return err
+		}
+		effectiveAllowedPorts = ports
+	}
+	if effectivePortWhitelistEnabled && len(effectiveAllowedPorts) == 0 {
+		return fmt.Errorf("%s must contain at least one port when the whitelist is enabled", KeyAllowedPorts)
+	}
+
 	for key, value := range values {
 		if !strings.HasPrefix(key, OptionPrefix) {
 			continue
 		}
-		if err := validateSingleOption(key, value, effectiveMin, effectiveMax); err != nil {
+		if err := validateSingleOption(key, value, effectiveMin, effectiveMax, effectivePortWhitelistEnabled); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateSingleOption(key, value string, minBound, maxBound float64) error {
+func validateSingleOption(key, value string, minBound, maxBound float64, portWhitelistEnabled bool) error {
 	switch key {
 	case KeyEnabled:
 		enabled, err := strconv.ParseBool(value)
@@ -213,6 +276,10 @@ func validateSingleOption(key, value string, minBound, maxBound float64) error {
 			return fmt.Errorf("%s requires REALNAME_HASH_SECRET to be configured", key)
 		}
 	case KeyAdminSkipReview:
+		if _, err := strconv.ParseBool(value); err != nil {
+			return fmt.Errorf("%s must be a boolean", key)
+		}
+	case KeyPortWhitelistEnabled:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
@@ -271,6 +338,14 @@ func validateSingleOption(key, value string, minBound, maxBound float64) error {
 				return fmt.Errorf("%s contains unsupported or disallowed channel type %d", key, ct)
 			}
 		}
+	case KeyAllowedPorts:
+		ports, err := parseAllowedPorts(value)
+		if err != nil {
+			return err
+		}
+		if portWhitelistEnabled && len(ports) == 0 {
+			return fmt.Errorf("%s must contain at least one port when the whitelist is enabled", key)
+		}
 	case KeyLowBalanceRatio:
 		ratio, err := strconv.ParseFloat(value, 64)
 		if err != nil || math.IsNaN(ratio) || math.IsInf(ratio, 0) || ratio < 0 || ratio > 1 {
@@ -280,6 +355,24 @@ func validateSingleOption(key, value string, minBound, maxBound float64) error {
 		return fmt.Errorf("unknown token package setting %q", key)
 	}
 	return nil
+}
+
+func parseAllowedPorts(value string) ([]int, error) {
+	var ports []int
+	if err := common.UnmarshalJsonStr(value, &ports); err != nil || ports == nil {
+		return nil, fmt.Errorf("%s must be a JSON array of port numbers", KeyAllowedPorts)
+	}
+	seen := make(map[int]struct{}, len(ports))
+	for _, port := range ports {
+		if port < 1 || port > 65535 {
+			return nil, fmt.Errorf("%s contains invalid port %d", KeyAllowedPorts, port)
+		}
+		if _, duplicate := seen[port]; duplicate {
+			return nil, fmt.Errorf("%s contains duplicate port %d", KeyAllowedPorts, port)
+		}
+		seen[port] = struct{}{}
+	}
+	return ports, nil
 }
 
 func parsePositiveFiniteFloat(key, value string) (float64, error) {

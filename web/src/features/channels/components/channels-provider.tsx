@@ -168,3 +168,7 @@ export function useChannels() {
   }
   return context
 }
+
+export function useChannelsOptional() {
+  return useContext(ChannelsContext)
+}

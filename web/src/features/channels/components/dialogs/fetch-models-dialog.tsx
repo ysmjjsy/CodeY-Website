@@ -32,7 +32,7 @@ import {
   normalizeModelName,
   parseModelsString,
 } from '../../lib'
-import { useChannels } from '../channels-provider'
+import { useChannelsOptional } from '../channels-provider'
 import { UpstreamModelSelection } from '../upstream-model-selection'
 
 function normalizeModelNameList(models: readonly string[]): string[] {
@@ -71,7 +71,7 @@ export function FetchModelsDialog({
   channelName,
 }: FetchModelsDialogProps) {
   const { t } = useTranslation()
-  const { currentRow } = useChannels()
+  const currentRow = useChannelsOptional()?.currentRow ?? null
   const activeChannel = customFetcher ? null : currentRow
   const queryClient = useQueryClient()
   const [isFetching, setIsFetching] = useState(false)

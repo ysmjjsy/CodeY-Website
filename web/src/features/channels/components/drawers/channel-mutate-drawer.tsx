@@ -55,6 +55,7 @@ import { type SubmitErrorHandler, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { CopyButton } from '@/components/copy-button'
 import {
   sideDrawerContentClassName,
   sideDrawerFooterClassName,
@@ -81,7 +82,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
+import { IconBadge } from '@/components/ui/icon-badge'
 import { Input } from '@/components/ui/input'
 import { PopoverDescription, PopoverTitle } from '@/components/ui/popover'
 import {
@@ -191,7 +192,6 @@ import {
 import {
   getChannelConfigurationSection,
   getChannelConfigurationState,
-  type ChannelConfigurationStatus,
   type ChannelConfigurationSection,
   type ChannelProviderTarget,
 } from '../../lib/channel-configuration'
@@ -243,6 +243,11 @@ import {
   ChannelConfiguration,
   ChannelConfigurationStatusIndicator,
 } from './channel-configuration'
+import { channelConfigurationBlockClassName } from './channel-configuration-block-class'
+import {
+  ChannelConfigurationCardHeading as CardHeading,
+  ChannelConfigurationSubHeading as SubHeading,
+} from './channel-configuration-blocks'
 import { ChannelPluginConfigFields } from './channel-plugin-config-fields'
 import { ChannelProviderPicker } from './channel-provider-picker'
 import { ChannelRequestPluginsField } from './channel-request-plugins-field'
@@ -379,64 +384,6 @@ function formatUnixTime(timestamp: unknown): string {
   const seconds = Number(timestamp)
   if (!Number.isFinite(seconds) || seconds <= 0) return '-'
   return new Date(seconds * 1000).toLocaleString()
-}
-
-function channelConfigurationBlockClassName(
-  status: ChannelConfigurationStatus,
-  className?: string
-) {
-  return cn(
-    'border-border/60 rounded-lg border p-4 transition-colors',
-    status === 'configured' && 'border-primary/35 ring-primary/20 ring-1',
-    status === 'error' && 'border-destructive/50 ring-destructive/20 ring-1',
-    className
-  )
-}
-
-function CardHeading(props: {
-  title: string
-  icon?: ReactNode
-  iconTone?: IconBadgeTone
-  status?: ChannelConfigurationStatus
-}) {
-  return (
-    <div className='flex items-center gap-3'>
-      {props.icon && (
-        <IconBadge tone={props.iconTone} size='md'>
-          {props.icon}
-        </IconBadge>
-      )}
-      <h3 className='min-w-0 flex-1 text-sm font-semibold tracking-tight'>
-        {props.title}
-      </h3>
-      {props.status && (
-        <ChannelConfigurationStatusIndicator status={props.status} />
-      )}
-    </div>
-  )
-}
-
-function SubHeading(props: {
-  title: string
-  icon?: ReactNode
-  iconTone?: IconBadgeTone
-  status?: ChannelConfigurationStatus
-}) {
-  return (
-    <div className='flex items-center gap-2'>
-      {props.icon && (
-        <IconBadge tone={props.iconTone} size='xs'>
-          {props.icon}
-        </IconBadge>
-      )}
-      <h4 className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-        {props.title}
-      </h4>
-      {props.status && (
-        <ChannelConfigurationStatusIndicator status={props.status} />
-      )}
-    </div>
-  )
 }
 
 /** Stable empty list so memoized consumers do not re-run on every render. */
@@ -2621,8 +2568,9 @@ export function ChannelMutateDrawer({
                       ))}
                       {remainingMappingCount > 0 && (
                         <div>
-                          +{remainingMappingCount} {t('more mapping')}
-                          {remainingMappingCount > 1 ? 's' : ''}
+                          {t('{{count}} more mapping(s)', {
+                            count: remainingMappingCount,
+                          })}
                         </div>
                       )}
                     </div>
@@ -2667,7 +2615,7 @@ export function ChannelMutateDrawer({
               </Alert>
             )}
             {modelMappingGuardrail.missingSourceModels.length > 0 && (
-              <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+              <Alert variant='warning'>
                 <AlertDescription className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
                   <span>
                     {t('Add')}{' '}
@@ -3432,7 +3380,7 @@ export function ChannelMutateDrawer({
                       </>
                     )}
                   {modelMappingGuardrail.exposedTargetModels.length > 0 && (
-                    <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+                    <Alert variant='warning'>
                       <AlertDescription className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
                         <span>
                           {t('The mapped upstream model(s)')}{' '}
@@ -3743,7 +3691,7 @@ export function ChannelMutateDrawer({
         )}
 
         {sensitiveLocked && (
-          <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+          <Alert variant='warning'>
             <AlertDescription>
               {t('No permission to perform this action')}
             </AlertDescription>
@@ -4657,7 +4605,7 @@ export function ChannelMutateDrawer({
                             'Enter new key to update, or leave empty to keep current key'
                           )}
                           {isMultiKeyChannel && (
-                            <span className='text-warning mt-1 block'>
+                            <span className='text-warning-strong mt-1 block'>
                               {keyModeDescription}
                             </span>
                           )}
@@ -4734,20 +4682,15 @@ export function ChannelMutateDrawer({
                                   )}
                                   {t('Reveal key')}
                                 </Button>
-                                <Button
-                                  type='button'
+                                <CopyButton
+                                  value={channelKey ?? ''}
                                   variant='ghost'
                                   size='sm'
-                                  onClick={async () => {
-                                    if (channelKey) {
-                                      await copyToClipboard(channelKey)
-                                    }
-                                  }}
                                   disabled={!channelKey}
+                                  iconClassName='mr-2 h-4 w-4'
                                 >
-                                  <Copy className='mr-2 h-4 w-4' />
                                   {t('Copy')}
-                                </Button>
+                                </CopyButton>
                               </div>
                             </div>
                             <Input
@@ -4796,7 +4739,7 @@ export function ChannelMutateDrawer({
                       )}
                     </div>
                   </div>
-                  <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+                  <Alert variant='warning'>
                     <AlertDescription>
                       {t(
                         "Disclaimer: Personal use only. Do not distribute or share any credentials. This channel has prerequisites and requires prior setup; use it only if you understand the flow and risks, and comply with OpenAI's terms and policies. Credentials and configuration are for Codex CLI integration only, and are not intended for any other client, platform, or channel."
@@ -4900,7 +4843,7 @@ export function ChannelMutateDrawer({
                       </Select>
                       <FormDescription>
                         {multiKeyType === 'polling' ? (
-                          <span className='text-warning'>
+                          <span className='text-warning-strong'>
                             {t(
                               'Polling mode requires Redis and memory cache, otherwise performance will be significantly degraded'
                             )}
@@ -5235,7 +5178,7 @@ export function ChannelMutateDrawer({
           )}
 
           {sensitiveLocked && (
-            <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
+            <Alert variant='warning'>
               <AlertDescription>
                 {t(
                   'Sensitive channel settings are read-only for your account.'

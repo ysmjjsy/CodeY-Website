@@ -329,7 +329,7 @@ export function ModelMutateDrawer(props: {
                               {isEditing &&
                                 form.watch('model_name') !==
                                   currentRow?.model_name && (
-                                  <span className='text-warning mt-1 block'>
+                                  <span className='text-warning-strong mt-1 block'>
                                     {t(
                                       'Renaming metadata does not rename channel models or move pricing. Existing prices stay with the original model name.'
                                     )}

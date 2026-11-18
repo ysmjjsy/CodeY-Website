@@ -228,7 +228,7 @@ function PricingRuleCard(
           aria-label={t('Pricing tier {{name}}', { name })}
         />
       }
-      className='bg-background min-w-0 overflow-hidden rounded-xl border data-open:border-blue-300 dark:data-open:border-blue-800'
+      className='bg-background data-open:border-primary min-w-0 overflow-hidden rounded-xl border'
     >
       <div className='flex items-start gap-1 p-3'>
         <CollapsibleTrigger

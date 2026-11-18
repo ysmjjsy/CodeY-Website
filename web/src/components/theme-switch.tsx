@@ -32,15 +32,22 @@ import { cn } from '@/lib/utils'
 
 export function ThemeSwitch() {
   const { t } = useTranslation()
-  const { theme, setTheme } = useTheme()
+  const { theme, resolvedTheme, setTheme } = useTheme()
 
   /* Update theme-color meta tag
    * when theme is updated */
   useEffect(() => {
-    const themeColor = theme === 'dark' ? '#020817' : '#fff'
-    const metaThemeColor = document.querySelector("meta[name='theme-color']")
-    if (metaThemeColor) metaThemeColor.setAttribute('content', themeColor)
-  }, [theme])
+    const frame = requestAnimationFrame(() => {
+      const themeColor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--background')
+        .trim()
+      const metaThemeColor = document.querySelector("meta[name='theme-color']")
+      if (metaThemeColor && themeColor) {
+        metaThemeColor.setAttribute('content', themeColor)
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [resolvedTheme])
 
   return (
     <DropdownMenu modal={false}>

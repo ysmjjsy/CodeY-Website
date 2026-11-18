@@ -23,7 +23,6 @@ import type {
   Table as TanStackTable,
 } from '@tanstack/react-table'
 import {
-  Check,
   CheckCircle2,
   Copy,
   Gauge,
@@ -44,6 +43,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { CopyButton } from '@/components/copy-button'
 import {
   DataTableBulkActions as BulkActionsToolbar,
   DataTablePagination,
@@ -1332,8 +1332,6 @@ function FailureDetailsSheet({
 }) {
   const { t } = useTranslation()
   const isMobile = useIsMobile()
-  const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-
   return (
     <Sheet open={Boolean(details)} onOpenChange={onOpenChange}>
       <SheetContent
@@ -1377,18 +1375,14 @@ function FailureDetailsSheet({
               </section>
             </div>
             <SheetFooter className={sideDrawerFooterClassName('sm:px-5')}>
-              <Button
+              <CopyButton
+                value={details.details}
                 variant='outline'
                 className='w-full sm:w-auto'
-                onClick={() => copyToClipboard(details.details)}
+                iconClassName='mr-2 h-4 w-4'
               >
-                {copiedText === details.details ? (
-                  <Check className='mr-2 h-4 w-4 text-green-600' />
-                ) : (
-                  <Copy className='mr-2 h-4 w-4' />
-                )}
                 {t('Copy')}
-              </Button>
+              </CopyButton>
             </SheetFooter>
           </>
         )}

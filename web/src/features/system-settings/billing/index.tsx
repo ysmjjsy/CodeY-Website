@@ -122,6 +122,8 @@ const defaultBillingSettings: BillingSettings = {
   'token_package_setting.auto_terminate_hours': 72,
   'token_package_setting.seller_groups': [] as string[],
   'token_package_setting.allowed_channel_types': [] as number[],
+  'token_package_setting.port_whitelist_enabled': true,
+  'token_package_setting.allowed_ports': [80, 443, 8080, 8443],
 }
 
 export function BillingSettings() {

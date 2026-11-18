@@ -329,7 +329,9 @@ func DashboardListModels(c *gin.Context) {
 	}
 	for channelType := 1; channelType <= constant.ChannelTypeDummy; channelType++ {
 		if plugin, ok := jsplugin.DefaultRegistry.GetByChannelType(channelType); ok {
-			modelsByChannel[channelType] = append([]string(nil), plugin.Meta.Models...)
+			modelsByChannel[channelType] = lo.Uniq(
+				append(modelsByChannel[channelType], plugin.Meta.Models...),
+			)
 		}
 	}
 	c.JSON(200, gin.H{

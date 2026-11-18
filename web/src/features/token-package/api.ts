@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-
 import { api } from '@/lib/api'
 
 import type {
@@ -24,11 +23,14 @@ import type {
   PackageOrder,
   PackageVersion,
   PendingReview,
+  PublicTokenPackage,
   SellerLedgerEntry,
   SellerRevenueSummary,
   SellerStatus,
   TokenPackage,
   UserChannel,
+  UserChannelBatchResult,
+  UserChannelOptions,
   VerificationStatus,
   AdminVerification,
 } from './types'
@@ -39,7 +41,7 @@ export async function fetchMarketPackages(params: {
   keyword?: string
   model?: string
 }) {
-  const res = await api.get('/api/market/packages', {
+  const res = await api.get('/api/market/public/packages', {
     params: {
       p: params.page,
       page_size: params.pageSize,
@@ -51,7 +53,7 @@ export async function fetchMarketPackages(params: {
     success: boolean
     message?: string
     data?: {
-      items: TokenPackage[]
+      items: PublicTokenPackage[]
       total: number
       page: number
       page_size: number
@@ -60,8 +62,12 @@ export async function fetchMarketPackages(params: {
 }
 
 export async function fetchMarketPackage(id: number) {
-  const res = await api.get(`/api/market/packages/${id}`)
-  return res.data as { success: boolean; message?: string; data?: TokenPackage }
+  const res = await api.get(`/api/market/public/packages/${id}`)
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: PublicTokenPackage
+  }
 }
 
 /** Returned by a purchase the server refused because the buyer is not verified. */
@@ -135,6 +141,18 @@ export async function createSellerPackage(payload: {
   return res.data as { success: boolean; message?: string; data?: TokenPackage }
 }
 
+export async function updateSellerPackage(
+  id: number,
+  payload: {
+    title: string
+    subtitle?: string
+    description?: string
+  }
+) {
+  const res = await api.put(`/api/seller/packages/${id}`, payload)
+  return res.data as { success: boolean; message?: string; data?: TokenPackage }
+}
+
 export async function stopSellerPackage(id: number) {
   const res = await api.post(`/api/seller/packages/${id}/stop`)
   return res.data as { success: boolean; message?: string }
@@ -170,18 +188,112 @@ export async function fetchSellerStats() {
   }
 }
 
-export async function fetchMyChannels() {
-  const res = await api.get('/api/user/channels')
+export async function fetchMyChannels(
+  params: {
+    page?: number
+    pageSize?: number
+    keyword?: string
+    status?: string
+    type?: number
+    bound?: string
+  } = {}
+) {
+  const res = await api.get('/api/user/channels', {
+    params: {
+      p: params.page,
+      page_size: params.pageSize,
+      keyword: params.keyword || undefined,
+      status: params.status || undefined,
+      type: params.type,
+      bound: params.bound || undefined,
+    },
+  })
   return res.data as {
     success: boolean
     message?: string
-    data?: UserChannel[]
+    data?: {
+      items: UserChannel[]
+      total: number
+      page: number
+      page_size: number
+    }
+  }
+}
+
+export async function fetchChannelModelCatalog() {
+  const res = await api.get('/api/models')
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: Record<string, string[] | null>
+  }
+}
+
+export async function fetchChannelDefaultBaseURLs() {
+  const res = await api.get('/api/user/channel_default_base_urls')
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: Partial<Record<number, string>>
+  }
+}
+
+export async function fetchUserChannelOptions() {
+  const res = await api.get('/api/user/channel_options')
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: UserChannelOptions
+  }
+}
+
+export async function fetchAllMyChannels() {
+  const items: UserChannel[] = []
+  let page = 1
+  let total = 0
+  do {
+    const res = await fetchMyChannels({ page, pageSize: 100 })
+    if (!res.success) {
+      return {
+        success: false,
+        message: res.message,
+        data: undefined,
+      }
+    }
+    const pageItems = res.data?.items || []
+    items.push(...pageItems)
+    total = res.data?.total || items.length
+    if (pageItems.length === 0) break
+    page += 1
+  } while (items.length < total)
+  return { success: true, message: '', data: items }
+}
+
+export async function fetchMyChannel(id: number) {
+  const res = await api.get(`/api/user/channels/${id}`)
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: UserChannel
   }
 }
 
 export async function createMyChannel(payload: unknown) {
   const res = await api.post('/api/user/channels', payload)
-  return res.data as { success: boolean; message?: string }
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: UserChannel
+  }
+}
+
+export async function updateMyChannel(id: number, payload: unknown) {
+  const res = await api.put(`/api/user/channels/${id}`, payload)
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: UserChannel
+  }
 }
 
 export async function deleteMyChannel(id: number) {
@@ -189,8 +301,33 @@ export async function deleteMyChannel(id: number) {
   return res.data as { success: boolean; message?: string }
 }
 
-export async function testMyChannel(id: number) {
-  const res = await api.post(`/api/user/channels/${id}/test`)
+export async function batchMyChannels(
+  action: 'enable' | 'disable' | 'delete',
+  ids: number[]
+) {
+  const res = await api.post('/api/user/channel-batch', { action, ids })
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: UserChannelBatchResult
+  }
+}
+
+export async function testMyChannel(
+  id: number,
+  params: {
+    model?: string
+    endpointType?: string
+    stream?: boolean
+  } = {}
+) {
+  const res = await api.post(`/api/user/channels/${id}/test`, undefined, {
+    params: {
+      model: params.model || undefined,
+      endpoint_type: params.endpointType || undefined,
+      stream: params.stream ? 'true' : 'false',
+    },
+  })
   return res.data as { success: boolean; message?: string; time?: number }
 }
 
@@ -273,10 +410,17 @@ export async function fetchUserChannelModels(params: {
   type?: number
   baseURL?: string
   key?: string
+  taskPluginKey?: string
+  pluginConfig?: Record<string, unknown>
 }) {
   const res = await api.post(
     '/api/user/channel_models',
-    { base_url: params.baseURL || '', key: params.key || '' },
+    {
+      base_url: params.baseURL || '',
+      key: params.key || '',
+      task_plugin_key: params.taskPluginKey || '',
+      plugin_config: params.pluginConfig ?? {},
+    },
     {
       params: {
         channel_id: params.channelId || undefined,

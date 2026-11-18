@@ -35,6 +35,7 @@ import type { PluginIconInput } from '@/features/task-plugins/lib/plugin-icon'
 import { resolveLocalizedText } from '@/lib/localized-text'
 import { getServerErrorMessage } from '@/lib/server-error-message'
 
+import type { PluginLoginScope } from '../../api'
 import { usePluginLogin } from '../../hooks/use-plugin-login'
 import {
   DeviceStep,
@@ -55,6 +56,7 @@ type PluginLoginDialogProps = {
   /** Keeps a single-key channel's account and adds the new one next to it. */
   add?: boolean
   plugin: PluginIconInput
+  scope?: PluginLoginScope
   onDone?: () => void
 }
 
@@ -64,6 +66,7 @@ export function PluginLoginDialog(props: PluginLoginDialogProps) {
     channelId: props.channelId,
     keyIndex: props.keyIndex,
     add: props.add,
+    scope: props.scope,
     onDone: props.onDone,
   })
   const ended = login.state.ended

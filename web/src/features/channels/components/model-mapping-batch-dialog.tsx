@@ -398,7 +398,7 @@ export function ModelMappingBatchDialog(props: ModelMappingBatchDialogProps) {
               </p>
             )}
             {hasRule && derivation.conflicts.length > 0 && (
-              <p className='text-warning text-xs'>
+              <p className='text-warning-strong text-xs'>
                 {t(
                   '{{count}} model(s) skipped because another model derives the same request name',
                   { count: derivation.conflicts.length }

@@ -43,6 +43,7 @@ function renderNav(modules: Record<string, unknown>, signedIn: boolean) {
   })
   client.setQueryData(STATUS_QUERY_KEY, {
     HeaderNavModules: JSON.stringify(modules),
+    token_package_enabled: modules.token_package_enabled,
   })
   if (signedIn) {
     useAuthStore.getState().auth.setUser({ id: 1, username: 'alice', role: 1 })
@@ -63,10 +64,13 @@ const ALL_ENABLED = {
   home: true,
   console: true,
   products: true,
+  subscription: true,
+  market: true,
   pricing: { enabled: true, requireAuth: false },
   rankings: { enabled: true, requireAuth: false },
   docs: true,
   about: true,
+  token_package_enabled: true,
 }
 
 describe('public navigation', () => {
@@ -77,6 +81,8 @@ describe('public navigation', () => {
       '/',
       '/products/codey',
       '/pricing',
+      '/subscription',
+      '/market',
       '/rankings',
       '/docs/gateway',
       '/about',
@@ -119,5 +125,40 @@ describe('public navigation', () => {
     expect(result.current.some((link) => link.href === '/products/codey')).toBe(
       false
     )
+  })
+
+  it('shows subscription and market by default for older configurations', () => {
+    const legacy = {
+      home: true,
+      console: true,
+      products: true,
+      pricing: { enabled: true, requireAuth: false },
+      rankings: { enabled: true, requireAuth: false },
+      docs: true,
+      about: true,
+      token_package_enabled: true,
+    }
+    const { result } = renderNav(legacy, false)
+
+    expect(result.current.map((link) => link.href)).toContain('/subscription')
+    expect(result.current.map((link) => link.href)).toContain('/market')
+  })
+
+  it('hides the token market when the token package feature is disabled', () => {
+    const { result } = renderNav(
+      { ...ALL_ENABLED, token_package_enabled: false },
+      false
+    )
+
+    expect(result.current.some((link) => link.href === '/market')).toBe(false)
+    expect(result.current.some((link) => link.href === '/subscription')).toBe(
+      true
+    )
+  })
+
+  it('hides the token market when its header module is switched off', () => {
+    const { result } = renderNav({ ...ALL_ENABLED, market: false }, false)
+
+    expect(result.current.some((link) => link.href === '/market')).toBe(false)
   })
 })

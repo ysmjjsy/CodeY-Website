@@ -369,6 +369,8 @@ export type BillingSettings = {
   'token_package_setting.auto_terminate_hours': number
   'token_package_setting.seller_groups': string[]
   'token_package_setting.allowed_channel_types': number[]
+  'token_package_setting.port_whitelist_enabled': boolean
+  'token_package_setting.allowed_ports': number[]
 }
 
 export type OperationsSettings = {

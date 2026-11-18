@@ -138,7 +138,7 @@ export function ChannelPriorityGuide(props: {
           </TabsTrigger>
           <TabsTrigger
             value='insert'
-            className='h-auto min-h-9 px-2 py-2 text-xs whitespace-normal data-active:text-amber-700 dark:data-active:text-amber-400'
+            className='data-active:text-warning-strong h-auto min-h-9 px-2 py-2 text-xs whitespace-normal'
           >
             <ArrowDownToLine className='size-4 shrink-0' aria-hidden />
             <span>{t('Insert a new priority tier')}</span>

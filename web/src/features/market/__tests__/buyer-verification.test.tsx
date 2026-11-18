@@ -24,28 +24,30 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { api } from '@/lib/api'
+import { STATUS_QUERY_KEY } from '@/lib/status-query'
+import { useAuthDialogStore } from '@/stores/auth-dialog-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
-import type { TokenPackage, VerificationState } from '../../token-package/types'
+import type {
+  PublicTokenPackage,
+  VerificationState,
+} from '../../token-package/types'
 import { Market } from '../index'
 
-const listedPackage: TokenPackage = {
+const listedPackage: PublicTokenPackage = {
   id: 7,
-  seller_user_id: 2,
   seller_name: 'alice',
-  billing_mode: 'quota',
   title: 'Claude fast lane',
   subtitle: '',
   description: '',
-  status: 'listed',
-  active_version_id: 3,
   degraded: false,
   active_version: {
-    id: 3,
     models: [{ model: 'claude-sonnet-4', multiplier: 0.6 }],
     skus: [
       {
@@ -56,17 +58,27 @@ const listedPackage: TokenPackage = {
         valid_days: 30,
       },
     ],
-  } as unknown as TokenPackage['active_version'],
-  created_at: 0,
-  updated_at: 0,
+  },
 }
 
-async function renderMarket(status: VerificationState) {
-  vi.spyOn(api, 'get').mockImplementation(async (url) => {
+type RenderOptions = {
+  signedIn?: boolean
+  verification?: VerificationState
+  purchaseRejectedAsUnverified?: boolean
+}
+
+async function renderMarket(options: RenderOptions = {}) {
+  let verificationCalls = 0
+  const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
     if (url === '/api/user/verification') {
+      verificationCalls += 1
+      const status =
+        options.purchaseRejectedAsUnverified && verificationCalls > 1
+          ? 'unverified'
+          : (options.verification ?? 'unverified')
       return { data: { success: true, data: { status } } }
     }
-    if (url === '/api/market/packages') {
+    if (url === '/api/market/public/packages') {
       return {
         data: {
           success: true,
@@ -74,8 +86,46 @@ async function renderMarket(status: VerificationState) {
         },
       }
     }
+    if (url === '/api/notice') {
+      return { data: { success: true, data: '' } }
+    }
     throw new Error(`unexpected request ${String(url)}`)
   })
+  vi.spyOn(api, 'post').mockImplementation(async (url) => {
+    if (url === '/api/market/packages/7/purchase') {
+      return {
+        data: options.purchaseRejectedAsUnverified
+          ? {
+              success: false,
+              code: 'PACKAGE_BUYER_UNVERIFIED',
+              message: 'Buyer verification is required',
+            }
+          : { success: true },
+      }
+    }
+    throw new Error(`unexpected request ${String(url)}`)
+  })
+
+  useSystemConfigStore.getState().setLoading(false)
+  if (options.signedIn) {
+    useAuthStore.getState().auth.setUser({
+      id: 1,
+      username: 'alice',
+      role: 1,
+      quota: 5000000,
+    })
+  }
+
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  client.setQueryData(STATUS_QUERY_KEY, {
+    system_name: 'CodeGuys',
+    register_enabled: true,
+    token_package_enabled: true,
+    HeaderNavModules: JSON.stringify({ market: true }),
+  })
+
   const root = createRootRoute()
   const market = createRoute({
     getParentRoute: () => root,
@@ -90,46 +140,103 @@ async function renderMarket(status: VerificationState) {
     routeTree: root.addChildren([market, account]),
     history: createMemoryHistory({ initialEntries: ['/market'] }),
   })
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
+  await router.load()
+
   render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
   await screen.findByText('Claude fast lane')
+
+  return { get }
 }
 
 afterEach(() => {
   vi.restoreAllMocks()
+  useAuthDialogStore.getState().closeAuthDialog()
+  useAuthStore.getState().auth.reset()
 })
 
-test('an unverified buyer sees the verification guide and cannot continue to purchase', async () => {
-  await renderMarket('unverified')
-
-  // The guide is a link rendered through Button, so it is found by its text.
-  const guide = await screen.findAllByText('Verify now')
-  expect(guide[0].closest('a')).toHaveAttribute('href', '/account/verification')
-
-  await userEvent.click(screen.getByRole('button', { name: 'View and buy' }))
-  expect(await screen.findByRole('button', { name: 'Continue' })).toBeDisabled()
-})
-
-test('a buyer under review is told to wait and cannot continue to purchase', async () => {
-  await renderMarket('pending')
+test('lets anonymous visitors browse without requesting verification', async () => {
+  const { get } = await renderMarket()
 
   expect(
-    await screen.findByText('Your real-name verification is under review')
-  ).toBeVisible()
+    get.mock.calls.some(([url]) => url === '/api/user/verification')
+  ).toBe(false)
+
   await userEvent.click(screen.getByRole('button', { name: 'View and buy' }))
-  expect(await screen.findByRole('button', { name: 'Continue' })).toBeDisabled()
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'Sign in to buy' })
+  )
+
+  expect(useAuthDialogStore.getState().view).toBe('sign-in')
+  expect(useAuthDialogStore.getState().redirectTo).toBe('/market')
 })
 
-test('a verified buyer sees no guide and can continue to purchase', async () => {
-  await renderMarket('verified')
+test('does not request verification when a signed-in buyer opens a package', async () => {
+  const { get } = await renderMarket({
+    signedIn: true,
+    verification: 'unverified',
+  })
 
   await userEvent.click(screen.getByRole('button', { name: 'View and buy' }))
   expect(await screen.findByRole('button', { name: 'Continue' })).toBeEnabled()
-  expect(screen.queryByText('Verify now')).not.toBeInTheDocument()
+  expect(
+    get.mock.calls.some(([url]) => url === '/api/user/verification')
+  ).toBe(false)
+})
+
+test('checks verification only after the buyer clicks Continue', async () => {
+  const { get } = await renderMarket({
+    signedIn: true,
+    verification: 'unverified',
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'View and buy' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue' }))
+
+  expect(
+    await screen.findByText('Real-name verification is required to buy')
+  ).toBeVisible()
+  expect(
+    get.mock.calls.some(([url]) => url === '/api/user/verification')
+  ).toBe(true)
+})
+
+test('opens the purchase confirmation when Continue finds a verified buyer', async () => {
+  await renderMarket({ signedIn: true, verification: 'verified' })
+
+  await userEvent.click(screen.getByRole('button', { name: 'View and buy' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue' }))
+
+  expect(
+    await screen.findByRole('alertdialog', { name: 'Confirm purchase' })
+  ).toBeVisible()
+  expect(
+    screen.queryByText('Real-name verification is required to buy')
+  ).not.toBeInTheDocument()
+})
+
+test('shows the verification dialog when the server rejects an unverified purchase', async () => {
+  await renderMarket({
+    signedIn: true,
+    verification: 'verified',
+    purchaseRejectedAsUnverified: true,
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'View and buy' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Continue' }))
+  const checkboxes = await screen.findAllByRole('checkbox')
+  await userEvent.click(checkboxes[0])
+  await userEvent.click(checkboxes[1])
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Confirm purchase' })
+  )
+
+  await waitFor(() => {
+    expect(
+      screen.getByText('Real-name verification is required to buy')
+    ).toBeVisible()
+  })
 })

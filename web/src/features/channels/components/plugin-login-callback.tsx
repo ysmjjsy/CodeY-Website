@@ -38,7 +38,12 @@ import {
 } from '@/lib/server-error-message'
 import { useAuthStore } from '@/stores/auth-store'
 
-import { getTaskPluginOptions, submitPluginLoginCallback } from '../api'
+import {
+  getTaskPluginOptions,
+  getUserChannelPluginOptions,
+  submitPluginLoginCallback,
+  type PluginLoginScope,
+} from '../api'
 import {
   PLUGIN_LOGIN_BROADCAST_CHANNEL,
   type PluginLoginStep,
@@ -74,10 +79,13 @@ export function PluginLoginCallback(props: { pluginKey: string }) {
     ADMIN_PERMISSION_RESOURCES.TASK_PLUGIN,
     ADMIN_PERMISSION_ACTIONS.BIND
   )
+  const scope: PluginLoginScope = canBind ? 'admin' : 'seller'
   const optionsQuery = useQuery({
-    queryKey: ['task-plugin-options'],
-    queryFn: async () => requireServerSuccess(await getTaskPluginOptions()),
-    enabled: canBind,
+    queryKey: ['plugin-login-options', scope],
+    queryFn: async () =>
+      canBind
+        ? requireServerSuccess(await getTaskPluginOptions())
+        : await getUserChannelPluginOptions(),
     staleTime: 60 * 1000,
     meta: { errorToast: false },
   })
@@ -100,7 +108,7 @@ export function PluginLoginCallback(props: { pluginKey: string }) {
       '',
       window.location.pathname
     )
-    submitPluginLoginCallback(props.pluginKey, params)
+    submitPluginLoginCallback(props.pluginKey, params, scope)
       .then((data) => {
         setResult({ status: 'received', step: data.step })
         // The dialog matches the flow by the state the vendor echoed back,
@@ -121,7 +129,7 @@ export function PluginLoginCallback(props: { pluginKey: string }) {
           })
         }
       })
-  }, [params, props.pluginKey])
+  }, [params, props.pluginKey, scope])
 
   let content: ReactNode
   if (result.status === 'pending') {

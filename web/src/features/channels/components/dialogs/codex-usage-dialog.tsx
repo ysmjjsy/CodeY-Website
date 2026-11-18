@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import {
-  Copy,
   Check,
   RefreshCw,
   ChevronDown,
@@ -47,8 +46,13 @@ import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
-import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
+import {
+  StatusBadge,
+  textColorMap,
+  type StatusBadgeProps,
+} from '@/components/status-badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -73,7 +77,6 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import dayjs from '@/lib/dayjs'
 import { formatDateTimeStr, formatTimestampToDate } from '@/lib/format'
 import { createServerError, getServerMessage } from '@/lib/server-error-message'
@@ -419,33 +422,6 @@ function formatLabelValue(label: string, value: string) {
   return label.endsWith('：') ? `${label}${value}` : `${label} ${value}`
 }
 
-const percentTextClassName: Record<
-  NonNullable<StatusBadgeProps['variant']>,
-  string
-> = {
-  success: 'text-success',
-  warning: 'text-warning',
-  danger: 'text-destructive',
-  info: 'text-info',
-  neutral: 'text-muted-foreground',
-  purple: 'text-chart-4',
-  amber: 'text-warning',
-  blue: 'text-chart-1',
-  cyan: 'text-chart-2',
-  green: 'text-success',
-  grey: 'text-muted-foreground',
-  indigo: 'text-chart-1',
-  'light-blue': 'text-info',
-  'light-green': 'text-emerald-500 dark:text-emerald-300',
-  lime: 'text-chart-3',
-  orange: 'text-warning',
-  pink: 'text-chart-5',
-  red: 'text-destructive',
-  teal: 'text-chart-2',
-  violet: 'text-chart-4',
-  yellow: 'text-warning',
-}
-
 type RateLimitWindowProps = {
   title: string
   window?: CodexRateLimitWindow | null
@@ -478,7 +454,7 @@ function RateLimitWindow(props: RateLimitWindowProps) {
             <div
               className={cn(
                 'text-xl leading-none font-semibold tabular-nums',
-                percentTextClassName[variant ?? 'neutral']
+                textColorMap[variant ?? 'neutral']
               )}
             >
               {hasData ? `${percent}%` : '-'}
@@ -608,9 +584,7 @@ function InfoField(props: {
   className?: string
 }) {
   const { t } = useTranslation()
-  const { copyToClipboard, copiedText } = useCopyToClipboard({ notify: false })
   const text = props.value?.trim() || ''
-  const hasCopied = copiedText === text
 
   return (
     <div
@@ -632,15 +606,12 @@ function InfoField(props: {
           {text || '-'}
         </span>
         {props.copyable !== false && text ? (
-          <Button
-            type='button'
+          <CopyButton
+            value={text}
             variant='ghost'
             size='icon-xs'
             aria-label={t('Copy')}
-            onClick={() => copyToClipboard(text)}
-          >
-            {hasCopied ? <Check className='text-success' /> : <Copy />}
-          </Button>
+          />
         ) : null}
       </div>
     </div>
@@ -710,7 +681,7 @@ function ResetCreditItem(props: { credit: CodexResetCredit; index: number }) {
           <div
             className={cn(
               'mt-1 text-sm font-semibold tabular-nums',
-              isAvailable ? 'text-success' : 'text-muted-foreground'
+              isAvailable ? 'text-success-strong' : 'text-muted-foreground'
             )}
           >
             {expiresIn}
@@ -881,7 +852,7 @@ function ResetCreditsPanel(props: {
       ) : null}
 
       {props.resetSuccessMessage ? (
-        <Alert className='border-success/40 bg-success/10 text-success'>
+        <Alert variant='success'>
           <Check />
           <AlertTitle>{t('Reset completed')}</AlertTitle>
           <AlertDescription>{props.resetSuccessMessage}</AlertDescription>
@@ -913,7 +884,6 @@ export function CodexUsageDialog({
   isRefreshing,
 }: CodexUsageDialogProps) {
   const { t } = useTranslation()
-  const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
   const [showRawJson, setShowRawJson] = useState(false)
   const [showResetCredits, setShowResetCredits] = useState(false)
   const [resetCreditsResponse, setResetCreditsResponse] =
@@ -1103,9 +1073,9 @@ export function CodexUsageDialog({
     >
       <div className='flex flex-col gap-4'>
         {errorMessage && (
-          <div className='rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400'>
-            {errorMessage}
-          </div>
+          <Alert variant='destructive'>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
         )}
 
         <Card size='sm' className='bg-muted/30 gap-0 py-0'>
@@ -1298,20 +1268,14 @@ export function CodexUsageDialog({
           <CollapsibleContent>
             <>
               <div className='flex justify-end border-t px-3 py-2'>
-                <Button
-                  type='button'
+                <CopyButton
+                  value={rawJsonText}
                   variant='outline'
                   size='sm'
-                  onClick={() => copyToClipboard(rawJsonText)}
                   disabled={!rawJsonText}
                 >
-                  {copiedText === rawJsonText ? (
-                    <Check data-icon='inline-start' className='text-success' />
-                  ) : (
-                    <Copy data-icon='inline-start' />
-                  )}
                   {t('Copy')}
-                </Button>
+                </CopyButton>
               </div>
               <ScrollArea className='max-h-[50vh]'>
                 <pre className='bg-muted/30 m-0 p-3 text-xs break-words whitespace-pre-wrap'>

@@ -53,7 +53,7 @@ import {
  * The consent text below is versioned. Bump this together with the server's
  * realname.CurrentConsentVersion whenever the text or its purpose changes.
  */
-export const REALNAME_CONSENT_VERSION = '2026-11-18.2'
+export const REALNAME_CONSENT_VERSION = '2026-11-18.3'
 
 type VerificationPanelProps = {
   /** Called after a submission is accepted, for pages that cache their own state. */
@@ -189,9 +189,7 @@ function VerificationForm(props: VerificationPanelProps) {
       <CardHeader>
         <CardTitle>{t('Real-name verification')}</CardTitle>
         <CardDescription>
-          {t(
-            'Buying token packages requires real-name verification. We store only a masked name and a one-way hash of your ID number.'
-          )}
+          {t('Buying token packages requires real-name verification.')}
         </CardDescription>
       </CardHeader>
       <CardContent className='max-w-md space-y-3'>
@@ -221,7 +219,7 @@ function VerificationForm(props: VerificationPanelProps) {
           />
           <span>
             {t(
-              'I agree that my real-name information is used to check my eligibility to buy and publish token packages and to stop anyone from buying their own packages.'
+              'I agree that my real-name information will be used to verify my eligibility to buy and publish token packages and to prevent the same verified person from buying their own packages.'
             )}
           </span>
         </label>

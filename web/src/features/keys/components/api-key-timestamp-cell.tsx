@@ -41,7 +41,7 @@ export function ApiKeyActivityCell(props: {
       createdAt={props.apiKey.created_time}
       lastAt={accessedTime}
       lastLabel={t('Last Used')}
-      lastClassName={isStale ? 'text-warning' : 'text-muted-foreground'}
+      lastClassName={isStale ? 'text-warning-strong' : 'text-muted-foreground'}
       now={props.now}
       layout={props.layout}
     />

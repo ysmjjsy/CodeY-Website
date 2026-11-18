@@ -38,6 +38,8 @@ type ChannelConfigurationProps = {
   section: ChannelConfigurationSection
   onSectionChange: (section: ChannelConfigurationSection) => void
   statuses: Record<ChannelConfigurationSection, ChannelConfigurationStatus>
+  /** Sections to render. Defaults to the full administrator configuration. */
+  sections?: readonly ChannelConfigurationSection[]
   /** Item counts shown on a tab; a count replaces the plain configured mark. */
   badges?: Partial<
     Record<ChannelConfigurationSection, { count: number; label: string }>
@@ -46,9 +48,16 @@ type ChannelConfigurationProps = {
   models: ReactNode
   quickOptions: ReactNode
   routing: ReactNode
-  request: ReactNode
-  other: ReactNode
+  request?: ReactNode
+  other?: ReactNode
 }
+
+const DEFAULT_SECTIONS: readonly ChannelConfigurationSection[] = [
+  'connection',
+  'routing',
+  'request',
+  'other',
+]
 
 export function ChannelConfigurationStatusIndicator(props: {
   status: ChannelConfigurationStatus
@@ -101,12 +110,13 @@ export function ChannelConfiguration(props: ChannelConfigurationProps) {
       return new Set([...previous, props.section])
     })
   }, [props.section])
-  const sections = [
+  const allSections = [
     { id: 'connection', label: t('Connection & Models') },
     { id: 'routing', label: t('Routing & Mapping') },
     { id: 'request', label: t('Request & Response') },
     { id: 'other', label: t('Other Settings') },
   ] as const
+  const visibleSections = new Set(props.sections ?? DEFAULT_SECTIONS)
 
   return (
     <Tabs
@@ -122,35 +132,37 @@ export function ChannelConfiguration(props: ChannelConfigurationProps) {
           variant='line'
           className='min-w-full justify-start'
         >
-          {sections.map((section) => {
-            const status = props.statuses[section.id]
-            const badge = props.badges?.[section.id]
-            const showBadge = Boolean(badge && badge.count > 0)
-            return (
-              <TabsTrigger
-                key={section.id}
-                value={section.id}
-                className='gap-2 px-3'
-              >
-                {section.label}
-                {showBadge && badge && (
-                  <Badge
-                    variant='secondary'
-                    aria-label={badge.label}
-                    className='h-4 min-w-4 px-1 text-[10px] tabular-nums'
-                  >
-                    {badge.count}
-                  </Badge>
-                )}
-                {!(showBadge && status === 'configured') && (
-                  <ChannelConfigurationStatusIndicator
-                    status={status}
-                    required={section.id === 'connection'}
-                  />
-                )}
-              </TabsTrigger>
-            )
-          })}
+          {allSections
+            .filter((section) => visibleSections.has(section.id))
+            .map((section) => {
+              const status = props.statuses[section.id]
+              const badge = props.badges?.[section.id]
+              const showBadge = Boolean(badge && badge.count > 0)
+              return (
+                <TabsTrigger
+                  key={section.id}
+                  value={section.id}
+                  className='gap-2 px-3'
+                >
+                  {section.label}
+                  {showBadge && badge && (
+                    <Badge
+                      variant='secondary'
+                      aria-label={badge.label}
+                      className='h-4 min-w-4 px-1 text-[10px] tabular-nums'
+                    >
+                      {badge.count}
+                    </Badge>
+                  )}
+                  {!(showBadge && status === 'configured') && (
+                    <ChannelConfigurationStatusIndicator
+                      status={status}
+                      required={section.id === 'connection'}
+                    />
+                  )}
+                </TabsTrigger>
+              )
+            })}
         </TabsList>
       </div>
       <TabsContent
@@ -171,24 +183,29 @@ export function ChannelConfiguration(props: ChannelConfigurationProps) {
         keepMounted
         className='-m-1 min-h-0 space-y-5 overflow-y-auto overscroll-contain p-1'
       >
-        {(props.section === 'routing' || visited.has('routing')) &&
+        {visibleSections.has('routing') &&
+          (props.section === 'routing' || visited.has('routing')) &&
           props.routing}
       </TabsContent>
-      <TabsContent
-        value='request'
-        keepMounted
-        className='-m-1 min-h-0 space-y-5 overflow-y-auto overscroll-contain p-1'
-      >
-        {(props.section === 'request' || visited.has('request')) &&
-          props.request}
-      </TabsContent>
-      <TabsContent
-        value='other'
-        keepMounted
-        className='-m-1 min-h-0 space-y-5 overflow-y-auto overscroll-contain p-1'
-      >
-        {(props.section === 'other' || visited.has('other')) && props.other}
-      </TabsContent>
+      {visibleSections.has('request') && (
+        <TabsContent
+          value='request'
+          keepMounted
+          className='-m-1 min-h-0 space-y-5 overflow-y-auto overscroll-contain p-1'
+        >
+          {(props.section === 'request' || visited.has('request')) &&
+            props.request}
+        </TabsContent>
+      )}
+      {visibleSections.has('other') && (
+        <TabsContent
+          value='other'
+          keepMounted
+          className='-m-1 min-h-0 space-y-5 overflow-y-auto overscroll-contain p-1'
+        >
+          {(props.section === 'other' || visited.has('other')) && props.other}
+        </TabsContent>
+      )}
     </Tabs>
   )
 }

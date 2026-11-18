@@ -28,9 +28,9 @@ import {
   Package,
   ClipboardCheck,
   IdCard,
-  Store,
   PlugZap,
   Radio,
+  Router,
   ServerCog,
   Settings,
   Ticket,
@@ -99,19 +99,14 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
           ...(marketEnabled
             ? [
                 {
-                  title: t('Token market'),
-                  url: '/market',
-                  icon: Store,
-                },
-                {
                   title: t('My token packages'),
                   url: '/my-packages',
                   icon: Package,
                 },
                 {
-                  title: t('Seller center'),
-                  url: '/seller',
-                  icon: Store,
+                  title: t('My channels'),
+                  url: '/my-channels',
+                  icon: Router,
                 },
               ]
             : []),
@@ -149,7 +144,7 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             icon: Ticket,
           },
           {
-            title: t('Subscriptions'),
+            title: t('Subscription Management'),
             url: '/subscriptions',
             icon: CreditCard,
           },

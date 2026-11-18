@@ -61,7 +61,7 @@ function NodeSyncStateIcon(props: { state: NodeSyncState }) {
   return (
     <CircleCheck
       data-icon='inline-start'
-      className='text-emerald-600 dark:text-emerald-400'
+      className='text-success'
       aria-hidden='true'
     />
   )

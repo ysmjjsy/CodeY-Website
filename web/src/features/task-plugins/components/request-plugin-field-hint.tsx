@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Info } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
@@ -36,10 +37,11 @@ export function RequestPluginFieldHint(props: { text?: string }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            <button
-              type='button'
+            <Button
+              variant='ghost'
+              size='icon-xs'
               aria-label={props.text}
-              className='text-muted-foreground hover:text-foreground inline-flex rounded-sm'
+              className='text-muted-foreground hover:text-foreground'
             />
           }
         >

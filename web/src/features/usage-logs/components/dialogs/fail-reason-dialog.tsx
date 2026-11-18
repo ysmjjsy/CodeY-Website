@@ -16,14 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Copy, Check } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 
 interface FailReasonDialogProps {
   failReason: string
@@ -37,8 +35,6 @@ export function FailReasonDialog({
   onOpenChange,
 }: FailReasonDialogProps) {
   const { t } = useTranslation()
-  const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-
   return (
     <Dialog
       open={open}
@@ -55,21 +51,15 @@ export function FailReasonDialog({
             <Label className='text-sm font-semibold'>
               {t('Error Message')}
             </Label>
-            <div className='bg-muted/50 relative rounded-md border border-red-200 p-3'>
-              <Button
-                variant='ghost'
+            <div className='bg-muted/50 border-destructive/30 relative rounded-md border p-3'>
+              <CopyButton
+                value={failReason}
                 size='sm'
                 className='absolute top-2 right-2 h-8 w-8 p-0'
-                onClick={() => copyToClipboard(failReason)}
-                title={t('Copy to clipboard')}
-              >
-                {copiedText === failReason ? (
-                  <Check className='size-4 text-green-600' />
-                ) : (
-                  <Copy className='size-4' />
-                )}
-              </Button>
-              <p className='overflow-wrap-anywhere pr-10 text-sm leading-relaxed break-all whitespace-pre-wrap text-red-600'>
+                iconClassName='size-4'
+                tooltip={t('Copy to clipboard')}
+              />
+              <p className='text-destructive overflow-wrap-anywhere pr-10 text-sm leading-relaxed break-all whitespace-pre-wrap'>
                 {failReason || '-'}
               </p>
             </div>

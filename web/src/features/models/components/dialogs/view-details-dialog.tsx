@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { Copy, ExternalLink, Loader2, RefreshCcw } from 'lucide-react'
+import { ExternalLink, Loader2, RefreshCcw } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -38,8 +38,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,7 +48,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
-import { handleServerError } from '@/lib/handle-server-error'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { getDeployment, listDeploymentContainers } from '../../api'
@@ -116,18 +115,6 @@ export function ViewDetailsDialog({
       .filter(Boolean) as string[]
   }, [details])
 
-  const handleCopyId = async () => {
-    if (deploymentId === null || deploymentId === undefined) {
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(String(deploymentId))
-      toast.success(t('Copied'))
-    } catch (error) {
-      handleServerError(error, t('Copy failed'))
-    }
-  }
-
   const handleRefresh = () => {
     refetchDetails()
     refetchContainers()
@@ -170,10 +157,15 @@ export function ViewDetailsDialog({
             <span className='font-mono'>{deploymentId}</span>
           </div>
           <div className='grid grid-cols-2 gap-2 sm:flex sm:items-center'>
-            <Button variant='outline' size='sm' onClick={handleCopyId}>
-              <Copy className='mr-2 h-4 w-4' />
+            <CopyButton
+              value={String(deploymentId ?? '')}
+              variant='outline'
+              size='sm'
+              iconClassName='mr-2 h-4 w-4'
+              disabled={deploymentId === null || deploymentId === undefined}
+            >
               {t('Copy')}
-            </Button>
+            </CopyButton>
             <Button
               variant='outline'
               size='sm'

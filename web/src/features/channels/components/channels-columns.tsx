@@ -37,8 +37,8 @@ import { GroupBadge } from '@/components/group-badge'
 import { ProviderBadge } from '@/components/provider-badge'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
-import { Badge } from '@/components/ui/badge'
 import { TruncatedText } from '@/components/truncated-text'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -796,7 +796,7 @@ export function useChannelsColumns(
                       <Tooltip>
                         <TooltipTrigger
                           render={
-                            <AlertTriangle className='h-3.5 w-3.5 flex-shrink-0 text-amber-500' />
+                            <AlertTriangle className='text-warning h-3.5 w-3.5 flex-shrink-0' />
                           }
                         />
                         <TooltipContent side='top'>

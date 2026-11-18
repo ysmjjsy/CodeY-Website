@@ -58,6 +58,14 @@ export function PluginIntegrityCheck(props: PluginIntegrityCheckProps) {
           : t('Integrity check failed')
     }
   }
+  let alertVariant: 'default' | 'destructive' | 'success' | 'info' = 'info'
+  if (status === 'failed') {
+    alertVariant = 'destructive'
+  } else if (status === 'verified') {
+    alertVariant = 'success'
+  } else if (status === 'pending') {
+    alertVariant = 'default'
+  }
   return (
     <section
       className={props.compact ? 'space-y-1' : 'space-y-3'}
@@ -67,16 +75,11 @@ export function PluginIntegrityCheck(props: PluginIntegrityCheckProps) {
         <h3 className='text-sm font-medium'>{t('File verification')}</h3>
       )}
       <Alert
-        variant={status === 'failed' ? 'destructive' : 'default'}
+        variant={alertVariant}
         className={props.compact ? 'py-2' : undefined}
       >
         {status === 'pending' && <Spinner />}
-        {status === 'verified' && (
-          <CheckCircle2
-            className='text-green-700 dark:text-green-400'
-            aria-hidden='true'
-          />
-        )}
+        {status === 'verified' && <CheckCircle2 aria-hidden='true' />}
         {status === 'failed' && <AlertTriangle aria-hidden='true' />}
         {(status === 'unavailable' || status === 'missing') && (
           <Info aria-hidden='true' />

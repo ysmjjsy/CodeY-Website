@@ -228,11 +228,28 @@ func SetApiRouter(router *gin.Engine) {
 			userChannelRoute.DELETE("/:id", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.DeleteUserChannel)
 			// Each test makes an upstream call, so tests are rate limited too.
 			userChannelRoute.POST("/:id/test", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.TestUserChannel)
+			// Login plugins create a credential after the channel is saved.
+			userChannelRoute.POST("/:id/plugin_login", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.StartUserPluginLogin)
+			userChannelRoute.POST("/:id/plugin_login/continue", middleware.SellerAuth(), controller.ContinueUserPluginLogin)
+			userChannelRoute.POST("/plugin_login/callback", controller.CompleteUserPluginLoginCallback)
+			userChannelRoute.GET("/:id/plugin_credentials", controller.GetUserPluginCredentials)
 		}
+		apiRouter.GET("/user/channel_options", middleware.UserAuth(), middleware.DisableCache(), controller.GetUserChannelOptions)
+		apiRouter.GET("/user/channel_default_base_urls", middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled(), middleware.SellerAuth(), controller.GetChannelDefaultBaseURLs)
 		apiRouter.POST("/user/channel_models", middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled(), middleware.SellerAuth(), middleware.CriticalRateLimit(), controller.FetchUserChannelModels)
+		apiRouter.POST("/user/channel-batch", middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled(), middleware.SellerAuth(), middleware.CriticalRateLimit(), controller.BatchUserChannels)
 
-		// Token package marketplace. Browsing needs a session; buying spends
-		// wallet balance through the same rate-limited path as other payments.
+		// Public token package marketplace reads. Purchases still require a
+		// session and spend wallet balance through the existing protected path.
+		publicMarketRoute := apiRouter.Group("/market/public")
+		publicMarketRoute.Use(middleware.MarketplaceEnabled())
+		{
+			publicMarketRoute.GET("/packages", controller.GetPublicMarketPackages)
+			publicMarketRoute.GET("/packages/:id", controller.GetPublicMarketPackage)
+		}
+
+		// Authenticated marketplace reads remain for existing clients. The
+		// public storefront uses the routes above.
 		marketRoute := apiRouter.Group("/market")
 		marketRoute.Use(middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled())
 		{
@@ -242,6 +259,7 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		// Subscription billing (plans, purchase, admin management)
+		apiRouter.GET("/subscription/public/plans", controller.GetPublicSubscriptionPlans)
 		subscriptionRoute := apiRouter.Group("/subscription")
 		subscriptionRoute.Use(middleware.UserAuth())
 		{

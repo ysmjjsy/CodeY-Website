@@ -16,10 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Search, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { CopyButton } from '@/components/copy-button'
 import { Dialog } from '@/components/dialog'
 import { StatusBadge } from '@/components/status-badge'
 import {
@@ -44,7 +45,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatCurrencyFromUSD } from '@/lib/currency'
 import { formatNumber } from '@/lib/format'
 
@@ -81,7 +81,6 @@ export function BillingHistoryDialog({
   } = useBillingHistory()
 
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
-  const { copyToClipboard, copiedText } = useCopyToClipboard({ notify: false })
 
   const totalPages = Math.ceil(total / pageSize)
 
@@ -200,18 +199,13 @@ export function BillingHistoryDialog({
                             <code className='text-foreground truncate font-mono text-sm'>
                               {record.trade_no}
                             </code>
-                            <Button
-                              variant='ghost'
+                            <CopyButton
+                              value={record.trade_no}
                               size='sm'
                               className='h-5 w-5 p-0'
-                              onClick={() => copyToClipboard(record.trade_no)}
-                            >
-                              {copiedText === record.trade_no ? (
-                                <Check className='h-3 w-3' />
-                              ) : (
-                                <Copy className='h-3 w-3' />
-                              )}
-                            </Button>
+                              iconClassName='h-3 w-3'
+                              aria-label={t('Copy to clipboard')}
+                            />
                             {isAdmin && record.user_id != null && (
                               <StatusBadge
                                 label={`${t('User ID')}: ${record.user_id}`}
@@ -259,7 +253,7 @@ export function BillingHistoryDialog({
                           <Label className='text-muted-foreground text-xs'>
                             {t('Payment')}
                           </Label>
-                          <div className='text-sm font-semibold text-red-600'>
+                          <div className='text-destructive text-sm font-semibold'>
                             {formatNumber(record.money)}
                           </div>
                         </div>

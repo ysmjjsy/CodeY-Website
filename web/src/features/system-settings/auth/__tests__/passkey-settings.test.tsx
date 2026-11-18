@@ -234,9 +234,11 @@ describe('Passkey website guidance', () => {
       name: 'Primary Passkey domain',
     })
     expect(input).toHaveValue('')
-    await waitFor(() => expect(input).not.toHaveClass('border-amber-500'))
-    expect(input).toHaveAccessibleDescription(
-      `${domainHint} The system currently uses: ${window.location.hostname}`
+    await waitFor(() => expect(input).not.toHaveClass('border-warning'))
+    await waitFor(() =>
+      expect(input).toHaveAccessibleDescription(
+        `${domainHint} The system currently uses: ${window.location.hostname}`
+      )
     )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(
@@ -351,19 +353,19 @@ describe('Passkey website guidance', () => {
       const input = screen.getByRole('textbox', {
         name: 'Primary Passkey domain',
       })
-      expect(input).not.toHaveClass('border-amber-500')
+      expect(input).not.toHaveClass('border-warning')
       await user.clear(input)
       await user.type(input, domain)
       expect(input).toHaveClass(
-        'border-amber-500',
-        'focus-visible:border-amber-500'
+        'border-warning',
+        'focus-visible:border-warning'
       )
       expect(input).toHaveAccessibleDescription(
         `${domainHint} This domain does not match the current website. Passkeys may not work here.`
       )
       await user.clear(input)
       await user.type(input, window.location.hostname)
-      expect(input).not.toHaveClass('border-amber-500')
+      expect(input).not.toHaveClass('border-warning')
       expect(
         screen.queryByText(
           'This domain does not match the current website. Passkeys may not work here.'
@@ -376,7 +378,7 @@ describe('Passkey website guidance', () => {
     render(<Fixture rpId='example.com' />)
     expect(
       screen.getByRole('textbox', { name: 'Primary Passkey domain' })
-    ).not.toHaveClass('border-amber-500')
+    ).not.toHaveClass('border-warning')
     const websites = screen.getByRole('textbox', {
       name: 'Allowed Passkey websites',
     })
@@ -425,7 +427,7 @@ describe('Passkey website guidance', () => {
     render(<Fixture />)
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: '主域名' })).not.toHaveClass(
-        'border-amber-500'
+        'border-warning'
       )
     )
     await user.click(screen.getByRole('button', { name: '为什么需要设置？' }))

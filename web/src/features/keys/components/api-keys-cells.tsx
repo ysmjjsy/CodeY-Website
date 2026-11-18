@@ -80,7 +80,7 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
     copyIcon = <Loader2 className='size-3.5 animate-spin' />
     copyTooltip = t('Loading...')
   } else if (isCopied) {
-    copyIcon = <Check className='size-3.5 text-green-600' />
+    copyIcon = <Check className='text-success-strong size-3.5' />
     copyTooltip = t('Copied!')
   }
 

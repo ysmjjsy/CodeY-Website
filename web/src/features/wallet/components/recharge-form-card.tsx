@@ -260,7 +260,7 @@ export function RechargeFormCard({
                               {formatNumber(displayValue)}
                             </div>
                             {hasDiscount && (
-                              <div className='text-xs font-medium text-green-600'>
+                              <div className='text-success-strong text-xs font-medium'>
                                 {getDiscountLabel(discount, t)}
                               </div>
                             )}
@@ -275,7 +275,9 @@ export function RechargeFormCard({
                                   saved: formatCurrency(savedAmount),
                                 }}
                                 components={{
-                                  savings: <span className='text-green-600' />,
+                                  savings: (
+                                    <span className='text-success-strong' />
+                                  ),
                                 }}
                               />
                             ) : (

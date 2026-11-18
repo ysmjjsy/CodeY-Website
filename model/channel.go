@@ -220,17 +220,76 @@ func ApplyChannelOwnerFilter(query *gorm.DB, filter ChannelOwnerFilter) *gorm.DB
 // belong to the user the caller scoped the operation to.
 var ErrChannelNotFound = errors.New("channel not found")
 
-// ListChannelsByOwner returns a user's own channels without their keys.
-func ListChannelsByOwner(ownerUserId int, keyword string) ([]*Channel, error) {
-	var channels []*Channel
-	query := DB.Omit("key").Where("owner_user_id = ?", ownerUserId)
-	if trimmed := strings.TrimSpace(keyword); trimmed != "" {
-		query = query.Where("name LIKE ?", "%"+trimmed+"%")
+type UserChannelListFilter struct {
+	Keyword  string
+	Status   string
+	Type     int
+	Bound    string
+	Page     int
+	PageSize int
+}
+
+func userChannelBoundSubquery() *gorm.DB {
+	return DB.Table("token_package_channels AS c").
+		Select("DISTINCT c.channel_id").
+		Joins("JOIN token_package_versions AS v ON v.id = c.version_id AND v.status IN ?", lockedPackageVersionStatuses()).
+		Joins("JOIN token_packages AS p ON p.id = v.package_id AND p.status <> ? AND (p.active_version_id = v.id OR v.status <> ?)", constant.TokenPackageStatusTerminated, constant.TokenPackageVersionStatusApproved)
+}
+
+// ListChannelsByOwner returns a page of a user's own channels without their
+// keys. Filters stay server-side so the page count and rows describe the same
+// result set.
+func ListChannelsByOwner(ownerUserId int, filter UserChannelListFilter) ([]*Channel, int64, error) {
+	page := filter.Page
+	if page < 1 {
+		page = 1
 	}
-	if err := query.Order("id DESC").Find(&channels).Error; err != nil {
-		return nil, err
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
 	}
-	return channels, nil
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	buildQuery := func() *gorm.DB {
+		query := DB.Model(&Channel{}).Where("owner_user_id = ?", ownerUserId)
+		if keyword := strings.TrimSpace(filter.Keyword); keyword != "" {
+			like := "%" + keyword + "%"
+			query = query.Where("(name LIKE ? OR base_url LIKE ? OR models LIKE ?)", like, like, like)
+		}
+		switch strings.ToLower(strings.TrimSpace(filter.Status)) {
+		case "enabled":
+			query = query.Where("status = ?", common.ChannelStatusEnabled)
+		case "disabled":
+			query = query.Where("status <> ?", common.ChannelStatusEnabled)
+		}
+		if filter.Type > 0 {
+			query = query.Where("type = ?", filter.Type)
+		}
+		switch strings.ToLower(strings.TrimSpace(filter.Bound)) {
+		case "bound":
+			query = query.Where("id IN (?)", userChannelBoundSubquery())
+		case "unbound":
+			query = query.Where("id NOT IN (?)", userChannelBoundSubquery())
+		}
+		return query
+	}
+
+	var total int64
+	if err := buildQuery().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	channels := make([]*Channel, 0)
+	if err := buildQuery().
+		Omit("key").
+		Order("id DESC").
+		Limit(pageSize).
+		Offset((page - 1) * pageSize).
+		Find(&channels).Error; err != nil {
+		return nil, 0, err
+	}
+	return channels, total, nil
 }
 
 // GetChannelForOwner loads one of a user's own channels without its key.

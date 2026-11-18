@@ -78,8 +78,8 @@ const ICON_TONE_BY_STAT_TONE: Record<StatCardTone, IconBadgeTone> = {
 const DETAIL_TONE_CLASSES: Record<StatCardDetailTone, string> = {
   default: 'text-foreground',
   muted: 'text-muted-foreground',
-  success: 'text-success',
-  warning: 'text-warning',
+  success: 'text-success-strong',
+  warning: 'text-warning-strong',
   destructive: 'text-destructive',
 }
 

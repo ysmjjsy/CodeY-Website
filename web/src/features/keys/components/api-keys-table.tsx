@@ -102,10 +102,12 @@ function ApiKeysMobileList({
   table,
   isLoading,
   now,
+  isFiltered,
 }: {
   table: TanstackTable<ApiKey>
   isLoading: boolean
   now: number
+  isFiltered: boolean
 }) {
   const { t } = useTranslation()
   const rows = table.getRowModel().rows
@@ -120,11 +122,15 @@ function ApiKeysMobileList({
             <EmptyMedia variant='icon'>
               <Database className='size-6' />
             </EmptyMedia>
-            <EmptyTitle>{t('No API Keys Found')}</EmptyTitle>
+            <EmptyTitle>
+              {isFiltered ? t('No results found') : t('No API Keys Found')}
+            </EmptyTitle>
             <EmptyDescription>
-              {t(
-                'No API keys available. Create your first API key to get started.'
-              )}
+              {isFiltered
+                ? t('No records found. Try adjusting your filters.')
+                : t(
+                    'No API keys available. Create your first API key to get started.'
+                  )}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -258,6 +264,8 @@ export function ApiKeysTable() {
     onColumnFiltersChange,
   })
   const shouldSearch = Boolean(globalFilter?.trim() || tokenFilter.trim())
+  const isFiltered =
+    shouldSearch || columnFilters.some((filter) => filter.id === 'status')
 
   // Fetch data with React Query
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
@@ -344,10 +352,16 @@ export function ApiKeysTable() {
       columns={columns}
       isLoading={isLoading}
       isFetching={isFetching}
-      emptyTitle={t('No API Keys Found')}
-      emptyDescription={t(
-        'No API keys available. Create your first API key to get started.'
-      )}
+      emptyTitle={isFiltered ? t('No results found') : t('No API Keys Found')}
+      emptyDescription={
+        isFiltered
+          ? t('No records found. Try adjusting your filters.')
+          : t(
+              'No API keys available. Create your first API key to get started.'
+            )
+      }
+      tableClassName='api-keys-table @container border-border bg-card rounded-xl shadow-sm [&_[data-slot=empty]]:sticky [&_[data-slot=empty]]:left-0 [&_[data-slot=empty]]:w-[100cqw]'
+      tableHeaderClassName='bg-muted/60'
       skeletonKeyPrefix='api-keys-skeleton'
       applyHeaderSize
       toolbarProps={{
@@ -372,7 +386,12 @@ export function ApiKeysTable() {
         ],
       }}
       mobile={
-        <ApiKeysMobileList table={table} isLoading={isLoading} now={now} />
+        <ApiKeysMobileList
+          table={table}
+          isLoading={isLoading}
+          now={now}
+          isFiltered={isFiltered}
+        />
       }
       getRowClassName={(row) =>
         isDisabledApiKeyRow(row.original) ? DISABLED_ROW_DESKTOP : undefined

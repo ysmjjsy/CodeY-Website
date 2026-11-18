@@ -865,3 +865,34 @@ test('an empty plugin filter reports that no plugins can be bound', async () => 
   expect(screen.getByText('No plugins available for binding')).toBeVisible()
   expect(screen.queryByRole('option')).not.toBeInTheDocument()
 })
+
+test('allowed types restrict providers, hide plugins, and disable numeric custom types', async () => {
+  const user = userEvent.setup()
+  render(
+    <ChannelProviderPicker
+      plugins={plugins}
+      canBindPlugin
+      allowedTypes={[1, 14]}
+      allowCustomTypeNumber={false}
+      loading={false}
+      failed={false}
+      disabled={false}
+      onRetry={vi.fn()}
+      onSelect={vi.fn()}
+    />
+  )
+
+  expect(
+    screen.getByRole('option', { name: 'OpenAI Built-in #1' })
+  ).toBeVisible()
+  expect(
+    screen.getByRole('option', { name: 'Anthropic Built-in #14' })
+  ).toBeVisible()
+  expect(
+    screen.queryByRole('option', { name: 'Azure Built-in #3' })
+  ).not.toBeInTheDocument()
+  expect(screen.queryByRole('tab', { name: 'Plugins' })).not.toBeInTheDocument()
+
+  await user.type(screen.getByRole('combobox'), '999')
+  expect(screen.queryByRole('option')).not.toBeInTheDocument()
+})

@@ -58,16 +58,16 @@ const METER_TONES: Record<
     text: 'text-destructive',
   },
   2: {
-    bar: 'bg-amber-500',
-    text: 'text-amber-700 dark:text-amber-400',
+    bar: 'bg-warning',
+    text: 'text-warning-strong',
   },
   3: {
-    bar: 'bg-sky-500',
-    text: 'text-sky-700 dark:text-sky-400',
+    bar: 'bg-info',
+    text: 'text-info-strong',
   },
   4: {
-    bar: 'bg-emerald-500',
-    text: 'text-emerald-700 dark:text-emerald-400',
+    bar: 'bg-success',
+    text: 'text-success-strong',
   },
 }
 
@@ -101,7 +101,7 @@ function PasswordRuleItem(props: PasswordRuleItemProps) {
         className={cn(
           'grid size-3.5 shrink-0 place-items-center rounded-sm border transition-colors',
           rule.met
-            ? 'border-emerald-500 bg-emerald-500 text-white'
+            ? 'border-success bg-success text-success-foreground'
             : 'border-border'
         )}
       >
@@ -159,7 +159,7 @@ export function PasswordStrength(props: PasswordStrengthProps) {
     requirementStatusTone = 'text-muted-foreground'
   } else if (strength.meetsRequirements) {
     requirementStatusLabel = t('Password requirements met')
-    requirementStatusTone = 'text-emerald-700 dark:text-emerald-400'
+    requirementStatusTone = 'text-success-strong'
   }
 
   const announcement = useMemo(() => {
@@ -255,9 +255,7 @@ export function PasswordStrength(props: PasswordStrengthProps) {
       </div>
 
       {strength.guessable && (
-        <p className='mt-1 text-xs text-amber-700 dark:text-amber-400'>
-          {t('Easy to guess')}
-        </p>
+        <p className='text-warning-strong mt-1 text-xs'>{t('Easy to guess')}</p>
       )}
 
       <div className='mt-2'>
@@ -330,7 +328,7 @@ export function PasswordConfirmationStatus(
       aria-atomic='true'
       className={cn(
         state !== 'empty' && 'flex items-center gap-1.5 text-xs',
-        matches ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
+        matches ? 'text-success-strong' : 'text-destructive',
         props.className
       )}
     >

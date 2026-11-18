@@ -64,7 +64,7 @@ export function AccessTokenItem(props: AccessTokenItemProps) {
     </span>
   )
   if (token.expires_at === 0) {
-    expiry = <span className='text-warning'>{t('Never expires')}</span>
+    expiry = <span className='text-warning-strong'>{t('Never expires')}</span>
   } else if (token.expires_at * 1000 <= props.now) {
     expiry = <span className='text-destructive'>{t('Expired')}</span>
   }

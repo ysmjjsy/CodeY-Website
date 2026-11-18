@@ -72,6 +72,7 @@ function sidebarFor(admin?: object, user?: object, canConfigure = true) {
   })
   client.setQueryData(['status'], {
     SidebarModulesAdmin: admin ? JSON.stringify(admin) : '',
+    token_package_enabled: true,
   })
   useAuthStore.getState().auth.setUser({
     id: 1,
@@ -112,6 +113,19 @@ describe('account pages live outside the sidebar', () => {
     ]) {
       expect(titles).not.toContain(title)
     }
+  })
+})
+
+describe('token market navigation', () => {
+  it('keeps the public token market out of the sidebar', () => {
+    const { result } = sidebarFor()
+    const urls = result.current
+      .flatMap((group) => group.items)
+      .map((item) => item.url)
+
+    expect(urls).not.toContain('/market')
+    expect(urls).toContain('/my-packages')
+    expect(urls).not.toContain('/seller')
   })
 })
 

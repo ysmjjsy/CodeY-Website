@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { AlertCircle, Braces, CheckCircle2, Code2, Copy } from 'lucide-react'
+import { AlertCircle, Braces, CheckCircle2, Code2 } from 'lucide-react'
 import {
   useEffect,
   useMemo,
@@ -25,11 +25,11 @@ import {
   type ComponentProps,
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { Yace, type Plugin } from 'yace'
 import { code } from 'yace/highlighters/code'
 import { autoClose, history, tab } from 'yace/plugins'
 
+import { CopyButton } from '@/components/copy-button'
 import {
   createScrollLayerSynchronizer,
   formatJsonDraft,
@@ -39,7 +39,6 @@ import {
   type CursorLocation,
 } from '@/components/json-code-editor/json-code-editor-utils'
 import { Button } from '@/components/ui/button'
-import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { cn } from '@/lib/utils'
 
 export type JsonCodeEditorProps = Omit<
@@ -250,16 +249,6 @@ export function JsonCodeEditor({
     }
   }
 
-  const handleCopy = async () => {
-    const didCopy = await copyToClipboard(value)
-    if (didCopy) {
-      toast.success(t('Copied to clipboard'))
-      return
-    }
-
-    toast.error(t('Failed to copy'))
-  }
-
   const statusMessage = t(jsonStatus.messageKey)
   const cursorText = `${cursorLocation.line}:${cursorLocation.column}`
 
@@ -284,7 +273,7 @@ export function JsonCodeEditor({
           <span
             className={cn(
               'flex items-center gap-1 text-xs',
-              jsonStatus.isValid ? 'text-emerald-600' : 'text-destructive'
+              jsonStatus.isValid ? 'text-success-strong' : 'text-destructive'
             )}
           >
             {jsonStatus.isValid ? (
@@ -294,17 +283,16 @@ export function JsonCodeEditor({
             )}
             {statusMessage}
           </span>
-          <Button
-            type='button'
+          <CopyButton
+            value={value}
             variant='ghost'
             size='sm'
             className='h-6 px-2 text-xs'
-            onClick={handleCopy}
+            iconClassName='mr-1 h-3.5 w-3.5'
             disabled={disabled || !value}
           >
-            <Copy className='mr-1 h-3.5 w-3.5' aria-hidden='true' />
             {t('Copy')}
-          </Button>
+          </CopyButton>
           <Button
             type='button'
             variant='ghost'

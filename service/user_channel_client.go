@@ -10,21 +10,20 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 )
 
-// userChannelAllowedPorts are the only destination ports reachable through a
-// seller-supplied upstream.
-var userChannelAllowedPorts = []int{80, 443, 8080, 8443}
-
-// userChannelProtection is the fixed SSRF policy of user-owned channels. It
-// never reads the global fetch setting: an operator who allows private
-// addresses for platform channels must not widen what a seller can reach.
+// userChannelProtection is the SSRF policy of user-owned channels. It never
+// reads the global fetch setting: an operator who allows private addresses for
+// platform channels must not widen what a seller can reach. Ports come from the
+// marketplace setting on every check so changes apply without rebuilding the
+// client.
 func userChannelProtection() *common.SSRFProtection {
 	return &common.SSRFProtection{
 		AllowPrivateIp:         false,
 		DomainFilterMode:       false,
 		IpFilterMode:           false,
-		AllowedPorts:           userChannelAllowedPorts,
+		AllowedPorts:           token_package_setting.AllowedSellerChannelPorts(),
 		ApplyIPFilterForDomain: true,
 	}
 }
@@ -42,15 +41,14 @@ func ValidateUserChannelBaseURL(rawURL string) error {
 }
 
 type userChannelRoundTripper struct {
-	protection *common.SSRFProtection
-	transport  *http.Transport
+	transport *http.Transport
 }
 
 func (t *userChannelRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req == nil || req.URL == nil {
 		return nil, fmt.Errorf("invalid request")
 	}
-	if err := t.protection.ValidateURL(req.URL.String()); err != nil {
+	if err := userChannelProtection().ValidateURL(req.URL.String()); err != nil {
 		return nil, err
 	}
 	return t.transport.RoundTrip(req)
@@ -61,12 +59,11 @@ func (t *userChannelRoundTripper) CloseIdleConnections() {
 }
 
 func newUserChannelHTTPClient() *http.Client {
-	protection := userChannelProtection()
 	protectedDialer := &protectedFetchDialer{
 		resolver:    net.DefaultResolver,
 		dialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 		getProtection: func() (*common.SSRFProtection, bool, error) {
-			return protection, true, nil
+			return userChannelProtection(), true, nil
 		},
 	}
 	// Same pool, idle, header-wait and HTTP/2 ping settings as the relay
@@ -76,9 +73,9 @@ func newUserChannelHTTPClient() *http.Client {
 	transport.DialContext = protectedDialer.DialContext
 	transport.DialTLSContext = nil
 	client := &http.Client{
-		Transport: &userChannelRoundTripper{protection: protection, transport: transport},
+		Transport: &userChannelRoundTripper{transport: transport},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if err := protection.ValidateURL(req.URL.String()); err != nil {
+			if err := userChannelProtection().ValidateURL(req.URL.String()); err != nil {
 				return fmt.Errorf("redirect to %s blocked: %v", req.URL.String(), err)
 			}
 			if len(via) >= 10 {

@@ -919,7 +919,7 @@ func relayPaths(meta jsplugin.Meta) []string {
 	return paths
 }
 
-func GetTaskPluginOptions(c *gin.Context) {
+func taskPluginOptions() []gin.H {
 	snapshot := jsplugin.DefaultRegistry.Snapshot()
 	seen := make(map[string]bool)
 	options := make([]gin.H, 0, len(snapshot.Factory)+len(snapshot.Override))
@@ -1004,6 +1004,11 @@ func GetTaskPluginOptions(c *gin.Context) {
 		}
 		return options[i]["key"].(string) < options[j]["key"].(string)
 	})
+	return options
+}
+
+func GetTaskPluginOptions(c *gin.Context) {
+	options := taskPluginOptions()
 	common.ApiSuccess(c, options)
 }
 

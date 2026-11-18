@@ -102,6 +102,14 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Model Square'), href: '/pricing', requiresAuth })
   }
 
+  if (modules?.subscription !== false) {
+    links.push({ title: t('Subscription'), href: '/subscription' })
+  }
+
+  if (modules?.market !== false && status?.token_package_enabled === true) {
+    links.push({ title: t('Token market'), href: '/market' })
+  }
+
   // Rankings
   const rankings = modules?.rankings
   if (rankings && typeof rankings === 'object' && rankings.enabled) {

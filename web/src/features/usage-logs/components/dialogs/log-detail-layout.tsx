@@ -60,7 +60,7 @@ export function DetailSection(props: {
       <Label
         className={cn(
           'flex items-center gap-1.5 text-xs font-semibold',
-          isDanger && 'text-red-500'
+          isDanger && 'text-destructive'
         )}
       >
         {props.icon && (
@@ -73,9 +73,7 @@ export function DetailSection(props: {
       <div
         className={cn(
           'min-w-0 space-y-1 overflow-hidden rounded-md border p-2.5 max-sm:p-2',
-          isDanger
-            ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'
-            : 'bg-muted/30'
+          isDanger ? 'border-destructive/30 bg-destructive/10' : 'bg-muted/30'
         )}
       >
         {props.children}

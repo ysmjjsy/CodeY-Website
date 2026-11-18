@@ -115,10 +115,7 @@ function highlightExprDiff(expr: string, base: unknown) {
     word[0] === baseWords[i] ? (
       word[0]
     ) : (
-      <mark
-        key={word.index}
-        className='rounded-sm bg-amber-500/25 text-inherit'
-      >
+      <mark key={word.index} className='bg-warning/25 rounded-sm text-inherit'>
         {word[0]}
       </mark>
     )

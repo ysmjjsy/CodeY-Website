@@ -212,6 +212,9 @@ export const WebPreviewBody = ({
     <div className='flex-1'>
       <iframe
         className={cn('size-full', className)}
+        // The preview needs scripts and same-origin access to render local
+        // HTML fixtures; keep the sandbox flags together for that contract.
+        // oxlint-disable-next-line react/iframe-missing-sandbox
         sandbox='allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'
         src={(src ?? url) || undefined}
         title={t('Preview')}
@@ -272,15 +275,15 @@ export const WebPreviewConsole = ({
           {logs.length === 0 ? (
             <p className='text-muted-foreground'>{t('No console output')}</p>
           ) : (
-            logs.map((log, index) => (
+            logs.map((log) => (
               <div
                 className={cn(
                   'text-xs',
                   log.level === 'error' && 'text-destructive',
-                  log.level === 'warn' && 'text-warning',
+                  log.level === 'warn' && 'text-warning-strong',
                   log.level === 'log' && 'text-foreground'
                 )}
-                key={`${log.timestamp.getTime()}-${index}`}
+                key={`${log.timestamp.getTime()}-${log.level}-${log.message}`}
               >
                 <span className='text-muted-foreground'>
                   {dayjs(log.timestamp).format('HH:mm:ss')}

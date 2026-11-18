@@ -173,9 +173,9 @@ it('shows desktop remaining and used amounts side by side without labels, with t
 })
 
 it.each([
-  ['unused', 500000, 0, 100, 'text-emerald-500'],
-  ['low remaining', 150000, 350000, 30, 'text-amber-500'],
-  ['critical remaining', 50000, 450000, 10, 'text-rose-500'],
+  ['unused', 500000, 0, 100, 'text-success'],
+  ['low remaining', 150000, 350000, 30, 'text-warning'],
+  ['critical remaining', 50000, 450000, 10, 'text-destructive'],
   ['exhausted', 0, 500000, 0, null],
   ['overdrawn', -50000, 500000, 0, null],
   ['zero total', 0, 0, 0, null],
@@ -348,6 +348,49 @@ async function renderKeysPage(status = 1, overrides: Partial<ApiKey> = {}) {
   await screen.findByText(currentKey.name)
   return { post, put }
 }
+
+it.each([false, true])(
+  'shows filter guidance when a name search finds no keys (mobile: %s)',
+  async (mobile) => {
+    if (mobile) {
+      const matchMedia = window.matchMedia
+      vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+        ...matchMedia(query),
+        matches: query.includes('max-width'),
+      }))
+    }
+    await renderKeysPage()
+    vi.mocked(api.get).mockImplementation(async (url) => {
+      if (url.startsWith('/api/token/search')) {
+        return { data: { success: true, data: { items: [], total: 0 } } }
+      }
+      return { data: { success: true, data: { default: { ratio: 1 } } } }
+    })
+
+    await userEvent.type(
+      screen.getByPlaceholderText('Filter by name...'),
+      'missing'
+    )
+
+    const emptyTitle = await screen.findByText('No results found')
+    expect(emptyTitle).toBeVisible()
+    if (!mobile) {
+      const empty = emptyTitle.closest('[data-slot="empty"]')
+      const container = empty?.closest('.api-keys-table')
+      expect(container).toHaveClass('@container')
+      expect(container).toHaveClass('[&_[data-slot=empty]]:sticky')
+      expect(container).toHaveClass('[&_[data-slot=empty]]:w-[100cqw]')
+    }
+    expect(
+      screen.getByText('No records found. Try adjusting your filters.')
+    ).toBeVisible()
+    expect(
+      screen.queryByText(
+        'No API keys available. Create your first API key to get started.'
+      )
+    ).not.toBeInTheDocument()
+  }
+)
 
 it('combines creation and last use while keeping expiry, models and IP restrictions separate', async () => {
   await renderKeysPage()

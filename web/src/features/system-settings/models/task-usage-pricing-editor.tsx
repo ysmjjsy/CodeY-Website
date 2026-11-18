@@ -501,7 +501,7 @@ export const TaskUsagePricingEditor = memo(function TaskUsagePricingEditor(
             ) : (
               <>
                 {allRowsFree ? (
-                  <Alert className='border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'>
+                  <Alert variant='warning'>
                     <AlertTriangle aria-hidden='true' />
                     <AlertDescription className='text-xs text-current'>
                       {t(

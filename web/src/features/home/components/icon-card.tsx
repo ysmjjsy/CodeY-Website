@@ -38,7 +38,7 @@ export function IconCard({ iconName, size = 32, className }: IconCardProps) {
         className
       )}
     >
-      <div className='absolute -top-8 left-1/2 h-16 w-32 -translate-x-1/2 rounded-full bg-radial from-amber-500/10 to-amber-500/0 opacity-0 blur-xl transition-opacity duration-500 group-hover/card:opacity-100' />
+      <div className='from-primary/10 to-primary/0 absolute -top-8 left-1/2 h-16 w-32 -translate-x-1/2 rounded-full bg-radial opacity-0 blur-xl transition-opacity duration-500 group-hover/card:opacity-100' />
       <div className='relative flex items-center justify-center'>
         {getLobeIcon(iconName, size)}
       </div>

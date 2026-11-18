@@ -739,7 +739,7 @@ export function SyncWizardDialog(props: {
                       <div className='w-44 max-w-60 space-y-1 whitespace-normal'>
                         <span>{t(FIELD_LABELS[field.field])}</span>
                         {impact(field.field) && (
-                          <p className='text-warning text-xs'>
+                          <p className='text-warning-strong text-xs'>
                             {impact(field.field)}
                           </p>
                         )}

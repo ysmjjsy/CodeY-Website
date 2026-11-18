@@ -17,9 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute } from '@tanstack/react-router'
+import z from 'zod'
 
-import { Market } from '@/features/market'
+import { MyChannels } from '@/features/my-channels'
 
-export const Route = createFileRoute('/_authenticated/market/')({
-  component: Market,
+const myChannelsSearchSchema = z.object({
+  page: z.number().optional().catch(1),
+  pageSize: z.number().optional().catch(undefined),
+  filter: z.string().optional().catch(''),
+  status: z.array(z.string()).optional().catch([]),
+  type: z.array(z.string()).optional().catch([]),
+  bound: z.array(z.string()).optional().catch([]),
+})
+
+export const Route = createFileRoute('/_authenticated/my-channels/')({
+  validateSearch: myChannelsSearchSchema,
+  component: MyChannels,
 })

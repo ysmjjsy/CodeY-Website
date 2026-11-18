@@ -474,6 +474,28 @@ export async function resetCodexUsage(
 // Plugin Login
 // ============================================================================
 
+export type PluginLoginScope = 'admin' | 'seller'
+
+function pluginLoginChannelPath(
+  channelId: number,
+  scope: PluginLoginScope
+): string {
+  return scope === 'seller'
+    ? `/api/user/channels/${channelId}`
+    : `/api/channel/${channelId}`
+}
+
+/** Seller plugin options use the same shape as the administrator list. */
+export async function getUserChannelPluginOptions(): Promise<
+  TaskPluginOption[]
+> {
+  const res = await api.get<{
+    success: boolean
+    data?: { plugins?: TaskPluginOption[] | null }
+  }>('/api/user/channel_options', channelActionConfig())
+  return requireServerSuccess(res.data).data?.plugins ?? []
+}
+
 /**
  * keyIndex null adds a credential; an index logs in again on that line. `add`
  * keeps the account of a single-key channel and adds the new one next to it.
@@ -481,13 +503,14 @@ export async function resetCodexUsage(
 export async function startPluginLogin(
   channelId: number,
   keyIndex: number | null,
-  add = false
+  add = false,
+  scope: PluginLoginScope = 'admin'
 ): Promise<{ flow: string; step: PluginLoginStep }> {
   const res = await api.post<{
     success: boolean
     data: { flow: string; step: PluginLoginStep }
   }>(
-    `/api/channel/${channelId}/plugin_login`,
+    `${pluginLoginChannelPath(channelId, scope)}/plugin_login`,
     add ? { add: true } : { key_index: keyIndex },
     channelActionConfig()
   )
@@ -497,13 +520,14 @@ export async function startPluginLogin(
 export async function continuePluginLogin(
   channelId: number,
   flow: string,
-  input: PluginLoginInput
+  input: PluginLoginInput,
+  scope: PluginLoginScope = 'admin'
 ): Promise<PluginLoginStep> {
   const res = await api.post<{
     success: boolean
     data: { step: PluginLoginStep }
   }>(
-    `/api/channel/${channelId}/plugin_login/continue`,
+    `${pluginLoginChannelPath(channelId, scope)}/plugin_login/continue`,
     { flow, input },
     channelActionConfig()
   )
@@ -513,13 +537,16 @@ export async function continuePluginLogin(
 /** params holds every query parameter the vendor redirected back with. */
 export async function submitPluginLoginCallback(
   plugin: string,
-  params: Record<string, string>
+  params: Record<string, string>,
+  scope: PluginLoginScope = 'admin'
 ): Promise<{ channel_id: number; step: PluginLoginStep }> {
   const res = await api.post<{
     success: boolean
     data: { channel_id: number; step: PluginLoginStep }
   }>(
-    '/api/channel/plugin_login/callback',
+    scope === 'seller'
+      ? '/api/user/channels/plugin_login/callback'
+      : '/api/channel/plugin_login/callback',
     { plugin, params },
     channelActionConfig()
   )
@@ -527,12 +554,16 @@ export async function submitPluginLoginCallback(
 }
 
 export async function getPluginCredentials(
-  channelId: number
+  channelId: number,
+  scope: PluginLoginScope = 'admin'
 ): Promise<PluginCredentialSummary[]> {
   const res = await api.get<{
     success: boolean
     data: { items: PluginCredentialSummary[] | null }
-  }>(`/api/channel/${channelId}/plugin_credentials`, channelActionConfig())
+  }>(
+    `${pluginLoginChannelPath(channelId, scope)}/plugin_credentials`,
+    channelActionConfig()
+  )
   return requireServerSuccess(res.data).data.items ?? []
 }
 

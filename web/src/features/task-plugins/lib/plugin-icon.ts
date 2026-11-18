@@ -88,14 +88,14 @@ function deriveTextLabel(input: PluginIconInput): string {
  * color, and every pair meets WCAG AA contrast in both themes.
  */
 export const TEXT_AVATAR_PALETTE = [
-  'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-  'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-  'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
-  'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100',
-  'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100',
-  'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
-  'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100',
-  'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100',
+  'bg-primary/10 text-primary',
+  'bg-info/10 text-info-strong',
+  'bg-success/10 text-success-strong',
+  'bg-warning/10 text-warning-strong',
+  'bg-destructive/10 text-destructive',
+  'bg-secondary text-secondary-foreground',
+  'bg-muted text-muted-foreground',
+  'bg-accent text-accent-foreground',
 ] as const
 
 export function textAvatarClass(colorSeed: string): string {

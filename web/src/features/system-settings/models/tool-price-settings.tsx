@@ -16,11 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Code2, Copy, Eye, Plus, Trash2 } from 'lucide-react'
+import { Code2, Eye, Plus, Trash2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { CopyButton } from '@/components/copy-button'
 import { StaticDataTable } from '@/components/data-table'
 import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -231,15 +232,6 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
     setNextRowId(initialRows.length + 1)
   }, [])
 
-  const handleCopyJson = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(jsonText)
-      toast.success(t('Copied to clipboard'))
-    } catch {
-      toast.error(t('Failed to copy'))
-    }
-  }, [jsonText, t])
-
   const handleSave = useCallback(async () => {
     if (invalidRowIds.size > 0) {
       toast.error(t('Please enter a valid number'))
@@ -296,10 +288,14 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
             </>
           ) : (
             <>
-              <Button variant='ghost' size='sm' onClick={handleCopyJson}>
-                <Copy className='mr-2 h-4 w-4' />
+              <CopyButton
+                value={jsonText}
+                variant='ghost'
+                size='sm'
+                iconClassName='mr-2 h-4 w-4'
+              >
                 {t('Copy')}
-              </Button>
+              </CopyButton>
               <Button variant='ghost' size='sm' onClick={resetToDefault}>
                 {t('Restore defaults')}
               </Button>

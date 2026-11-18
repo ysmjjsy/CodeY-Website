@@ -29,6 +29,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { CopyButton } from '@/components/copy-button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -992,15 +993,6 @@ function LlmPromptHelper({ modelName }: LlmPromptHelperProps) {
     return LLM_PROMPT_TEMPLATE
   }, [modelName])
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(prompt)
-      toast.success(t('Copied to clipboard'))
-    } catch {
-      toast.error(t('Failed to copy'))
-    }
-  }, [prompt, t])
-
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger
@@ -1019,15 +1011,15 @@ function LlmPromptHelper({ modelName }: LlmPromptHelperProps) {
                 'Copy this prompt and send it to an LLM (e.g. ChatGPT / Claude) to help design your billing expression.'
               )}
             </p>
-            <Button
+            <CopyButton
+              value={prompt}
               variant='outline'
               size='sm'
-              className='ml-3 shrink-0'
-              onClick={handleCopy}
+              className='ml-3'
+              iconClassName='mr-1.5 h-3 w-3'
             >
-              <Copy className='mr-1.5 h-3 w-3' />
               {t('Copy prompt')}
-            </Button>
+            </CopyButton>
           </div>
           <Textarea
             value={prompt}

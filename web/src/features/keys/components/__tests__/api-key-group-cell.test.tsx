@@ -98,9 +98,9 @@ describe('API key group table cell', () => {
   })
 
   test.each([
-    [0.8, 'bg-info/10', 'text-info', 'border-info/30'],
+    [0.8, 'bg-info/10', 'text-info-strong', 'border-info/30'],
     [1, 'bg-muted', 'text-muted-foreground', 'border-muted-foreground/30'],
-    [3, 'bg-warning/10', 'text-warning', 'border-warning/30'],
+    [3, 'bg-warning/10', 'text-warning-strong', 'border-warning/30'],
   ])(
     'preserves the original %s multiplier color in the compact layout',
     (ratio, background, color, border) => {

@@ -92,6 +92,79 @@ func GetMarketPackage(c *gin.Context) {
 	common.ApiSuccess(c, response)
 }
 
+// GetPublicMarketPackages lists packages currently on sale for anonymous
+// visitors. It returns only public display fields.
+func GetPublicMarketPackages(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	page, pageSize := pageInfo.Page, pageInfo.PageSize
+	keyword := c.Query("keyword")
+	modelName := c.Query("model")
+	if modelName == "" {
+		modelName = c.Query("model_name")
+	}
+	packages, total, err := model.ListMarketPackages(page, pageSize, keyword, modelName)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	sellerIDs := make([]int, 0, len(packages))
+	seenSeller := make(map[int]struct{}, len(packages))
+	for i := range packages {
+		if _, ok := seenSeller[packages[i].SellerUserId]; ok {
+			continue
+		}
+		seenSeller[packages[i].SellerUserId] = struct{}{}
+		sellerIDs = append(sellerIDs, packages[i].SellerUserId)
+	}
+	sellerNames, err := model.GetUsernamesByIds(sellerIDs)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	items := make([]tpkgdto.PublicTokenPackageResponse, 0, len(packages))
+	for i := range packages {
+		version, versionErr := model.GetApprovedTokenPackageVersion(&packages[i])
+		if versionErr != nil {
+			continue
+		}
+		item := buildPublicMarketPackageResponse(&packages[i], version)
+		item.SellerName = sellerNames[packages[i].SellerUserId]
+		items = append(items, item)
+	}
+	common.ApiSuccess(c, gin.H{"items": items, "total": total, "page": page, "page_size": pageSize})
+}
+
+// GetPublicMarketPackage returns one package's public purchase detail.
+func GetPublicMarketPackage(c *gin.Context) {
+	packageId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || packageId <= 0 {
+		common.ApiErrorI18n(c, i18n.MsgPackageUnavailable)
+		return
+	}
+	pkg, err := model.GetTokenPackageById(packageId)
+	if err != nil {
+		common.ApiErrorI18n(c, i18n.MsgPackageUnavailable)
+		return
+	}
+	if pkg.Status != constant.TokenPackageStatusListed {
+		common.ApiErrorI18n(c, i18n.MsgPackageNotOnSale)
+		return
+	}
+	version, err := model.GetApprovedTokenPackageVersion(pkg)
+	if err != nil {
+		common.ApiErrorI18n(c, i18n.MsgPackageUnavailable)
+		return
+	}
+	response := buildPublicMarketPackageResponse(pkg, version)
+	names, err := model.GetUsernamesByIds([]int{pkg.SellerUserId})
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	response.SellerName = names[pkg.SellerUserId]
+	common.ApiSuccess(c, response)
+}
+
 func buildMarketPackageResponse(pkg *model.TokenPackage, version *model.TokenPackageVersion) tpkgdto.TokenPackageResponse {
 	response := tpkgdto.TokenPackageResponse{
 		ID:              pkg.Id,
@@ -109,6 +182,23 @@ func buildMarketPackageResponse(pkg *model.TokenPackage, version *model.TokenPac
 	if version != nil {
 		// Marketplace responses never expose bound channel ids or keys.
 		response.ActiveVersion = buildTokenPackageVersionResponse(version, nil)
+	}
+	return response
+}
+
+func buildPublicMarketPackageResponse(pkg *model.TokenPackage, version *model.TokenPackageVersion) tpkgdto.PublicTokenPackageResponse {
+	response := tpkgdto.PublicTokenPackageResponse{
+		ID:          pkg.Id,
+		Title:       pkg.Title,
+		Subtitle:    pkg.Subtitle,
+		Description: pkg.Description,
+		Degraded:    pkg.Degraded,
+	}
+	if version != nil {
+		response.ActiveVersion = &tpkgdto.PublicTokenPackageVersionResponse{
+			Models: version.GetModelSpecs(),
+			SKUs:   version.GetSKUList(),
+		}
 	}
 	return response
 }

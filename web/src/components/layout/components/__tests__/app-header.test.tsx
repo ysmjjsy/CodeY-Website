@@ -24,6 +24,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router'
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -75,5 +76,39 @@ describe('the console header', () => {
     expect(
       screen.queryByRole('button', { name: 'Open theme settings' })
     ).not.toBeInTheDocument()
+  })
+
+  it('opens the top navigation from the mobile menu trigger', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response())
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    client.setQueryData(STATUS_QUERY_KEY, {
+      system_name: 'CodeGuys',
+      HeaderNavModules: JSON.stringify({ home: true }),
+    })
+    const router = createRouter({
+      routeTree: createRootRoute({
+        component: () => (
+          <SearchProvider>
+            <SidebarProvider>
+              <AppHeader />
+            </SidebarProvider>
+          </SearchProvider>
+        ),
+      }),
+      history: createMemoryHistory({ initialEntries: ['/dashboard'] }),
+    })
+    await router.load()
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open navigation menu' })
+    )
+    expect(await screen.findByRole('menuitem', { name: 'Home' })).toBeVisible()
   })
 })

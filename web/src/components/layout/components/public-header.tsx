@@ -467,16 +467,15 @@ export function PublicHeader(props: PublicHeaderProps) {
 
           <div className='flex flex-col gap-3'>
             {showAuthButtons && !isAuthenticated && (
-              <button
-                type='button'
+              <Button
                 onClick={() => {
                   setMobileOpen(false)
                   openAuthDialog('sign-in')
                 }}
-                className='bg-foreground text-background inline-flex h-10 items-center justify-center rounded-lg text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80'
+                className='bg-foreground text-background hover:bg-foreground/90 h-10 w-full'
               >
                 {t('Sign in')}
-              </button>
+              </Button>
             )}
           </div>
         </div>

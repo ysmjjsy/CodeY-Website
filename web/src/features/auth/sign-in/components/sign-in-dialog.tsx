@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import {
   DialogDescription,
   DialogHeader,
@@ -51,13 +52,14 @@ export function SignInDialogContent(props: {
         {registrationOpen && (
           <DialogDescription>
             {t("Don't have an account?")}{' '}
-            <button
+            <Button
               type='button'
-              className='text-foreground font-medium underline underline-offset-4'
+              variant='link'
+              className='text-foreground h-auto p-0 text-sm font-medium'
               onClick={() => openAuthDialog('sign-up', props.redirectTo)}
             >
               {t('Sign up')}
-            </button>
+            </Button>
           </DialogDescription>
         )}
       </DialogHeader>

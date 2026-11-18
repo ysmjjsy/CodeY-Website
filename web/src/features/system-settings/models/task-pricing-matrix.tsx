@@ -363,7 +363,7 @@ function TaskMatrixTable(props: TaskMatrixTableProps) {
                     <TooltipTrigger
                       render={
                         <span
-                          className='inline-flex cursor-help text-amber-600 dark:text-amber-400'
+                          className='text-warning-strong inline-flex cursor-help'
                           tabIndex={0}
                         />
                       }
@@ -428,7 +428,7 @@ function TaskMatrixGroup(props: TaskMatrixGroupProps) {
             {t('{{count}} combinations', { count: props.entries.length })}
           </span>
           {!props.allRowsFree && freeCount > 0 ? (
-            <span className='inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400'>
+            <span className='text-warning-strong inline-flex items-center gap-1 text-xs'>
               <AlertTriangle aria-hidden='true' />
               {freeCount}
               <span className='sr-only'>
@@ -510,7 +510,7 @@ export function TaskPricingMatrix(props: TaskPricingMatrixProps) {
     <TooltipProvider>
       <div ref={containerRef} className='flex flex-col gap-3'>
         {allRowsFree ? (
-          <Alert className='border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'>
+          <Alert variant='warning'>
             <AlertTriangle aria-hidden='true' />
             <AlertDescription className='text-xs text-current'>
               {t(

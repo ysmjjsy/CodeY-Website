@@ -982,7 +982,7 @@ export const ModelPricingEditorPanel = forwardRef<
                     </TabsList>
 
                     {pricingMode !== 'tiered_expr' && (
-                      <Alert className='border-amber-500/40 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-100'>
+                      <Alert variant='warning' className='p-4'>
                         <AlertTriangle aria-hidden='true' className='size-5' />
                         <AlertDescription className='space-y-3 text-sm text-inherit'>
                           <p className='font-medium'>

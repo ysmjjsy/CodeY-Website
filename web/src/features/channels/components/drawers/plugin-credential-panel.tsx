@@ -37,7 +37,10 @@ import {
 import { formatTimestampToDate } from '@/lib/format'
 import { getServerErrorMessage } from '@/lib/server-error-message'
 
-import { getPluginCredentials } from '../../api'
+import {
+  getPluginCredentials,
+  type PluginLoginScope,
+} from '../../api'
 import { channelsQueryKeys } from '../../lib'
 import type { PluginCredentialSummary } from '../../lib/plugin-login'
 import { MultiKeyManageDialog } from '../dialogs/multi-key-manage-dialog'
@@ -47,6 +50,7 @@ type PluginCredentialPanelProps = {
   channelId: number | null
   multiKey: boolean
   disabled: boolean
+  scope?: PluginLoginScope
   /**
    * null logs in a new credential; an index logs in again on that line. `add`
    * keeps the account of a single-key channel and adds the new one next to it.
@@ -60,9 +64,14 @@ export function PluginCredentialPanel(props: PluginCredentialPanelProps) {
   const queryClient = useQueryClient()
   const [manageKeysOpen, setManageKeysOpen] = useState(false)
   const channelId = props.channelId
+  const scope = props.scope ?? 'admin'
+  const credentialsQueryKey =
+    scope === 'seller'
+      ? [...channelsQueryKeys.pluginCredentials(channelId ?? 0), scope]
+      : channelsQueryKeys.pluginCredentials(channelId ?? 0)
   const query = useQuery({
-    queryKey: channelsQueryKeys.pluginCredentials(channelId ?? 0),
-    queryFn: () => getPluginCredentials(channelId ?? 0),
+    queryKey: credentialsQueryKey,
+    queryFn: () => getPluginCredentials(channelId ?? 0, scope),
     enabled: channelId !== null,
     meta: { errorToast: false },
   })
@@ -171,7 +180,7 @@ export function PluginCredentialPanel(props: PluginCredentialPanelProps) {
             setManageKeysOpen(open)
             if (!open) {
               void queryClient.invalidateQueries({
-                queryKey: channelsQueryKeys.pluginCredentials(channelId),
+                queryKey: credentialsQueryKey,
               })
             }
           }}

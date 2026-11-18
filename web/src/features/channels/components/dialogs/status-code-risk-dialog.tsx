@@ -123,7 +123,7 @@ export function StatusCodeRiskDialog({
                 />
               }
             >
-              <Markdown className='[&_h3]:text-warning text-sm [&_h3]:text-base'>
+              <Markdown className='[&_h3]:text-warning-strong text-sm [&_h3]:text-base'>
                 {t('High-risk status code retry risk disclaimer')}
               </Markdown>
             </Suspense>

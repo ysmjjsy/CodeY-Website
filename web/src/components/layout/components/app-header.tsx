@@ -116,7 +116,7 @@ export function AppHeader({
       <div className='flex min-w-0 flex-1 items-center gap-1'>
         <SystemBrand variant='inline' />
         {showTopNav && (
-          <div className='ms-2 hidden lg:block'>
+          <div className='ms-2 min-w-0'>
             <TopNav links={links} />
           </div>
         )}

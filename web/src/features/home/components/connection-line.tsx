@@ -28,8 +28,8 @@ interface ConnectionLineProps {
 export function ConnectionLine({ direction = 'left' }: ConnectionLineProps) {
   const gradientClass =
     direction === 'left'
-      ? 'from-amber-500/60 to-amber-500/20'
-      : 'from-amber-500/20 to-amber-500/60'
+      ? 'from-primary/60 to-primary/20'
+      : 'from-primary/20 to-primary/60'
 
   return (
     <div className='hidden lg:block'>

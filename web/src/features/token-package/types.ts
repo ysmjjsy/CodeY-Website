@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-
 export interface PackageModelSpec {
   model: string
   multiplier: number
@@ -28,6 +27,13 @@ export interface PackageSKU {
   price_quota: number
   credit_quota: number
   valid_days: number
+}
+
+export interface PackageChannelBinding {
+  channel_id: number
+  models: string[] | null
+  priority: number
+  weight: number
 }
 
 export interface PackageChannelTestItem {
@@ -55,20 +61,28 @@ export interface PackageVersion {
   status: string
   models: PackageModelSpec[] | null
   skus: PackageSKU[] | null
-  channels?:
-    | {
-        channel_id: number
-        models: string[] | null
-        priority: number
-        weight: number
-      }[]
-    | null
+  channels?: PackageChannelBinding[] | null
   test_report?: PackageTestReport | null
   submitted_at: number
   reviewed_by: number
   reviewed_at: number
   review_note: string
   created_at: number
+}
+
+export interface PublicPackageVersion {
+  models: PackageModelSpec[] | null
+  skus: PackageSKU[] | null
+}
+
+export interface PublicTokenPackage {
+  id: number
+  seller_name: string
+  title: string
+  subtitle: string
+  description: string
+  degraded: boolean
+  active_version?: PublicPackageVersion | null
 }
 
 export interface TokenPackage {
@@ -197,14 +211,52 @@ export interface UserChannel {
   name: string
   type: number
   base_url: string
+  openai_organization?: string
   models: string[] | null
   model_mapping: string
   test_model: string
+  other: string
   priority: number
   weight: number
   status: number
   created_time: number
   bound_packages?: string[] | null
+  settings?: UserChannelSettings | null
+  task_plugin_key?: string
+  plugin_config?: Record<string, unknown> | null
+}
+
+export interface UserChannelSettings {
+  azure_responses_version?: string
+  vertex_key_type?: 'json' | 'api_key'
+  vertex_project_id?: string
+  vertex_api_version?: 'v1' | 'v1beta1'
+  openrouter_enterprise?: boolean
+  aws_key_type?: 'ak_sk' | 'api_key'
+  aws_api_type?: 'invoke_model' | 'mantle'
+}
+
+export interface UserChannelTypeOption {
+  type: number
+  name: string
+  models: string[]
+}
+
+export interface UserChannelOptions {
+  allowed_channel_types: number[]
+  types: UserChannelTypeOption[]
+  plugins: import('@/features/channels/api').TaskPluginOption[]
+}
+
+export interface UserChannelBatchFailure {
+  id: number
+  name?: string
+  message: string
+}
+
+export interface UserChannelBatchResult {
+  succeeded: number[]
+  failed: UserChannelBatchFailure[]
 }
 
 export interface PendingReview {

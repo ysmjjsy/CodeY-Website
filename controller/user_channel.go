@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,30 +15,276 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/jsplugin"
 	"github.com/QuantumNous/new-api/relay/channel/vertex"
+	relaydto "github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/token_package_setting"
 )
 
 const userChannelMaxModels = 500
 
+type userChannelTypeOption struct {
+	Type   int      `json:"type"`
+	Name   string   `json:"name"`
+	Models []string `json:"models"`
+}
+
+func userChannelPluginOptions() []gin.H {
+	options := taskPluginOptions()
+	filtered := make([]gin.H, 0, len(options))
+	for _, option := range options {
+		taskPart, _ := option["task"].(bool)
+		providerPart, _ := option["provider"].(bool)
+		if !taskPart && !providerPart {
+			continue
+		}
+		for _, key := range []string{
+			"configSchema", "samples", "usageSchema", "usageProfiles",
+		} {
+			delete(option, key)
+		}
+		// Seller pages cannot read the administrator-only plugin icon route.
+		option["hasIcon"] = false
+		filtered = append(filtered, option)
+	}
+	return filtered
+}
+
+// GetUserChannelOptions returns the built-in types an administrator enabled
+// for the marketplace and the provider plugins the seller channel form may
+// bind. Plugin availability follows the live registry, not a saved type list.
+func GetUserChannelOptions(c *gin.Context) {
+	allowed := token_package_setting.GetTokenPackageSetting().AllowedChannelTypes
+	allowed = slices.DeleteFunc(slices.Clone(allowed), func(channelType int) bool {
+		return !token_package_setting.IsChannelTypeAllowed(channelType)
+	})
+
+	types := make([]userChannelTypeOption, 0, len(allowed))
+	for _, channelType := range token_package_setting.PermittableChannelTypes() {
+		models := append([]string{}, channelId2Models[channelType]...)
+		types = append(types, userChannelTypeOption{
+			Type:   channelType,
+			Name:   constant.GetChannelTypeName(channelType),
+			Models: models,
+		})
+	}
+
+	common.ApiSuccess(c, gin.H{
+		"allowed_channel_types": allowed,
+		"types":                 types,
+		"plugins":               userChannelPluginOptions(),
+	})
+}
+
 func userChannelResponse(channel *model.Channel, boundPackages []string) dto.UserChannelResponse {
+	openAIOrganization := ""
+	if channel.OpenAIOrganization != nil {
+		openAIOrganization = *channel.OpenAIOrganization
+	}
 	response := dto.UserChannelResponse{
-		ID:            channel.Id,
-		Name:          channel.Name,
-		Type:          channel.Type,
-		BaseURL:       channel.GetBaseURL(),
-		Models:        channel.GetModels(),
-		ModelMapping:  channel.GetModelMapping(),
-		TestModel:     channel.GetTestModel(),
-		Other:         channel.Other,
-		Priority:      channel.GetPriority(),
-		Weight:        channel.GetWeight(),
-		Status:        channel.Status,
-		CreatedTime:   channel.CreatedTime,
-		BoundPackages: boundPackages,
+		ID:                 channel.Id,
+		Name:               channel.Name,
+		Type:               channel.Type,
+		BaseURL:            channel.GetBaseURL(),
+		OpenAIOrganization: openAIOrganization,
+		Models:             channel.GetModels(),
+		ModelMapping:       channel.GetModelMapping(),
+		TestModel:          channel.GetTestModel(),
+		Other:              channel.Other,
+		Priority:           channel.GetPriority(),
+		Weight:             channel.GetWeight(),
+		Status:             channel.Status,
+		Settings:           userChannelSettingsResponse(channel),
+		TaskPluginKey:      channel.GetSetting().TaskPluginKey,
+		PluginConfig:       channel.GetOtherSettings().PluginConfig,
+		CreatedTime:        channel.CreatedTime,
+		BoundPackages:      boundPackages,
 	}
 	return response
+}
+
+func userChannelSettingsResponse(channel *model.Channel) *dto.UserChannelSettings {
+	settings := channel.GetOtherSettings()
+	response := &dto.UserChannelSettings{}
+	hasValue := false
+
+	if settings.AzureResponsesVersion != "" {
+		value := settings.AzureResponsesVersion
+		response.AzureResponsesVersion = &value
+		hasValue = true
+	}
+	if settings.VertexKeyType != "" {
+		value := string(settings.VertexKeyType)
+		response.VertexKeyType = &value
+		hasValue = true
+	}
+	if settings.VertexProjectID != "" {
+		value := settings.VertexProjectID
+		response.VertexProjectID = &value
+		hasValue = true
+	}
+	if settings.VertexAPIVersion != "" {
+		value := settings.VertexAPIVersion
+		response.VertexAPIVersion = &value
+		hasValue = true
+	}
+	if settings.OpenRouterEnterprise != nil {
+		response.OpenRouterEnterprise = settings.OpenRouterEnterprise
+		hasValue = true
+	}
+	if settings.AwsKeyType != "" {
+		value := string(settings.AwsKeyType)
+		response.AwsKeyType = &value
+		hasValue = true
+	}
+	if settings.AwsApiType != "" {
+		value := string(settings.AwsApiType)
+		response.AwsApiType = &value
+		hasValue = true
+	}
+
+	if !hasValue {
+		return nil
+	}
+	return response
+}
+
+func applyUserChannelSettings(channel *model.Channel, patch *dto.UserChannelSettings) error {
+	if patch == nil {
+		return nil
+	}
+
+	switch channel.Type {
+	case constant.ChannelTypeAzure,
+		constant.ChannelTypeOpenRouter,
+		constant.ChannelTypeAws,
+		constant.ChannelTypeVertexAi:
+	default:
+		return nil
+	}
+
+	settings := channel.GetOtherSettings()
+	switch channel.Type {
+	case constant.ChannelTypeAzure:
+		if patch.AzureResponsesVersion != nil {
+			settings.AzureResponsesVersion = strings.TrimSpace(*patch.AzureResponsesVersion)
+		}
+	case constant.ChannelTypeOpenRouter:
+		if patch.OpenRouterEnterprise != nil {
+			settings.OpenRouterEnterprise = patch.OpenRouterEnterprise
+		}
+	case constant.ChannelTypeAws:
+		if patch.AwsKeyType != nil {
+			keyType := strings.TrimSpace(*patch.AwsKeyType)
+			if keyType != "" && keyType != string(relaydto.AwsKeyTypeAKSK) && keyType != string(relaydto.AwsKeyTypeApiKey) {
+				return common.NewMessage("Invalid AWS key format")
+			}
+			settings.AwsKeyType = relaydto.AwsKeyType(keyType)
+		}
+		if patch.AwsApiType != nil {
+			apiType := strings.TrimSpace(*patch.AwsApiType)
+			if apiType != "" && apiType != string(relaydto.AwsApiTypeInvokeModel) && apiType != string(relaydto.AwsApiTypeMantle) {
+				return common.NewMessage("Invalid AWS API type")
+			}
+			settings.AwsApiType = relaydto.AwsApiType(apiType)
+		}
+	case constant.ChannelTypeVertexAi:
+		if patch.VertexKeyType != nil {
+			keyType := strings.TrimSpace(*patch.VertexKeyType)
+			if keyType != "" && keyType != string(relaydto.VertexKeyTypeJSON) && keyType != string(relaydto.VertexKeyTypeAPIKey) {
+				return common.NewMessage("Invalid Vertex AI key format")
+			}
+			settings.VertexKeyType = relaydto.VertexKeyType(keyType)
+		}
+		if patch.VertexAPIVersion != nil {
+			apiVersion := strings.TrimSpace(*patch.VertexAPIVersion)
+			if apiVersion != "" && apiVersion != "v1" && apiVersion != "v1beta1" {
+				return common.NewMessage("Invalid Vertex AI API version")
+			}
+			settings.VertexAPIVersion = apiVersion
+		}
+		if patch.VertexProjectID != nil {
+			settings.VertexProjectID = strings.TrimSpace(*patch.VertexProjectID)
+		}
+		if settings.VertexKeyType != relaydto.VertexKeyTypeAPIKey {
+			settings.VertexProjectID = ""
+		}
+	}
+	channel.SetOtherSettings(settings)
+	return nil
+}
+
+func applyUserChannelPluginBinding(channel *model.Channel, taskPluginKey *string, pluginConfig json.RawMessage) {
+	if channel.Type != constant.ChannelTypeTaskPlugin {
+		return
+	}
+	if taskPluginKey != nil {
+		setting := channel.GetSetting()
+		setting.TaskPluginKey = strings.TrimSpace(*taskPluginKey)
+		channel.SetSetting(setting)
+	}
+	if pluginConfig != nil {
+		settings := channel.GetOtherSettings()
+		settings.PluginConfig = pluginConfig
+		channel.SetOtherSettings(settings)
+	}
+}
+
+func pluginConfigEquivalent(first, second json.RawMessage) bool {
+	normalize := func(value json.RawMessage) string {
+		trimmed := strings.TrimSpace(string(value))
+		if trimmed == "" || trimmed == "null" || trimmed == "{}" {
+			return ""
+		}
+		return trimmed
+	}
+	return normalize(first) == normalize(second)
+}
+
+func userChannelSettingsEquivalent(first, second *model.Channel) bool {
+	firstSettings := first.GetOtherSettings()
+	secondSettings := second.GetOtherSettings()
+	firstChannelSettings := first.GetSetting()
+	secondChannelSettings := second.GetSetting()
+
+	vertexKeyType := func(value relaydto.VertexKeyType) relaydto.VertexKeyType {
+		if value == "" {
+			return relaydto.VertexKeyTypeJSON
+		}
+		return value
+	}
+	vertexAPIVersion := func(value string) string {
+		if value == "" {
+			return "v1"
+		}
+		return value
+	}
+	awsKeyType := func(value relaydto.AwsKeyType) relaydto.AwsKeyType {
+		if value == "" {
+			return relaydto.AwsKeyTypeAKSK
+		}
+		return value
+	}
+	awsAPIType := func(value relaydto.AwsApiType) relaydto.AwsApiType {
+		if value == "" {
+			return relaydto.AwsApiTypeInvokeModel
+		}
+		return value
+	}
+	openRouterEnterprise := func(value *bool) bool {
+		return value != nil && *value
+	}
+
+	return firstSettings.AzureResponsesVersion == secondSettings.AzureResponsesVersion &&
+		vertexKeyType(firstSettings.VertexKeyType) == vertexKeyType(secondSettings.VertexKeyType) &&
+		firstSettings.VertexProjectID == secondSettings.VertexProjectID &&
+		vertexAPIVersion(firstSettings.VertexAPIVersion) == vertexAPIVersion(secondSettings.VertexAPIVersion) &&
+		openRouterEnterprise(firstSettings.OpenRouterEnterprise) == openRouterEnterprise(secondSettings.OpenRouterEnterprise) &&
+		awsKeyType(firstSettings.AwsKeyType) == awsKeyType(secondSettings.AwsKeyType) &&
+		awsAPIType(firstSettings.AwsApiType) == awsAPIType(secondSettings.AwsApiType) &&
+		firstChannelSettings.TaskPluginKey == secondChannelSettings.TaskPluginKey &&
+		pluginConfigEquivalent(firstSettings.PluginConfig, secondSettings.PluginConfig)
 }
 
 // normalizeUserChannelModels trims, de-duplicates, and bounds the model list a
@@ -103,25 +351,51 @@ func validateUserChannelPayload(channel *model.Channel, isAdd bool) error {
 	channel.ParamOverride = nil
 	channel.HeaderOverride = nil
 	channel.StatusCodeMapping = nil
-	channel.Setting = nil
+	channelSetting := channel.GetSetting()
+	if channel.Type == constant.ChannelTypeTaskPlugin {
+		channel.SetSetting(relaydto.ChannelSettings{TaskPluginKey: strings.TrimSpace(channelSetting.TaskPluginKey)})
+	} else {
+		channel.Setting = nil
+	}
+	otherSettings := channel.GetOtherSettings()
+	if channel.Type == constant.ChannelTypeTaskPlugin {
+		channel.SetOtherSettings(relaydto.ChannelOtherSettings{PluginConfig: otherSettings.PluginConfig})
+	} else if otherSettings.PluginConfig != nil {
+		otherSettings.PluginConfig = nil
+		channel.SetOtherSettings(otherSettings)
+	}
 	// An empty base URL means the provider default endpoint, which the platform
 	// owns; only seller-supplied hosts go through the untrusted-target policy.
-	if channel.BaseURL != nil {
-		if err := service.ValidateUserChannelBaseURL(*channel.BaseURL); err != nil {
-			return common.NewMessage("Base URL is not allowed: {{error}}", map[string]any{"error": err.Error()})
-		}
-	}
 	// Vertex builds its upstream host from the region in Other, so the region
 	// is held to plain location ids like the base URL is held to public hosts.
 	if channel.Type == constant.ChannelTypeVertexAi && !vertex.IsValidVertexRegionConfig(channel.Other) {
 		return common.NewMessage("The Vertex region is not valid")
 	}
-	return validateChannel(channel, isAdd)
+	if err := validateChannel(channel, isAdd); err != nil {
+		return err
+	}
+	// Plugin channels may inherit their endpoint from the plugin, so validate
+	// the final value rather than only the URL the seller submitted.
+	if channel.BaseURL != nil {
+		if err := service.ValidateUserChannelBaseURL(*channel.BaseURL); err != nil {
+			return common.NewMessage("Base URL is not allowed: {{error}}", map[string]any{"error": err.Error()})
+		}
+	}
+	return nil
 }
 
 func GetUserChannels(c *gin.Context) {
 	userId := c.GetInt("id")
-	channels, err := model.ListChannelsByOwner(userId, c.Query("keyword"))
+	pageInfo := common.GetPageQuery(c)
+	typeFilter, _ := strconv.Atoi(c.Query("type"))
+	channels, total, err := model.ListChannelsByOwner(userId, model.UserChannelListFilter{
+		Keyword:  c.Query("keyword"),
+		Status:   c.Query("status"),
+		Type:     typeFilter,
+		Bound:    c.Query("bound"),
+		Page:     pageInfo.GetPage(),
+		PageSize: pageInfo.GetPageSize(),
+	})
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -139,7 +413,12 @@ func GetUserChannels(c *gin.Context) {
 	for _, channel := range channels {
 		responses = append(responses, userChannelResponse(channel, boundPackages[channel.Id]))
 	}
-	common.ApiSuccess(c, responses)
+	common.ApiSuccess(c, gin.H{
+		"items":     responses,
+		"total":     total,
+		"page":      pageInfo.GetPage(),
+		"page_size": pageInfo.GetPageSize(),
+	})
 }
 
 func GetUserChannel(c *gin.Context) {
@@ -175,10 +454,6 @@ func CreateUserChannel(c *gin.Context) {
 		return
 	}
 	key := strings.TrimSpace(request.Key)
-	if key == "" {
-		common.ApiError(c, common.NewMessage("Channel key is required"))
-		return
-	}
 	models, err := normalizeUserChannelModels(request.Models)
 	if err != nil {
 		common.ApiError(c, err)
@@ -207,6 +482,26 @@ func CreateUserChannel(c *gin.Context) {
 		Status:       common.ChannelStatusEnabled,
 		CreatedTime:  common.GetTimestamp(),
 		OwnerUserId:  userId,
+	}
+	if request.OpenAIOrganization != nil {
+		organization := strings.TrimSpace(*request.OpenAIOrganization)
+		if organization != "" {
+			channel.OpenAIOrganization = common.GetPointer(organization)
+		}
+	}
+	if err := applyUserChannelSettings(channel, request.Settings); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	applyUserChannelPluginBinding(channel, request.TaskPluginKey, request.PluginConfig)
+	if key == "" && !service.ChannelSupportsPluginLogin(channel) {
+		common.ApiError(c, common.NewMessage("Channel key is required"))
+		return
+	}
+	if key == "" {
+		// A keyless login plugin waits for its first credential, just like a
+		// channel created from the administrator page.
+		service.PluginLoginNeededStatus(channel)
 	}
 	if err := validateUserChannelPayload(channel, true); err != nil {
 		common.ApiError(c, err)
@@ -251,6 +546,10 @@ func UpdateUserChannel(c *gin.Context) {
 		baseURL := strings.TrimSpace(*request.BaseURL)
 		updated.BaseURL = &baseURL
 	}
+	if request.OpenAIOrganization != nil {
+		organization := strings.TrimSpace(*request.OpenAIOrganization)
+		updated.OpenAIOrganization = common.GetPointer(organization)
+	}
 	if request.Models != nil {
 		models, err := normalizeUserChannelModels(*request.Models)
 		if err != nil {
@@ -280,6 +579,11 @@ func UpdateUserChannel(c *gin.Context) {
 	if request.Weight != nil {
 		updated.Weight = request.Weight
 	}
+	if err := applyUserChannelSettings(&updated, request.Settings); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	applyUserChannelPluginBinding(&updated, request.TaskPluginKey, request.PluginConfig)
 
 	bound, err := model.IsChannelBoundToActivePackage(channelId)
 	if err != nil {
@@ -288,10 +592,20 @@ func UpdateUserChannel(c *gin.Context) {
 	}
 	if bound {
 		// Other carries the Vertex region, which chooses the upstream host.
+		storedOrganization := ""
+		if stored.OpenAIOrganization != nil {
+			storedOrganization = *stored.OpenAIOrganization
+		}
+		updatedOrganization := ""
+		if updated.OpenAIOrganization != nil {
+			updatedOrganization = *updated.OpenAIOrganization
+		}
 		locked := stored.GetBaseURL() != updated.GetBaseURL() ||
+			storedOrganization != updatedOrganization ||
 			stored.GetModelMapping() != updated.GetModelMapping() ||
 			stored.Models != updated.Models ||
-			stored.Other != updated.Other
+			stored.Other != updated.Other ||
+			!userChannelSettingsEquivalent(stored, &updated)
 		if locked {
 			common.ApiError(c, common.NewMessage("A channel bound to a listed package cannot change its endpoint, models, or model mapping. Submit a new package version without this channel first."))
 			return
@@ -372,26 +686,109 @@ func DeleteUserChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	// Ownership comes first, so the bound check never tells a seller anything
-	// about someone else's channel.
-	if _, err := model.GetChannelForOwner(channelId, userId); err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	bound, err := model.IsChannelBoundToActivePackage(channelId)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if bound {
-		common.ApiError(c, common.NewMessage("A channel bound to a listed package cannot be deleted. Submit a new package version without this channel first."))
-		return
-	}
-	if err := model.DeleteUserChannel(channelId, userId); err != nil {
+	if err := deleteOwnedUserChannel(channelId, userId); err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	common.ApiSuccess(c, nil)
+}
+
+func deleteOwnedUserChannel(channelId int, userId int) error {
+	// Ownership comes first, so the bound check never tells a seller anything
+	// about someone else's channel.
+	if _, err := model.GetChannelForOwner(channelId, userId); err != nil {
+		return err
+	}
+	bound, err := model.IsChannelBoundToActivePackage(channelId)
+	if err != nil {
+		return err
+	}
+	if bound {
+		return common.NewMessage("A channel bound to a listed package cannot be deleted. Submit a new package version without this channel first.")
+	}
+	return model.DeleteUserChannel(channelId, userId)
+}
+
+const userChannelBatchLimit = 100
+
+func BatchUserChannels(c *gin.Context) {
+	userId := c.GetInt("id")
+	request := dto.BatchUserChannelRequest{}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	action := strings.ToLower(strings.TrimSpace(request.Action))
+	if action != "enable" && action != "disable" && action != "delete" {
+		common.ApiError(c, common.NewMessage("Invalid channel batch action"))
+		return
+	}
+	seen := make(map[int]struct{}, len(request.IDs))
+	ids := make([]int, 0, len(request.IDs))
+	for _, id := range request.IDs {
+		if id <= 0 {
+			continue
+		}
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		common.ApiError(c, common.NewMessage("Select at least one channel"))
+		return
+	}
+	if len(ids) > userChannelBatchLimit {
+		common.ApiError(c, common.NewMessage("A batch operation can include at most {{count}} channels", map[string]any{"count": userChannelBatchLimit}))
+		return
+	}
+
+	result := dto.BatchUserChannelResponse{
+		Succeeded: make([]int, 0, len(ids)),
+		Failed:    make([]dto.BatchUserChannelFailure, 0),
+	}
+	for _, id := range ids {
+		channel, err := model.GetChannelForOwner(id, userId)
+		if err != nil {
+			message := err.Error()
+			if errors.Is(err, model.ErrChannelNotFound) {
+				message = "Channel not found"
+			}
+			result.Failed = append(result.Failed, dto.BatchUserChannelFailure{
+				ID:      id,
+				Message: message,
+			})
+			continue
+		}
+
+		switch action {
+		case "enable":
+			if channel.Status == common.ChannelStatusEnabled {
+				result.Succeeded = append(result.Succeeded, id)
+				continue
+			}
+			err = model.SetUserChannelStatus(id, userId, common.ChannelStatusEnabled)
+		case "disable":
+			if channel.Status != common.ChannelStatusEnabled {
+				result.Succeeded = append(result.Succeeded, id)
+				continue
+			}
+			err = model.SetUserChannelStatus(id, userId, common.ChannelStatusManuallyDisabled)
+		case "delete":
+			err = deleteOwnedUserChannel(id, userId)
+		}
+		if err != nil {
+			result.Failed = append(result.Failed, dto.BatchUserChannelFailure{
+				ID:      id,
+				Name:    channel.Name,
+				Message: err.Error(),
+			})
+			continue
+		}
+		result.Succeeded = append(result.Succeeded, id)
+	}
+	common.ApiSuccess(c, result)
 }
 
 func TestUserChannel(c *gin.Context) {
@@ -452,6 +849,8 @@ func FetchUserChannelModels(c *gin.Context) {
 	channelType := 0
 	baseURL := strings.TrimSpace(request.BaseURL)
 	key := strings.TrimSpace(request.Key)
+	pluginKey := strings.TrimSpace(request.TaskPluginKey)
+	pluginConfig := request.PluginConfig
 
 	if channelId > 0 {
 		stored, err := model.GetChannelById(channelId, true)
@@ -463,11 +862,23 @@ func FetchUserChannelModels(c *gin.Context) {
 		if baseURL == "" {
 			baseURL = stored.GetBaseURL()
 		}
+		storedPluginKey := strings.TrimSpace(stored.GetSetting().TaskPluginKey)
+		storedPluginConfig := stored.GetOtherSettings().PluginConfig
+		if channelType == constant.ChannelTypeTaskPlugin {
+			if pluginKey == "" {
+				pluginKey = storedPluginKey
+			}
+			if pluginConfig == nil {
+				pluginConfig = storedPluginConfig
+			}
+		}
 		if key == "" {
 			// The stored key only ever goes to the stored endpoint: a preview
 			// against another base URL must bring its own key, so the key
 			// cannot be read back by pointing the request at a chosen host.
-			if baseURL != stored.GetBaseURL() {
+			if baseURL != stored.GetBaseURL() ||
+				pluginKey != storedPluginKey ||
+				!pluginConfigEquivalent(pluginConfig, storedPluginConfig) {
 				common.ApiError(c, common.NewMessage("Enter the key to fetch models from a different base URL"))
 				return
 			}
@@ -489,6 +900,24 @@ func FetchUserChannelModels(c *gin.Context) {
 		common.ApiError(c, common.NewMessage("Channel key is required"))
 		return
 	}
+	if channelType == constant.ChannelTypeTaskPlugin {
+		if pluginKey == "" {
+			common.ApiError(c, common.NewMessage("Plugin is required"))
+			return
+		}
+		plugin, ok := jsplugin.DefaultRegistry.Get(pluginKey)
+		if !ok {
+			common.ApiError(c, common.NewMessage("Plugin {{plugin}} is not registered", map[string]any{"plugin": pluginKey}))
+			return
+		}
+		if baseURL == "" {
+			baseURL = strings.TrimSpace(plugin.Meta.BaseURL)
+		}
+		if baseURL == "" {
+			common.ApiError(c, common.NewMessage("Base URL is required for this channel type"))
+			return
+		}
+	}
 	if err := service.ValidateUserChannelBaseURL(baseURL); err != nil {
 		common.ApiError(c, common.NewMessage("Base URL is not allowed: {{error}}", map[string]any{"error": err.Error()}))
 		return
@@ -499,6 +928,10 @@ func FetchUserChannelModels(c *gin.Context) {
 		Key:         key,
 		BaseURL:     &baseURL,
 		OwnerUserId: userId,
+	}
+	if channelType == constant.ChannelTypeTaskPlugin {
+		preview.SetSetting(relaydto.ChannelSettings{TaskPluginKey: pluginKey})
+		preview.SetOtherSettings(relaydto.ChannelOtherSettings{PluginConfig: pluginConfig})
 	}
 	models, err := fetchChannelUpstreamModelIDs(preview)
 	if err != nil {

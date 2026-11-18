@@ -84,14 +84,13 @@ const INSTANCE_SKELETON_KEYS = [
 ]
 
 const STATUS_CLASS_NAME: Record<SystemInstanceStatus, string> = {
-  online:
-    'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
-  stale: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  online: 'bg-success/10 text-success-strong',
+  stale: 'bg-warning/10 text-warning-strong',
 }
 
 const STATUS_DOT_CLASS_NAME: Record<SystemInstanceStatus, string> = {
-  online: 'bg-emerald-500',
-  stale: 'bg-amber-500',
+  online: 'bg-success',
+  stale: 'bg-warning',
 }
 
 function roleLabel(instance: SystemInstance) {
@@ -146,9 +145,9 @@ function formatBytes(bytes?: number): string {
 
 function ringColorClass(percent: number | null) {
   if (percent === null) return 'text-muted-foreground/40'
-  if (percent >= 90) return 'text-red-500'
-  if (percent >= 70) return 'text-amber-500'
-  return 'text-emerald-500'
+  if (percent >= 90) return 'text-destructive'
+  if (percent >= 70) return 'text-warning'
+  return 'text-success'
 }
 
 type RingProgressProps = {
@@ -405,7 +404,7 @@ function SystemInstancesList(props: SystemInstancesTableProps) {
                             >
                               <Badge
                                 variant='outline'
-                                className='border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300'
+                                className='border-warning/30 bg-warning/10 text-warning-strong'
                               >
                                 <AlertTriangle
                                   className='size-3'

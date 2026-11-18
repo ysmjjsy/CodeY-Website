@@ -20,6 +20,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 import { describe, test } from 'vitest'
 
 import { getOptionValue } from '../../hooks/use-system-options'
@@ -29,6 +30,8 @@ const billingDefaults = {
   'token_package_setting.commission_bps': 1000,
   'token_package_setting.seller_groups': [] as string[],
   'token_package_setting.allowed_channel_types': [] as number[],
+  'token_package_setting.port_whitelist_enabled': true,
+  'token_package_setting.allowed_ports': [80, 443, 8080, 8443],
 }
 
 describe('token package billing settings', () => {
@@ -83,5 +86,21 @@ describe('token package billing settings', () => {
     assert.match(source, /key\.endsWith\('\.allowed_channel_types'\)/)
     assert.doesNotMatch(source, /name='seller_groups'/)
     assert.doesNotMatch(source, /name='allowed_channel_types'/)
+
+    const fieldStart = source.indexOf(
+      "name='token_package_setting.allowed_channel_types'"
+    )
+    const fieldEnd = source.indexOf('<FormField', fieldStart)
+    const allowedChannelTypesField = source.slice(fieldStart, fieldEnd)
+    assert.match(allowedChannelTypesField, /<MultiSelect/)
+    assert.match(allowedChannelTypesField, /options={channelTypeOptions}/)
+    assert.doesNotMatch(allowedChannelTypesField, /<Input/)
+    assert.match(
+      source,
+      /const models = \(option\.models \?\? \[\]\)\.slice\(0, 4\)\.join\(' · '\)/
+    )
+    assert.match(source, /hint: models \|\| t\('No models listed'\)/)
+    assert.match(source, /name='token_package_setting\.port_whitelist_enabled'/)
+    assert.match(source, /name='token_package_setting\.allowed_ports'/)
   })
 })

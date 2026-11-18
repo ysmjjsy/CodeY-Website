@@ -89,6 +89,24 @@ type TokenPackageVersionResponse struct {
 	CreatedAt   int64                        `json:"created_at"`
 }
 
+// PublicTokenPackageVersionResponse is the public marketplace view of a
+// package version. Internal review, channel, and test data stay out.
+type PublicTokenPackageVersionResponse struct {
+	Models []TokenPackageModelSpec `json:"models"`
+	SKUs   []TokenPackageSKU       `json:"skus"`
+}
+
+// PublicTokenPackageResponse is the public marketplace listing/detail view.
+type PublicTokenPackageResponse struct {
+	ID            int                                `json:"id"`
+	SellerName    string                             `json:"seller_name,omitempty"`
+	Title         string                             `json:"title"`
+	Subtitle      string                             `json:"subtitle"`
+	Description   string                             `json:"description"`
+	Degraded      bool                               `json:"degraded"`
+	ActiveVersion *PublicTokenPackageVersionResponse `json:"active_version,omitempty"`
+}
+
 // TokenPackageResponse is the summary/detail view of a token package.
 type TokenPackageResponse struct {
 	ID              int                          `json:"id"`

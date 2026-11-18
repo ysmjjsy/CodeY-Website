@@ -31,10 +31,12 @@ const (
 	maxPluginLoginInputBytes     = 64 << 10
 )
 
-// PluginLoginIdentity is the administrator session a login flow is bound to.
+// PluginLoginIdentity is the signed-in session a login flow is bound to.
+// OwnerUserID, when set, keeps the flow on a channel owned by that user.
 type PluginLoginIdentity struct {
-	UserID    int
-	SessionID string
+	UserID      int
+	SessionID   string
+	OwnerUserID int
 }
 
 // PluginLoginStepView is the step the browser shows. It never holds the
@@ -140,6 +142,9 @@ func StartPluginLogin(ctx context.Context, identity PluginLoginIdentity, channel
 	}
 	channel, err := model.GetChannelById(channelID, true)
 	if err != nil {
+		return PluginLoginResult{}, common.NewMessage("Channel does not exist")
+	}
+	if identity.OwnerUserID > 0 && channel.OwnerUserId != identity.OwnerUserID {
 		return PluginLoginResult{}, common.NewMessage("Channel does not exist")
 	}
 	plugin, err := loginPluginOfChannel(channel)
@@ -349,6 +354,9 @@ func loadPluginLoginFlow(identity PluginLoginIdentity, token, pluginKey string) 
 	}
 	channel, err := model.GetChannelById(payload.ChannelID, true)
 	if err != nil {
+		return nil, invalid
+	}
+	if identity.OwnerUserID > 0 && channel.OwnerUserId != identity.OwnerUserID {
 		return nil, invalid
 	}
 	plugin, err := loginPluginOfChannel(channel)

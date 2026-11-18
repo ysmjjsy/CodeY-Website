@@ -48,6 +48,31 @@ export const subscriptionPlanSchema = z.object({
 
 export type SubscriptionPlan = z.infer<typeof subscriptionPlanSchema>
 
+export const publicSubscriptionPlanSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  subtitle: z.string(),
+  price_amount: z.number(),
+  currency: z.string().default('USD'),
+  duration_unit: z.enum(['year', 'month', 'day', 'hour', 'custom']),
+  duration_value: z.number(),
+  custom_seconds: z.number(),
+  total_amount: z.number(),
+  quota_reset_period: z.enum([
+    'never',
+    'daily',
+    'weekly',
+    'monthly',
+    'custom',
+  ]),
+  quota_reset_custom_seconds: z.number(),
+  max_purchase_per_user: z.number(),
+})
+
+export type PublicSubscriptionPlan = z.infer<
+  typeof publicSubscriptionPlanSchema
+>
+
 export interface PlanRecord {
   plan: SubscriptionPlan
 }

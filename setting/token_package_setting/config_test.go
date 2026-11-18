@@ -25,22 +25,32 @@ func TestTokenPackageSettingDefaultsAndLoadFromDB(t *testing.T) {
 	assert.Equal(t, 10.0, snap.MultiplierMax)
 	assert.True(t, snap.AdminSkipReview)
 	assert.Equal(t, 0.1, snap.LowBalanceRatio)
+	assert.True(t, snap.PortWhitelistEnabled)
+	assert.Equal(t, []int{80, 443, 8080, 8443}, snap.AllowedPorts)
+	assert.Equal(t, []int{80, 443, 8080, 8443}, AllowedSellerChannelPorts())
 	assert.True(t, IsChannelTypeAllowed(constant.ChannelTypeOpenAI))
 	assert.True(t, IsChannelTypeAllowed(constant.ChannelTypeAnthropic))
-	assert.False(t, IsChannelTypeAllowed(constant.ChannelTypeTaskPlugin))
+	assert.True(t, IsChannelTypeAllowed(constant.ChannelTypeTaskPlugin))
 	assert.False(t, IsChannelTypeAllowed(constant.ChannelTypeAdvancedCustom))
 
 	require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
 		KeyEnabled:       "true",
 		KeySellerGroups:  `["vip","svip"]`,
 		KeyCommissionBps: "1500",
+		KeyAllowedPorts:  `[80,443,17000]`,
 	}))
 	updated := GetTokenPackageSetting()
 	assert.True(t, updated.Enabled)
 	assert.Equal(t, []string{"vip", "svip"}, updated.SellerGroups)
 	assert.Equal(t, 1500, updated.CommissionBps)
+	assert.Equal(t, []int{80, 443, 17000}, AllowedSellerChannelPorts())
 	assert.True(t, IsSellerGroupAllowed("vip"))
 	assert.False(t, IsSellerGroupAllowed("default"))
+
+	require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
+		KeyPortWhitelistEnabled: "false",
+	}))
+	assert.Empty(t, AllowedSellerChannelPorts())
 }
 
 func TestValidateTokenPackageOptionAndMap(t *testing.T) {
@@ -89,6 +99,23 @@ func TestValidateTokenPackageOptionAndMap(t *testing.T) {
 	assert.Error(t, ValidateTokenPackageOption(KeyAllowedChannelTypes, `[58]`))
 	assert.Error(t, ValidateTokenPackageOption(KeyAllowedChannelTypes, `[2]`))
 	assert.Error(t, ValidateTokenPackageOption(KeyAllowedChannelTypes, `[99999]`))
+
+	assert.NoError(t, ValidateTokenPackageOption(KeyPortWhitelistEnabled, "true"))
+	assert.Error(t, ValidateTokenPackageOption(KeyPortWhitelistEnabled, "not-a-bool"))
+	assert.NoError(t, ValidateTokenPackageOption(KeyAllowedPorts, `[80,443,17000]`))
+	assert.Error(t, ValidateTokenPackageOption(KeyAllowedPorts, `[]`))
+	assert.Error(t, ValidateTokenPackageOption(KeyAllowedPorts, `[0]`))
+	assert.Error(t, ValidateTokenPackageOption(KeyAllowedPorts, `[65536]`))
+	assert.Error(t, ValidateTokenPackageOption(KeyAllowedPorts, `[80,80]`))
+	assert.Error(t, ValidateTokenPackageOption(KeyAllowedPorts, `["80"]`))
+	assert.NoError(t, ValidateTokenPackageOptionMap(map[string]string{
+		KeyPortWhitelistEnabled: "false",
+		KeyAllowedPorts:         `[]`,
+	}))
+	assert.Error(t, ValidateTokenPackageOptionMap(map[string]string{
+		KeyPortWhitelistEnabled: "true",
+		KeyAllowedPorts:         `[]`,
+	}))
 
 	assert.NoError(t, ValidateTokenPackageOption(KeyLowBalanceRatio, "0.15"))
 	assert.Error(t, ValidateTokenPackageOption(KeyLowBalanceRatio, "-0.1"))

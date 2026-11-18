@@ -18,6 +18,21 @@ type SubscriptionPlanDTO struct {
 	Plan model.SubscriptionPlan `json:"plan"`
 }
 
+type PublicSubscriptionPlanDTO struct {
+	ID                      int     `json:"id"`
+	Title                   string  `json:"title"`
+	Subtitle                string  `json:"subtitle"`
+	PriceAmount             float64 `json:"price_amount"`
+	Currency                string  `json:"currency"`
+	DurationUnit            string  `json:"duration_unit"`
+	DurationValue           int     `json:"duration_value"`
+	CustomSeconds           int64   `json:"custom_seconds"`
+	TotalAmount             int64   `json:"total_amount"`
+	QuotaResetPeriod        string  `json:"quota_reset_period"`
+	QuotaResetCustomSeconds int64   `json:"quota_reset_custom_seconds"`
+	MaxPurchasePerUser      int     `json:"max_purchase_per_user"`
+}
+
 type BillingPreferenceRequest struct {
 	BillingPreference string `json:"billing_preference"`
 }
@@ -34,19 +49,60 @@ func GetSubscriptionPlans(c *gin.Context) {
 		return
 	}
 
-	var plans []model.SubscriptionPlan
-	if err := model.DB.Where("enabled = ?", true).Order("sort_order desc, id desc").Find(&plans).Error; err != nil {
+	plans, err := listEnabledSubscriptionPlans()
+	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	result := make([]SubscriptionPlanDTO, 0, len(plans))
 	for _, p := range plans {
-		p.NormalizeDefaults()
 		result = append(result, SubscriptionPlanDTO{
 			Plan: p,
 		})
 	}
 	common.ApiSuccess(c, result)
+}
+
+func GetPublicSubscriptionPlans(c *gin.Context) {
+	if !operation_setting.IsPaymentComplianceConfirmed() {
+		common.ApiSuccess(c, []PublicSubscriptionPlanDTO{})
+		return
+	}
+
+	plans, err := listEnabledSubscriptionPlans()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	result := make([]PublicSubscriptionPlanDTO, 0, len(plans))
+	for _, p := range plans {
+		result = append(result, PublicSubscriptionPlanDTO{
+			ID:                      p.Id,
+			Title:                   p.Title,
+			Subtitle:                p.Subtitle,
+			PriceAmount:             p.PriceAmount,
+			Currency:                p.Currency,
+			DurationUnit:            p.DurationUnit,
+			DurationValue:           p.DurationValue,
+			CustomSeconds:           p.CustomSeconds,
+			TotalAmount:             p.TotalAmount,
+			QuotaResetPeriod:        p.QuotaResetPeriod,
+			QuotaResetCustomSeconds: p.QuotaResetCustomSeconds,
+			MaxPurchasePerUser:      p.MaxPurchasePerUser,
+		})
+	}
+	common.ApiSuccess(c, result)
+}
+
+func listEnabledSubscriptionPlans() ([]model.SubscriptionPlan, error) {
+	var plans []model.SubscriptionPlan
+	if err := model.DB.Where("enabled = ?", true).Order("sort_order desc, id desc").Find(&plans).Error; err != nil {
+		return nil, err
+	}
+	for i := range plans {
+		plans[i].NormalizeDefaults()
+	}
+	return plans, nil
 }
 
 func GetSubscriptionSelf(c *gin.Context) {

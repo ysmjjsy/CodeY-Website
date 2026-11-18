@@ -201,6 +201,14 @@ const BILLING_SECTIONS = [
           )
             .map((item) => Number(item))
             .filter((item) => Number.isInteger(item)),
+          port_whitelist_enabled: tokenPackageBool(
+            settings,
+            'port_whitelist_enabled',
+            true
+          ),
+          allowed_ports: tokenPackageList(settings, 'allowed_ports')
+            .map((item) => Number(item))
+            .filter((item) => Number.isInteger(item)),
         }}
       />
     ),
