@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -59,6 +60,7 @@ type Channel struct {
 	ChannelInfo ChannelInfo `json:"channel_info" gorm:"type:json"`
 
 	OtherSettings string `json:"settings" gorm:"column:settings"` // 其他设置，存储azure版本等不需要检索的信息，详见dto.ChannelOtherSettings
+	OwnerUserId   int    `json:"owner_user_id" gorm:"index;default:0"`
 
 	// cache info
 	Keys []string `json:"-" gorm:"-"`
@@ -174,6 +176,124 @@ func ApplyChannelGroupFilter(query *gorm.DB, group string) *gorm.DB {
 		return query
 	}
 	return query.Where(channelGroupFilterCondition(), channelGroupFilterPattern(group))
+}
+
+type ChannelOwnerFilter struct {
+	Mode   string // "platform" (default), "user", "all", "user_id"
+	UserID int
+}
+
+func ParseChannelOwnerFilter(raw string) (ChannelOwnerFilter, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || strings.EqualFold(trimmed, "platform") || trimmed == "0" {
+		return ChannelOwnerFilter{Mode: "platform"}, nil
+	}
+	if strings.EqualFold(trimmed, "user") {
+		return ChannelOwnerFilter{Mode: "user"}, nil
+	}
+	if strings.EqualFold(trimmed, "all") {
+		return ChannelOwnerFilter{Mode: "all"}, nil
+	}
+	uid, err := strconv.Atoi(trimmed)
+	if err != nil || uid <= 0 {
+		return ChannelOwnerFilter{}, common.NewMessage("Invalid parameters")
+	}
+	return ChannelOwnerFilter{Mode: "user_id", UserID: uid}, nil
+}
+
+func ApplyChannelOwnerFilter(query *gorm.DB, filter ChannelOwnerFilter) *gorm.DB {
+	switch filter.Mode {
+	case "", "platform":
+		return query.Where("owner_user_id = ?", 0)
+	case "user":
+		return query.Where("owner_user_id > ?", 0)
+	case "user_id":
+		return query.Where("owner_user_id = ?", filter.UserID)
+	case "all":
+		return query
+	default:
+		return query.Where("owner_user_id = ?", 0)
+	}
+}
+
+// ErrChannelNotFound is returned when a channel does not exist or does not
+// belong to the user the caller scoped the operation to.
+var ErrChannelNotFound = errors.New("channel not found")
+
+// ListChannelsByOwner returns a user's own channels without their keys.
+func ListChannelsByOwner(ownerUserId int, keyword string) ([]*Channel, error) {
+	var channels []*Channel
+	query := DB.Omit("key").Where("owner_user_id = ?", ownerUserId)
+	if trimmed := strings.TrimSpace(keyword); trimmed != "" {
+		query = query.Where("name LIKE ?", "%"+trimmed+"%")
+	}
+	if err := query.Order("id DESC").Find(&channels).Error; err != nil {
+		return nil, err
+	}
+	return channels, nil
+}
+
+// GetChannelForOwner loads one of a user's own channels without its key.
+func GetChannelForOwner(channelId int, ownerUserId int) (*Channel, error) {
+	channel := &Channel{}
+	err := DB.Omit("key").Where("id = ? AND owner_user_id = ?", channelId, ownerUserId).First(channel).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrChannelNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return channel, nil
+}
+
+// UpdateUserChannelKey replaces the key of a user's own channel under the
+// channel lock, so a concurrent refresh cannot be overwritten.
+func UpdateUserChannelKey(channelId int, ownerUserId int, key string) error {
+	_, err := UpdateChannelLocked(channelId, func(stored *Channel) error {
+		if stored.OwnerUserId != ownerUserId {
+			return ErrChannelNotFound
+		}
+		stored.Key = key
+		return nil
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrChannelNotFound
+	}
+	return err
+}
+
+// SetUserChannelStatus lets an owner enable or manually disable an own
+// channel. A channel the system disabled can only be re-enabled by testing it,
+// so an owner cannot escape an automatic ban.
+func SetUserChannelStatus(channelId int, ownerUserId int, status int) error {
+	_, err := UpdateChannelLocked(channelId, func(stored *Channel) error {
+		if stored.OwnerUserId != ownerUserId {
+			return ErrChannelNotFound
+		}
+		if stored.Status == common.ChannelStatusAutoDisabled {
+			return common.NewMessage("The channel was disabled automatically and cannot be enabled here")
+		}
+		stored.Status = status
+		return nil
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrChannelNotFound
+	}
+	return err
+}
+
+// DeleteUserChannel deletes a user's own channel. Binding checks belong to the
+// caller, which sees the package relations a channel takes part in.
+func DeleteUserChannel(channelId int, ownerUserId int) error {
+	result := DB.Where("id = ? AND owner_user_id = ?", channelId, ownerUserId).Delete(&Channel{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrChannelNotFound
+	}
+	defer BumpSyncTopic(SyncTopicChannels)
+	return nil
 }
 
 // Value implements driver.Valuer interface
@@ -438,7 +558,7 @@ func GetAllChannels(startIdx int, num int, selectAll bool, idSort bool, sortOpti
 func GetChannelsByTag(tag string, idSort bool, selectAll bool, sortOptions ...ChannelSortOptions) ([]*Channel, error) {
 	var channels []*Channel
 	order := resolveChannelSortOptions(idSort, sortOptions)
-	query := order.Apply(DB.Where("tag = ?", tag))
+	query := order.Apply(DB.Where("tag = ? AND owner_user_id = ?", tag, 0))
 	if !selectAll {
 		query = query.Omit("key")
 	}
@@ -447,6 +567,10 @@ func GetChannelsByTag(tag string, idSort bool, selectAll bool, sortOptions ...Ch
 }
 
 func SearchChannels(keyword string, group string, model string, idSort bool, sortOptions ...ChannelSortOptions) ([]*Channel, error) {
+	return SearchChannelsWithOwner(keyword, group, model, idSort, ChannelOwnerFilter{Mode: "platform"}, sortOptions...)
+}
+
+func SearchChannelsWithOwner(keyword string, group string, model string, idSort bool, ownerFilter ChannelOwnerFilter, sortOptions ...ChannelSortOptions) ([]*Channel, error) {
 	var channels []*Channel
 	modelsCol := "`models`"
 
@@ -470,6 +594,7 @@ func SearchChannels(keyword string, group string, model string, idSort bool, sor
 	whereClause := "(id = ? OR name LIKE ? OR " + commonKeyCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + " LIKE ?"
 	args := []any{common.String2Int(keyword), "%" + keyword + "%", keyword, "%" + keyword + "%", "%" + model + "%"}
 	baseQuery = ApplyChannelGroupFilter(baseQuery.Where(whereClause, args...), group)
+	baseQuery = ApplyChannelOwnerFilter(baseQuery, ownerFilter)
 
 	// 执行查询
 	err := order.Apply(baseQuery).Find(&channels).Error
@@ -598,6 +723,13 @@ func (channel *Channel) GetModelMapping() string {
 	return *channel.ModelMapping
 }
 
+func (channel *Channel) GetTestModel() string {
+	if channel.TestModel == nil {
+		return ""
+	}
+	return *channel.TestModel
+}
+
 func (channel *Channel) GetStatusCodeMapping() string {
 	if channel.StatusCodeMapping == nil {
 		return ""
@@ -612,6 +744,15 @@ func (channel *Channel) Insert() error {
 		return err
 	}
 	defer BumpSyncTopic(SyncTopicChannels)
+	if channel.OwnerUserId > 0 && channel.Group != "" {
+		// The group column carries a platform default, so GORM lets a zero value
+		// fall back to 'default'. An owner channel must never be routable through
+		// a group (INV-1), so force the empty value after creation.
+		if err = DB.Model(&Channel{}).Where("id = ?", channel.Id).Update("group", "").Error; err != nil {
+			return err
+		}
+		channel.Group = ""
+	}
 	err = channel.AddAbilities(nil)
 	return err
 }
@@ -980,7 +1121,7 @@ func channelPluginHasHook(ch *Channel, hook string) bool {
 }
 
 func EnableChannelByTag(tag string) error {
-	err := DB.Model(&Channel{}).Where("tag = ?", tag).Update("status", common.ChannelStatusEnabled).Error
+	err := DB.Model(&Channel{}).Where("tag = ? AND owner_user_id = ?", tag, 0).Update("status", common.ChannelStatusEnabled).Error
 	if err != nil {
 		return err
 	}
@@ -993,7 +1134,7 @@ func DisableChannelByTag(tag string) error {
 	// Explicit tag-level disable also cancels automatic restoration for
 	// channels that were already disabled because all keys were unavailable.
 	var channels []Channel
-	if err := DB.Where("tag = ?", tag).Find(&channels).Error; err != nil {
+	if err := DB.Where("tag = ? AND owner_user_id = ?", tag, 0).Find(&channels).Error; err != nil {
 		return err
 	}
 	for _, channel := range channels {
@@ -1003,7 +1144,7 @@ func DisableChannelByTag(tag string) error {
 			}
 		}
 	}
-	err := DB.Model(&Channel{}).Where("tag = ?", tag).Update("status", common.ChannelStatusManuallyDisabled).Error
+	err := DB.Model(&Channel{}).Where("tag = ? AND owner_user_id = ?", tag, 0).Update("status", common.ChannelStatusManuallyDisabled).Error
 	if err != nil {
 		return err
 	}
@@ -1045,7 +1186,7 @@ func EditChannelByTag(tag string, newTag *string, modelMapping *string, models *
 		updateData.HeaderOverride = headerOverride
 	}
 
-	err := DB.Model(&Channel{}).Where("tag = ?", tag).Updates(updateData).Error
+	err := DB.Model(&Channel{}).Where("tag = ? AND owner_user_id = ?", tag, 0).Updates(updateData).Error
 	if err != nil {
 		return err
 	}
@@ -1090,7 +1231,7 @@ func DeleteChannelByStatus(status int64) (int64, error) {
 }
 
 func DeleteDisabledChannel() (int64, error) {
-	result := DB.Where("status = ? or status = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled).Delete(&Channel{})
+	result := DB.Where("(status = ? or status = ?) AND owner_user_id = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled, 0).Delete(&Channel{})
 	if result.Error == nil {
 		BumpSyncTopic(SyncTopicChannels)
 	}
@@ -1114,6 +1255,10 @@ func GetPaginatedChannelTags(query *gorm.DB, offset int, limit int) ([]*string, 
 }
 
 func SearchTags(keyword string, group string, model string, idSort bool) ([]*string, error) {
+	return SearchTagsWithOwner(keyword, group, model, idSort, ChannelOwnerFilter{Mode: "platform"})
+}
+
+func SearchTagsWithOwner(keyword string, group string, model string, idSort bool, ownerFilter ChannelOwnerFilter) ([]*string, error) {
 	var tags []*string
 	modelsCol := "`models`"
 
@@ -1140,6 +1285,7 @@ func SearchTags(keyword string, group string, model string, idSort bool) ([]*str
 	whereClause := "(id = ? OR name LIKE ? OR " + commonKeyCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + " LIKE ?"
 	args := []any{common.String2Int(keyword), "%" + keyword + "%", keyword, "%" + keyword + "%", "%" + model + "%"}
 	baseQuery = ApplyChannelGroupFilter(baseQuery.Where(whereClause, args...), group)
+	baseQuery = ApplyChannelOwnerFilter(baseQuery, ownerFilter)
 
 	subQuery := baseQuery.
 		Select("tag").
@@ -1226,6 +1372,20 @@ func (channel *Channel) SetSetting(setting dto.ChannelSettings) {
 	channel.Setting = common.GetPointer[string](string(settingBytes))
 }
 
+// GetUpstreamSetting returns the settings that govern this channel's outbound
+// requests. A user-owned channel is untrusted: it loses its proxy, its TLS
+// exemption, and every request-plugin override before the relay ever sees it.
+func (channel *Channel) GetUpstreamSetting() dto.ChannelSettings {
+	setting := channel.GetSetting()
+	if channel.OwnerUserId > 0 {
+		setting.UntrustedUpstream = true
+		setting.Proxy = ""
+		setting.TLSInsecureSkipVerify = false
+		setting.RequestPlugins = nil
+	}
+	return setting
+}
+
 func (channel *Channel) GetOtherSettings() dto.ChannelOtherSettings {
 	setting := dto.ChannelOtherSettings{}
 	if channel.OtherSettings != "" {
@@ -1281,22 +1441,25 @@ func GetChannelsByIds(ids []int) ([]*Channel, error) {
 }
 
 func BatchSetChannelTag(ids []int, tag *string) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	// 开启事务
 	tx := DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
 
-	// 更新标签
-	err := tx.Model(&Channel{}).Where("id in (?)", ids).Update("tag", tag).Error
+	// 更新标签（排除用户渠道，INV-1）
+	err := tx.Model(&Channel{}).Where("id in (?) AND owner_user_id = ?", ids, 0).Update("tag", tag).Error
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	// update ability status
-	channels, err := GetChannelsByIds(ids)
-	if err != nil {
+	var channels []*Channel
+	if err = tx.Where("id in (?) AND owner_user_id = ?", ids, 0).Find(&channels).Error; err != nil {
 		tx.Rollback()
 		return err
 	}

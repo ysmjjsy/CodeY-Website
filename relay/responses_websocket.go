@@ -297,6 +297,13 @@ func (s *responsesWSSession) runCall(c *gin.Context, state *responsesWSCallState
 	if apiErr = checkResponsesWSModelAccess(c, modelName); apiErr != nil {
 		return apiErr
 	}
+	// This route does not pass through Distribute, so a package token gets
+	// the same model gate and pricing facts here, once per response.create.
+	if packageId := common.GetContextKeyInt(c, appconstant.ContextKeyTokenPackageId); packageId > 0 {
+		if apiErr = service.ApplyPackageRequestGate(c, packageId, modelName); apiErr != nil {
+			return apiErr
+		}
+	}
 	service.GetChannelConstraints(c).AddFilter(appdto.ChannelFilter{Kind: appdto.FilterRequestPath, RequestPath: c.Request.URL.Path})
 
 	if s.lockedChannelID != 0 {

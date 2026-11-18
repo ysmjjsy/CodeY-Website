@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
@@ -75,6 +76,9 @@ func (s *BillingSession) Settle(actualQuota int) error {
 			common.SysLog(common.LogText("error adjusting token quota after funding settled (userId=%d, tokenId=%d, delta=%d): %s",
 				s.relayInfo.UserId, s.relayInfo.TokenId, delta, tokenErr.Error()))
 		}
+	}
+	if s.funding.Source() == BillingSourcePackage {
+		checkAndSendPackageQuotaNotify(s.relayInfo)
 	}
 	// 3) 更新 relayInfo 上的订阅 PostDelta（用于日志）
 	if s.funding.Source() == BillingSourceSubscription {
@@ -236,6 +240,12 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 			s.tokenConsumed = 0
 		}
 		// TODO: model 层应定义哨兵错误（如 ErrNoActiveSubscription），用 errors.Is 替代字符串匹配
+		if errors.Is(err, ErrPackageQuotaExhausted) {
+			return types.NewErrorWithStatusCode(
+				errors.New(i18n.T(c, i18n.MsgPackageQuotaInsufficient)),
+				types.ErrorCodeInsufficientPackageQuota, http.StatusForbidden,
+				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}
 		if errors.Is(err, ErrInsufficientWalletQuota) {
 			userQuota, quotaErr := model.GetUserQuota(s.relayInfo.UserId, false)
 			if quotaErr != nil {
@@ -295,6 +305,19 @@ func (s *BillingSession) reserveFunding(delta int, requireAvailableQuota bool) e
 			)
 		}
 		return nil
+	case *PackageFunding:
+		// Package credit is always reserved up front and never runs into debt:
+		// a larger estimate must fit in what the entitlement has left (D6).
+		if err := funding.PreConsume(delta); err != nil {
+			if errors.Is(err, ErrPackageQuotaExhausted) {
+				return types.NewErrorWithStatusCode(
+					errors.New(i18n.Translate(s.lang, i18n.MsgPackageQuotaInsufficient)),
+					types.ErrorCodeInsufficientPackageQuota, http.StatusForbidden,
+					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			}
+			return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
+		}
+		return nil
 	default:
 		return types.NewError(fmt.Errorf("unsupported funding source: %s", s.funding.Source()), types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
 	}
@@ -312,6 +335,10 @@ func (s *BillingSession) rollbackFundingReserve(delta int) {
 		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, -int64(delta)); err != nil {
 			common.SysLog(common.LogText("error rolling back subscription funding reserve: %s", err.Error()))
 		}
+	case *PackageFunding:
+		if err := funding.releaseReservation(delta); err != nil {
+			common.SysLog(common.LogText("error rolling back package funding reserve: %s", err.Error()))
+		}
 	}
 }
 
@@ -327,6 +354,11 @@ func (s *BillingSession) reserveToken(delta int) error {
 
 // shouldTrust 统一信任额度检查，适用于钱包和订阅。
 func (s *BillingSession) shouldTrust(c *gin.Context) bool {
+	// Package quota is always reserved up front: the entitlement, not the
+	// wallet, decides whether the request may run.
+	if s.relayInfo.PackageId > 0 {
+		return false
+	}
 	// 异步任务（ForcePreConsume=true）必须预扣全额，不允许信任旁路
 	if s.relayInfo.ForcePreConsume {
 		return false
@@ -389,6 +421,34 @@ func (s *BillingSession) syncRelayInfo() {
 func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int) (*BillingSession, *types.NewAPIError) {
 	if relayInfo == nil {
 		return nil, types.NewError(fmt.Errorf("relayInfo is nil"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
+	}
+
+	// Package requests are funded by the buyer's entitlement only. Billing
+	// preference, wallet balance and subscriptions are irrelevant here.
+	if relayInfo.PackageId > 0 {
+		// A package request is priced by the multiplier its entry point
+		// resolved. One that arrives without it is refused rather than billed
+		// at the platform price.
+		if multiplier, ok := common.GetContextKeyType[float64](c, constant.ContextKeyPackageMultiplier); !ok || multiplier <= 0 {
+			return nil, types.NewErrorWithStatusCode(
+				errors.New(i18n.T(c, i18n.MsgPackageUnavailable)),
+				types.ErrorCodePackageUnavailable, http.StatusForbidden,
+				types.ErrOptionWithSkipRetry())
+		}
+		session := &BillingSession{
+			relayInfo: relayInfo,
+			lang:      i18n.StatedLang(c),
+			funding: &PackageFunding{
+				userId:        relayInfo.UserId,
+				packageId:     relayInfo.PackageId,
+				entitlementId: relayInfo.PackageEntitlementId,
+				requestId:     relayInfo.RequestId,
+			},
+		}
+		if apiErr := session.preConsume(c, preConsumedQuota); apiErr != nil {
+			return nil, apiErr
+		}
+		return session, nil
 	}
 
 	pref := common.NormalizeBillingPreference(relayInfo.UserSetting.BillingPreference)

@@ -150,7 +150,7 @@ func queryPluginKeyBalance(ctx context.Context, channel *model.Channel, plugin *
 			ChannelMultiKeyIndex: index,
 			ChannelBaseUrl:       channel.GetBaseURL(),
 			ApiKey:               key,
-			ChannelSetting:       channel.GetSetting(),
+			ChannelSetting:       channel.GetUpstreamSetting(),
 			ChannelOtherSettings: channel.GetOtherSettings(),
 		},
 	}

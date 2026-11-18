@@ -73,6 +73,10 @@ var accessTokenStaticResources = []AccessTokenResource{
 		accessTokenView("View Passkey, two-factor, and sign-in binding status."),
 		accessTokenEdit("Includes changes that require security verification, such as password, two-factor settings, and account deletion."),
 	}},
+	{Resource: "seller", LabelKey: "Marketplace selling", group: AccessTokenGroupPersonal, minRole: common.RoleCommonUser, Actions: []authz.ActionDefinition{
+		accessTokenView("View your marketplace channels, packages, and revenue."),
+		accessTokenEdit("Create and edit marketplace channels, packages, and listings."),
+	}},
 	{Resource: "user", LabelKey: "Users", group: AccessTokenGroupAdmin, minRole: common.RoleAdminUser, Actions: []authz.ActionDefinition{
 		accessTokenView("View users, their sign-in bindings, and permission settings."),
 		accessTokenEdit("Create, edit, disable, and delete users, and reset their security settings."),
@@ -235,6 +239,7 @@ var accessTokenVerificationScopes = map[string]string{
 	VerificationScopeAccountBind:           "account_security:write",
 	VerificationScopeAccountUnbind:         "account_security:write",
 	VerificationScopeAccountDelete:         "account_security:write",
+	VerificationScopeRealnameSubmit:        "account_security:write",
 	VerificationScopeAccessTokenGenerate:   "",
 	VerificationScopeAccessTokenUpdate:     "",
 	VerificationScopeAccessTokenRevoke:     "",

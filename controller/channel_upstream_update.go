@@ -60,6 +60,7 @@ var channelUpstreamModelUpdateSelectFields = []string{
 	"tag",
 	"channel_info",
 	"header_override",
+	"owner_user_id",
 }
 
 var channelUpstreamModelUpdateNotifyState = struct {
@@ -366,7 +367,7 @@ func sendFetchModelsRequest(method string, requestURL string, channel *model.Cha
 			request.Host = headers.Get(name)
 		}
 	}
-	setting := channel.GetSetting()
+	setting := channel.GetUpstreamSetting()
 	client, err := service.GetHttpClientWithProxySettings(setting.Proxy, setting)
 	if err != nil {
 		return nil, err
@@ -407,7 +408,7 @@ func fetchChannelUpstreamModelIDs(channel *model.Channel) ([]string, error) {
 			return nil, fmt.Errorf("failed to get channel key: %w", apiErr)
 		}
 		key = strings.TrimSpace(key)
-		models, err := gemini.FetchGeminiModels(baseURL, key, channel.GetSetting())
+		models, err := gemini.FetchGeminiModels(baseURL, key, channel.GetUpstreamSetting())
 		if err != nil {
 			return nil, err
 		}
@@ -540,7 +541,7 @@ func fetchProviderPluginUpstreamModelIDs(channel *model.Channel, plugin *jsplugi
 			ChannelMultiKeyIndex: pluginKeyIndex(channel, key),
 			ChannelBaseUrl:       channel.GetBaseURL(),
 			ApiKey:               key,
-			ChannelSetting:       channel.GetSetting(),
+			ChannelSetting:       channel.GetUpstreamSetting(),
 			ChannelOtherSettings: settings,
 		},
 	}
@@ -572,7 +573,7 @@ func pluginKeyIndex(channel *model.Channel, key string) int {
 // sendChannelRequest sends a channel management request through the
 // channel's proxy and TLS setting. The caller closes the response body.
 func sendChannelRequest(channel *model.Channel, request *http.Request) (*http.Response, error) {
-	setting := channel.GetSetting()
+	setting := channel.GetUpstreamSetting()
 	client, err := service.GetHttpClientWithProxySettings(setting.Proxy, setting)
 	if err != nil {
 		return nil, err
@@ -847,6 +848,12 @@ scanLoop:
 
 			settings := channel.GetOtherSettings()
 			if !settings.UpstreamModelUpdateCheckEnabled {
+				continue
+			}
+			// A seller's base URL is untrusted. The scheduled sync uses the plain
+			// relay client and can rewrite the channel's model list, so it only
+			// runs for platform channels.
+			if channel.OwnerUserId != 0 {
 				continue
 			}
 
@@ -1149,6 +1156,9 @@ func ApplyAllChannelUpstreamModelUpdates(c *gin.Context) {
 
 			settings := channel.GetOtherSettings()
 			if !settings.UpstreamModelUpdateCheckEnabled {
+				continue
+			}
+			if channel.OwnerUserId != 0 {
 				continue
 			}
 

@@ -1140,6 +1140,9 @@ func GetSyncableChannels(c *gin.Context) {
 
 	var syncableChannels []dto.SyncableChannel
 	for _, channel := range channels {
+		if channel.OwnerUserId > 0 {
+			continue
+		}
 		if channel.GetBaseURL() != "" {
 			syncableChannels = append(syncableChannels, dto.SyncableChannel{
 				ID:      channel.Id,

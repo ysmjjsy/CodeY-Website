@@ -110,6 +110,18 @@ const defaultBillingSettings: BillingSettings = {
   'checkin_setting.enabled': false,
   'checkin_setting.min_quota': 1000,
   'checkin_setting.max_quota': 10000,
+  'token_package_setting.enabled': false,
+  'token_package_setting.admin_skip_review': true,
+  'token_package_setting.commission_bps': 1000,
+  'token_package_setting.freeze_days': 3,
+  'token_package_setting.multiplier_min': 0.01,
+  'token_package_setting.multiplier_max': 10,
+  'token_package_setting.low_balance_ratio': 0.1,
+  'token_package_setting.probe_minutes': 10,
+  'token_package_setting.outage_threshold_minutes': 30,
+  'token_package_setting.auto_terminate_hours': 72,
+  'token_package_setting.seller_groups': [] as string[],
+  'token_package_setting.allowed_channel_types': [] as number[],
 }
 
 export function BillingSettings() {

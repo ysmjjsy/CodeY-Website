@@ -398,6 +398,12 @@ func GetHttpClientWithProxy(rawProxyURL string) (*http.Client, error) {
 // channel transport settings. Default auto + 1 shard shares the same client pool as
 // GetHttpClientWithProxy / GetHttpClient for the empty-proxy case.
 func GetHttpClientWithProxySettings(rawProxyURL string, settings dto.ChannelSettings) (*http.Client, error) {
+	// A user-owned channel is untrusted: it ignores the global transport
+	// policy, its proxy and its TLS exemption, and always runs behind the
+	// strict marketplace SSRF client.
+	if settings.UntrustedUpstream {
+		return GetUserChannelHTTPClient(), nil
+	}
 	policy := NormalizeHTTPTransportPolicy(settings)
 	trimmedProxyURL := strings.TrimSpace(rawProxyURL)
 

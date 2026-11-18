@@ -54,3 +54,10 @@ test('a user preference can only hide tabs the admin left visible', () => {
     })
   ).toEqual(['profile', 'wallet', 'keys'])
 })
+
+test('the real-name tab appears only while the token package market is on', () => {
+  expect(getVisibleAccountSections(all, null)).not.toContain('verification')
+  expect(
+    getVisibleAccountSections(all, null, { tokenPackageEnabled: true })
+  ).toEqual(['profile', 'wallet', 'security', 'keys', 'verification'])
+})

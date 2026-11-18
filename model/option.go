@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 	"gorm.io/gorm"
 )
 
@@ -285,6 +286,21 @@ func validateOptionValue(key string, value string) error {
 	if key == "MaxTokenAutoGroups" {
 		return setting.ValidateMaxTokenAutoGroups(value)
 	}
+	if err := token_package_setting.ValidateTokenPackageOption(key, value); err != nil {
+		return err
+	}
+	switch key {
+	case "GroupRatio", "group_ratio_setting.group_ratio":
+		return ratio_setting.CheckGroupRatio(value)
+	case "GroupGroupRatio", "group_ratio_setting.group_group_ratio":
+		return ratio_setting.CheckGroupGroupRatio(value)
+	case "group_ratio_setting.group_special_usable_group":
+		return ratio_setting.CheckGroupSpecialUsableGroup(value)
+	case "UserUsableGroups":
+		return setting.CheckUserUsableGroups(value)
+	case "AutoGroups":
+		return setting.CheckAutoGroups(value)
+	}
 	return nil
 }
 
@@ -333,7 +349,13 @@ func UpdateOptionsBulk(values map[string]string) error {
 			return err
 		}
 	}
+	if err := token_package_setting.ValidateTokenPackageOptionMap(values); err != nil {
+		return err
+	}
 	for key, value := range values {
+		if strings.HasPrefix(key, token_package_setting.OptionPrefix) {
+			continue
+		}
 		if err := validateOptionValue(key, value); err != nil {
 			return err
 		}

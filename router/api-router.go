@@ -137,6 +137,10 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
 
 				// 2FA routes
+				selfRoute.GET("/verification", controller.GetUserVerification)
+				selfRoute.GET("/package-entitlements", controller.GetUserPackageEntitlements)
+				selfRoute.POST("/verification", middleware.CriticalRateLimit(), middleware.UserCriticalRateLimit("real-name"), middleware.DisableCache(), controller.SubmitUserVerification)
+
 				selfRoute.GET("/2fa/status", controller.Get2FAStatus)
 				selfRoute.POST("/2fa/setup", middleware.UserCriticalRateLimit("security-verification"), middleware.DisableCache(), controller.Setup2FA)
 				selfRoute.POST("/2fa/enable", middleware.UserCriticalRateLimit("security-verification"), middleware.DisableCache(), controller.Enable2FA)
@@ -155,6 +159,29 @@ func SetApiRouter(router *gin.Engine) {
 			adminRoute := userRoute.Group("/")
 			adminRoute.Use(middleware.AdminAuth())
 			{
+				middleware.DeclareAccessTokenPermissionRoute("GET", "/api/user/verifications", authz.TokenPackageRead)
+				adminRoute.GET("/verifications", middleware.RequirePermission(authz.TokenPackageRead), controller.AdminListUserVerifications)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/verifications/:id/review", authz.TokenPackageReview)
+				adminRoute.POST("/verifications/:id/review", middleware.CriticalRateLimit(), middleware.RequirePermission(authz.TokenPackageReview), controller.AdminReviewUserVerification)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/verifications/:id/revoke", authz.TokenPackageReview)
+				adminRoute.POST("/verifications/:id/revoke", middleware.CriticalRateLimit(), middleware.RequirePermission(authz.TokenPackageReview), controller.AdminRevokeUserVerification)
+				middleware.DeclareAccessTokenPermissionRoute("GET", "/api/user/package-reviews", authz.TokenPackageReview)
+				adminRoute.GET("/package-reviews", middleware.RequirePermission(authz.TokenPackageReview), controller.AdminListPackageReviews)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/package-versions/:id/approve", authz.TokenPackageReview)
+				adminRoute.POST("/package-versions/:id/approve", middleware.CriticalRateLimit(), middleware.RequirePermission(authz.TokenPackageReview), controller.AdminApprovePackageVersion)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/package-versions/:id/reject", authz.TokenPackageReview)
+				adminRoute.POST("/package-versions/:id/reject", middleware.CriticalRateLimit(), middleware.RequirePermission(authz.TokenPackageReview), controller.AdminRejectPackageVersion)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/packages/:id/pause", authz.TokenPackageOperate)
+				adminRoute.POST("/packages/:id/pause", middleware.RequirePermission(authz.TokenPackageOperate), controller.AdminPausePackage)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/packages/:id/resume", authz.TokenPackageOperate)
+				adminRoute.POST("/packages/:id/resume", middleware.RequirePermission(authz.TokenPackageOperate), controller.AdminResumePackage)
+				middleware.DeclareAccessTokenPermissionRoute("POST", "/api/user/packages/:id/terminate", authz.TokenPackageOperate)
+				adminRoute.POST("/packages/:id/terminate", middleware.CriticalRateLimit(), middleware.RequirePermission(authz.TokenPackageOperate), controller.AdminTerminatePackage)
+				middleware.DeclareAccessTokenPermissionRoute("GET", "/api/user/sellers", authz.TokenPackageRead)
+				adminRoute.GET("/sellers", middleware.RequirePermission(authz.TokenPackageRead), controller.AdminListSellers)
+				middleware.DeclareAccessTokenPermissionRoute("PUT", "/api/user/sellers/:userId", authz.TokenPackageOperate)
+				adminRoute.PUT("/sellers/:userId", middleware.CriticalRateLimit(), middleware.RequirePermission(authz.TokenPackageOperate), controller.AdminUpdateSeller)
+
 				adminRoute.GET("/", controller.GetAllUsers)
 				adminRoute.GET("/topup", controller.GetAllTopUps)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
@@ -173,6 +200,45 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/2fa/stats", controller.Admin2FAStats)
 				adminRoute.DELETE("/:id/2fa", controller.AdminDisable2FA)
 			}
+		}
+
+		sellerRoute := apiRouter.Group("/seller")
+		sellerRoute.Use(middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled())
+		{
+			sellerRoute.GET("/status", controller.GetSellerStatus)
+			sellerRoute.GET("/packages", controller.GetSellerPackages)
+			sellerRoute.GET("/ledger", controller.GetSellerLedger)
+			sellerRoute.GET("/stats", controller.GetSellerStats)
+			sellerRoute.POST("/packages", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.CreateSellerPackage)
+			sellerRoute.PUT("/packages/:id", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.UpdateSellerPackage)
+			sellerRoute.POST("/packages/:id/versions", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.CreateSellerPackageVersion)
+			sellerRoute.POST("/packages/:id/stop", middleware.SellerAuth(), controller.StopSellerPackage)
+			sellerRoute.POST("/packages/:id/relist", middleware.SellerAuth(), controller.RelistSellerPackage)
+		}
+
+		// Marketplace channels owned by the caller. These never reach the admin
+		// channel routes: ownership is enforced by the handler, not by role.
+		userChannelRoute := apiRouter.Group("/user/channels")
+		userChannelRoute.Use(middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled())
+		{
+			userChannelRoute.GET("", controller.GetUserChannels)
+			userChannelRoute.GET("/:id", controller.GetUserChannel)
+			userChannelRoute.POST("", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.CreateUserChannel)
+			userChannelRoute.PUT("/:id", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.UpdateUserChannel)
+			userChannelRoute.DELETE("/:id", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.DeleteUserChannel)
+			// Each test makes an upstream call, so tests are rate limited too.
+			userChannelRoute.POST("/:id/test", middleware.CriticalRateLimit(), middleware.SellerAuth(), controller.TestUserChannel)
+		}
+		apiRouter.POST("/user/channel_models", middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled(), middleware.SellerAuth(), middleware.CriticalRateLimit(), controller.FetchUserChannelModels)
+
+		// Token package marketplace. Browsing needs a session; buying spends
+		// wallet balance through the same rate-limited path as other payments.
+		marketRoute := apiRouter.Group("/market")
+		marketRoute.Use(middleware.UserAuth(), middleware.DisableCache(), middleware.MarketplaceEnabled())
+		{
+			marketRoute.GET("/packages", controller.GetMarketPackages)
+			marketRoute.GET("/packages/:id", controller.GetMarketPackage)
+			marketRoute.POST("/packages/:id/purchase", middleware.CriticalRateLimit(), controller.PurchaseMarketPackage)
 		}
 
 		// Subscription billing (plans, purchase, admin management)

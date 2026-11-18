@@ -62,6 +62,9 @@ func InitChannelCache() {
 		if channel.Status != common.ChannelStatusEnabled {
 			continue // skip disabled channels
 		}
+		if channel.OwnerUserId > 0 {
+			continue // INV-1: user-owned channels never enter group routing
+		}
 		groups := strings.SplitSeq(channel.Group, ",")
 		for group := range groups {
 			models := channel.GetModels()
@@ -84,8 +87,11 @@ func InitChannelCache() {
 		}
 	}
 
+	newPackage2model2channels := buildPackageRoutingIndex(newChannelId2channel)
+
 	channelSyncLock.Lock()
 	group2model2channels = newGroup2model2channels
+	package2model2channels = newPackage2model2channels
 	//channelsIDM = newChannelId2channel
 	for i, channel := range newChannelId2channel {
 		if channel.ChannelInfo.IsMultiKey {

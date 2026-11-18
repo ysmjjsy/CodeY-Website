@@ -33,7 +33,9 @@ export function TmClosing(props: TmClosingProps) {
       className='tm-closing tm-shell tm-space'
       aria-labelledby='tm-closing-title'
     >
-      <p className='tm-label'>{t('CodeGuys model call market')}</p>
+      <p className='tm-label'>
+        {t('CodeGuys model access and trading platform')}
+      </p>
       <h2 id='tm-closing-title'>
         {t('Need a model? Call it directly.')}
         <br />

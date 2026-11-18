@@ -1,9 +1,11 @@
 package channel
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -488,15 +490,24 @@ func DoWssRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		fullRequestURL = targetURL.String()
 	}
 	dialer := *websocket.DefaultDialer
-	if info.ChannelSetting.Proxy != "" {
-		proxyURL, _, proxyErr := common2.ParseProxyURLRuntime(info.ChannelSetting.Proxy)
-		if proxyErr != nil {
-			return nil, proxyErr
+	if info.ChannelSetting.UntrustedUpstream {
+		// A seller-supplied upstream never inherits the process proxy or the
+		// operator's TLS exemption, and every dial re-checks the resolved address.
+		dialer.Proxy = nil
+		dialer.NetDialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+			return service.UserChannelWebSocketDialer(ctx, network, address)
 		}
-		dialer.Proxy = http.ProxyURL(proxyURL)
-	}
-	if info.ChannelSetting.TLSInsecureSkipVerify {
-		dialer.TLSClientConfig = common2.InsecureTLSConfig
+	} else {
+		if info.ChannelSetting.Proxy != "" {
+			proxyURL, _, proxyErr := common2.ParseProxyURLRuntime(info.ChannelSetting.Proxy)
+			if proxyErr != nil {
+				return nil, proxyErr
+			}
+			dialer.Proxy = http.ProxyURL(proxyURL)
+		}
+		if info.ChannelSetting.TLSInsecureSkipVerify {
+			dialer.TLSClientConfig = common2.InsecureTLSConfig
+		}
 	}
 	targetConn, resp, err := dialer.DialContext(c.Request.Context(), fullRequestURL, targetHeader)
 	if err != nil {

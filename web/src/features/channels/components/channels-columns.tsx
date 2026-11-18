@@ -37,6 +37,7 @@ import { GroupBadge } from '@/components/group-badge'
 import { ProviderBadge } from '@/components/provider-badge'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
+import { Badge } from '@/components/ui/badge'
 import { TruncatedText } from '@/components/truncated-text'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -821,6 +822,11 @@ export function useChannelsColumns(
                     </TooltipProvider>
                   )}
                   <UpstreamUpdateTags channel={channel} />
+                  {channel.owner_user_id > 0 && (
+                    <Badge variant='secondary' className='text-[10px]'>
+                      {t('User #{{id}}', { id: channel.owner_user_id })}
+                    </Badge>
+                  )}
                 </div>
                 {channel.remark && (
                   <TooltipProvider delay={200}>

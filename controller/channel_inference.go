@@ -101,7 +101,7 @@ func fetchInferenceStatus(ctx context.Context, channel *model.Channel) (*inferen
 	if (key == "" || key == "EMPTY") && headers.Get("Authorization") == "Bearer "+key {
 		headers.Del("Authorization")
 	}
-	settings := channel.GetSetting()
+	settings := channel.GetUpstreamSetting()
 	client, err := service.GetHttpClientWithProxySettings(settings.Proxy, settings)
 	if err != nil {
 		return nil, errors.New("Invalid channel proxy")

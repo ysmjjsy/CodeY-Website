@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 )
 
 const DefaultMaxTokenAutoGroups = 5
@@ -27,9 +28,31 @@ func ContainsAutoGroup(group string) bool {
 	return slices.Contains(autoGroups, group)
 }
 
+func CheckAutoGroups(jsonString string) error {
+	parsed := make([]string, 0)
+	if err := common.UnmarshalJsonStr(jsonString, &parsed); err != nil {
+		return err
+	}
+	for _, group := range parsed {
+		if constant.HasReservedPackageGroupPrefix(group) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", group, constant.TokenPackageGroupPrefix)
+		}
+	}
+	return nil
+}
+
 func UpdateAutoGroupsByJsonString(jsonString string) error {
-	autoGroups = make([]string, 0)
-	return common.Unmarshal([]byte(jsonString), &autoGroups)
+	parsed := make([]string, 0)
+	if err := common.UnmarshalJsonStr(jsonString, &parsed); err != nil {
+		return err
+	}
+	for _, group := range parsed {
+		if constant.HasReservedPackageGroupPrefix(group) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", group, constant.TokenPackageGroupPrefix)
+		}
+	}
+	autoGroups = parsed
+	return nil
 }
 
 func AutoGroups2JsonString() string {

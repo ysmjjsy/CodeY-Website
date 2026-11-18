@@ -208,6 +208,16 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other *model.LogOther) 
 	if relayInfo.UserSetting.BillingPreference != "" {
 		other.SetPublic("billing_preference", relayInfo.UserSetting.BillingPreference)
 	}
+	if relayInfo.PackageId > 0 {
+		other.SetPublic("package_id", relayInfo.PackageId)
+		if relayInfo.PackageEntitlementId > 0 {
+			other.SetPublic("entitlement_id", relayInfo.PackageEntitlementId)
+		}
+		if relayInfo.PackageSellerId > 0 {
+			other.SetAdmin("seller_user_id", relayInfo.PackageSellerId)
+		}
+		other.SetPublic("wallet_quota_deducted", 0)
+	}
 	if relayInfo.BillingSource == "subscription" {
 		if relayInfo.SubscriptionId != 0 {
 			other.SetPublic("subscription_id", relayInfo.SubscriptionId)

@@ -42,6 +42,7 @@ export function getApiKeyFormSchema(t: TFunction, maxAutoGroups = 5) {
       allow_ips: z.string().optional(),
       allow_user_quota_query: z.boolean(),
       group: z.string().optional(),
+      package_id: z.number().optional(),
       auto_groups_mode: z.enum(['inherit', 'custom']),
       auto_groups: z.array(z.string()),
       cross_group_retry: z.boolean().optional(),
@@ -113,6 +114,7 @@ export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   allow_ips: '',
   allow_user_quota_query: true,
   group: DEFAULT_GROUP,
+  package_id: 0,
   auto_groups_mode: 'inherit',
   auto_groups: [],
   cross_group_retry: true,
@@ -154,12 +156,18 @@ export function transformFormDataToPayload(
     model_limits: data.model_limits.join(','),
     allow_ips: data.allow_ips || '',
     allow_user_quota_query: data.allow_user_quota_query,
-    group: data.group || '',
+    group: data.package_id ? '' : data.group || '',
+    package_id: data.package_id || 0,
     auto_groups:
-      data.group === 'auto' && data.auto_groups_mode === 'custom'
+      !data.package_id &&
+      data.group === 'auto' &&
+      data.auto_groups_mode === 'custom'
         ? data.auto_groups
         : [],
-    cross_group_retry: data.group === 'auto' ? !!data.cross_group_retry : false,
+    cross_group_retry:
+      !data.package_id && data.group === 'auto'
+        ? !!data.cross_group_retry
+        : false,
   }
 }
 
@@ -192,6 +200,7 @@ export function transformApiKeyToFormDefaults(
     allow_ips: apiKey.allow_ips || '',
     allow_user_quota_query: !!apiKey.allow_user_quota_query,
     group: apiKey.group || DEFAULT_GROUP,
+    package_id: apiKey.package_id || 0,
     auto_groups_mode: autoGroupsMode,
     auto_groups: autoGroups,
     cross_group_retry: !!apiKey.cross_group_retry,

@@ -135,8 +135,8 @@ html:has(.tm) {
 }
 .tm-hero-copy { animation: tm-hero-enter .9s cubic-bezier(.16,1,.3,1) both; }
 .tm-hero-copy .tm-label { margin-bottom: 28px; }
-.tm-hero h1 { margin-bottom: 44px; font-size: clamp(62px, 6vw, 92px); font-weight: 750; letter-spacing: -.075em; line-height: 1.1; }
-.tm-hero h1 .tm-h1-accent { position: relative; display: inline-block; }
+.tm-hero h1 { max-width: 100%; margin-bottom: 44px; font-size: clamp(62px, 6vw, 92px); font-weight: 750; letter-spacing: -.075em; line-height: 1.1; text-wrap: balance; }
+.tm-hero h1 .tm-h1-accent { position: relative; display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
 .tm-hero h1 .tm-h1-accent::after { content: ""; position: absolute; right: 1px; bottom: -10px; width: 70px; height: 4px; background: var(--red); box-shadow: 0 0 20px #ff4d3a75; }
 .tm-hero-description { max-width: 540px; margin-bottom: 48px; color: var(--muted); font-size: 15px; line-height: 2; }
 .tm-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }

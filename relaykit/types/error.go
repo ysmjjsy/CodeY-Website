@@ -88,6 +88,13 @@ const (
 	// quota error
 	ErrorCodeInsufficientUserQuota      ErrorCode = "insufficient_user_quota"
 	ErrorCodePreConsumeTokenQuotaFailed ErrorCode = "pre_consume_token_quota_failed"
+
+	// token package error
+	ErrorCodeInsufficientPackageQuota  ErrorCode = "insufficient_package_quota"
+	ErrorCodePackageExpired            ErrorCode = "package_expired"
+	ErrorCodePackageUnavailable        ErrorCode = "package_unavailable"
+	ErrorCodePackageModelForbidden     ErrorCode = "package_model_forbidden"
+	ErrorCodePackageRequestUnsupported ErrorCode = "package_request_unsupported"
 )
 
 type NewAPIError struct {
@@ -422,4 +429,16 @@ func IsRecordErrorLog(e *NewAPIError) bool {
 		return true
 	}
 	return *e.recordErrorLog
+}
+
+// NewPackageQuotaError builds a local fail-closed package error that skips retry
+// and suppresses error logging, matching insufficient user quota handling.
+func NewPackageQuotaError(err error, code ErrorCode, statusCode int) *NewAPIError {
+	return NewErrorWithStatusCode(
+		err,
+		code,
+		statusCode,
+		ErrOptionWithSkipRetry(),
+		ErrOptionWithNoRecordErrorLog(),
+	)
 }

@@ -1,10 +1,13 @@
 package ratio_setting
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/types"
 )
@@ -73,6 +76,9 @@ func GroupRatio2JSONString() string {
 }
 
 func UpdateGroupRatioByJSONString(jsonStr string) error {
+	if err := CheckGroupRatio(jsonStr); err != nil {
+		return err
+	}
 	return types.LoadFromJsonString(groupRatioMap, jsonStr)
 }
 
@@ -102,18 +108,69 @@ func GroupGroupRatio2JSONString() string {
 }
 
 func UpdateGroupGroupRatioByJSONString(jsonStr string) error {
+	if err := CheckGroupGroupRatio(jsonStr); err != nil {
+		return err
+	}
 	return types.LoadFromJsonString(groupGroupRatioMap, jsonStr)
 }
 
 func CheckGroupRatio(jsonStr string) error {
 	checkGroupRatio := make(map[string]float64)
-	err := json.Unmarshal([]byte(jsonStr), &checkGroupRatio)
+	err := common.UnmarshalJsonStr(jsonStr, &checkGroupRatio)
 	if err != nil {
 		return err
 	}
 	for name, ratio := range checkGroupRatio {
-		if ratio < 0 {
+		if constant.HasReservedPackageGroupPrefix(name) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", name, constant.TokenPackageGroupPrefix)
+		}
+		if math.IsNaN(ratio) || math.IsInf(ratio, 0) || ratio < 0 {
 			return errors.New("group ratio must be not less than 0: " + name)
+		}
+	}
+	return nil
+}
+
+func CheckGroupGroupRatio(jsonStr string) error {
+	check := make(map[string]map[string]float64)
+	if err := common.UnmarshalJsonStr(jsonStr, &check); err != nil {
+		return err
+	}
+	for userGroup, targetMap := range check {
+		if constant.HasReservedPackageGroupPrefix(userGroup) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", userGroup, constant.TokenPackageGroupPrefix)
+		}
+		for usingGroup, ratio := range targetMap {
+			if constant.HasReservedPackageGroupPrefix(usingGroup) {
+				return fmt.Errorf("group name %q uses reserved prefix %q", usingGroup, constant.TokenPackageGroupPrefix)
+			}
+			if math.IsNaN(ratio) || math.IsInf(ratio, 0) || ratio < 0 {
+				return fmt.Errorf("group-to-group ratio must be not less than 0: %s -> %s", userGroup, usingGroup)
+			}
+		}
+	}
+	return nil
+}
+
+func CheckGroupSpecialUsableGroup(jsonStr string) error {
+	check := make(map[string]map[string]string)
+	if err := common.UnmarshalJsonStr(jsonStr, &check); err != nil {
+		return err
+	}
+	for userGroup, rules := range check {
+		if constant.HasReservedPackageGroupPrefix(userGroup) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", userGroup, constant.TokenPackageGroupPrefix)
+		}
+		for ruleKey := range rules {
+			target := ruleKey
+			if after, ok := strings.CutPrefix(ruleKey, "+:"); ok {
+				target = after
+			} else if after, ok := strings.CutPrefix(ruleKey, "-:"); ok {
+				target = after
+			}
+			if constant.HasReservedPackageGroupPrefix(target) {
+				return fmt.Errorf("group rule %q uses reserved prefix %q", ruleKey, constant.TokenPackageGroupPrefix)
+			}
 		}
 	}
 	return nil

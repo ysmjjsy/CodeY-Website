@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -126,6 +127,7 @@ func GetStatus(c *gin.Context) {
 		"log_max_range_days":          operation_setting.GetLogSetting().MaxRangeDays,
 		"quota_remind_enabled":        common.QuotaRemindEnabled,
 		"quota_remind_threshold":      common.QuotaRemindThreshold,
+		"token_package_enabled":       token_package_setting.IsEnabled(),
 	}
 
 	// 根据启用状态注入可选内容

@@ -37,7 +37,10 @@ func setupChannelCreateTest(t *testing.T) int {
 	t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
 	model.LOG_DB = database
 	common.SetLogDatabaseType(common.MainDatabaseType())
-	require.NoError(t, database.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.User{}, &model.Log{}, &model.AuditLog{}))
+	// Marketplace channels look up their package bindings, so the package
+	// tables are part of the channel fixture.
+	require.NoError(t, database.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.User{}, &model.Log{}, &model.AuditLog{},
+		&model.TokenPackage{}, &model.TokenPackageVersion{}, &model.TokenPackageChannel{}))
 	root := &model.User{Username: "channel-create-review-root", Role: common.RoleRootUser, Status: common.UserStatusEnabled}
 	require.NoError(t, database.Create(root).Error)
 	t.Cleanup(func() { require.NoError(t, database.Unscoped().Delete(root).Error) })

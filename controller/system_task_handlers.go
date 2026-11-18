@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -9,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 )
 
 // RegisterScheduledSystemTasks wires the periodic channel test, balance update,
@@ -23,6 +25,153 @@ func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
 	service.RegisterSystemTaskHandler(systemTaskCleanupHandler{})
+	service.RegisterSystemTaskHandler(tokenPackageSellerRecheckHandler{})
+	service.RegisterSystemTaskHandler(tokenPackageSettlementHandler{})
+	service.RegisterSystemTaskHandler(tokenPackageVersionCheckHandler{})
+	service.RegisterSystemTaskHandler(tokenPackageTerminationHandler{})
+}
+
+// tokenPackageSellerRecheckHandler stops listings whose seller lost eligibility
+// (real-name revocation, group change, publish ban) between explicit writes.
+type tokenPackageSellerRecheckHandler struct{}
+
+func (tokenPackageSellerRecheckHandler) Type() string {
+	return model.SystemTaskTypeTokenPackageSellerRecheck
+}
+
+func (tokenPackageSellerRecheckHandler) Enabled() bool {
+	return token_package_setting.IsEnabled()
+}
+
+func (tokenPackageSellerRecheckHandler) Interval() time.Duration { return 10 * time.Minute }
+
+func (tokenPackageSellerRecheckHandler) NewPayload() any { return nil }
+
+func (tokenPackageSellerRecheckHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	sellerIDs, err := model.ListActivePackageSellerIDs()
+	summary := map[string]int64{"checked": 0, "stopped": 0}
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, err)
+		return
+	}
+	for _, sellerID := range sellerIDs {
+		if ctx.Err() != nil {
+			finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, ctx.Err())
+			return
+		}
+		summary["checked"]++
+		stopped, err := service.StopIneligibleSellerPackages(sellerID)
+		if err != nil {
+			finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, err)
+			return
+		}
+		summary["stopped"] += stopped
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
+}
+
+// tokenPackageSettlementHandler releases earned seller shares, pays frozen
+// entries and expires finished entitlements once an hour.
+type tokenPackageSettlementHandler struct{}
+
+func (tokenPackageSettlementHandler) Type() string {
+	return model.SystemTaskTypeTokenPackageSettlement
+}
+
+// Enabled stays on with the marketplace switched off: sold entitlements keep
+// serving, so their seller shares must still be released, paid and expired.
+func (tokenPackageSettlementHandler) Enabled() bool { return true }
+
+func (tokenPackageSettlementHandler) Interval() time.Duration { return time.Hour }
+
+func (tokenPackageSettlementHandler) NewPayload() any { return nil }
+
+func (tokenPackageSettlementHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	summary := map[string]int64{"released": 0, "released_quota": 0, "settled": 0, "settled_quota": 0, "expired": 0}
+	result, err := service.RunSellerSettlement(common.GetTimestamp())
+	summary["released"] = int64(result.ReleasedCount)
+	summary["released_quota"] = result.ReleasedQuota
+	summary["settled"] = int64(result.SettledCount)
+	summary["settled_quota"] = result.SettledQuota
+	summary["expired"] = int64(result.ExpiredCount)
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, err)
+		return
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
+}
+
+// tokenPackageTerminationHandler refunds the buyers of terminated packages.
+// Every run sweeps all terminated packages that still have open entitlements,
+// and the scheduler starts a run whenever such a package exists. A run cut
+// short by a crash, an expired lease or a failed refund is therefore repeated
+// without anyone queueing it again, and one active task covers every package.
+type tokenPackageTerminationHandler struct{}
+
+func (tokenPackageTerminationHandler) Type() string {
+	return model.SystemTaskTypeTokenPackageTermination
+}
+
+// Enabled folds "is any refund still owed?" into enablement, so the scheduler
+// only creates a run when there is work.
+func (tokenPackageTerminationHandler) Enabled() bool {
+	pending, err := service.HasPendingTokenPackageTerminations()
+	if err != nil {
+		common.SysError(common.LogText("failed to check pending token package terminations: %s", err.Error()))
+		return false
+	}
+	return pending
+}
+
+func (tokenPackageTerminationHandler) Interval() time.Duration { return time.Minute }
+
+func (tokenPackageTerminationHandler) NewPayload() any { return nil }
+
+func (tokenPackageTerminationHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	result, err := service.RunPendingTokenPackageTerminations(ctx)
+	summary := map[string]int64{"refunded": int64(result.Refunded), "failed": int64(result.Failed)}
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, err)
+		return
+	}
+	if !result.Done {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, errors.New("token package termination left entitlements unrefunded"))
+		return
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
+}
+
+// tokenPackageVersionCheckHandler runs the connection check of submitted
+// package versions in the background. The scheduler starts a run whenever a
+// version is waiting in testing, so one interrupted by a restart is checked
+// again; submitting a version also queues a run right away.
+type tokenPackageVersionCheckHandler struct{}
+
+func (tokenPackageVersionCheckHandler) Type() string {
+	return model.SystemTaskTypeTokenPackageVersionCheck
+}
+
+func (tokenPackageVersionCheckHandler) Enabled() bool {
+	ids, err := model.ListTestingTokenPackageVersionIds()
+	if err != nil {
+		common.SysError(common.LogText("failed to check token package versions waiting for their check: %s", err.Error()))
+		return false
+	}
+	return len(ids) > 0
+}
+
+func (tokenPackageVersionCheckHandler) Interval() time.Duration { return time.Minute }
+
+func (tokenPackageVersionCheckHandler) NewPayload() any { return nil }
+
+func (tokenPackageVersionCheckHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	checked, failed := RunTokenPackageVersionChecks(ctx)
+	summary := map[string]int64{"checked": int64(checked), "failed": int64(failed)}
+	if failed > 0 {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, summary, errors.New("some token package versions could not be checked"))
+		return
+	}
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
 }
 
 // systemTaskCleanupHandler deletes, once a day, the finished system tasks

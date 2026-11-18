@@ -439,7 +439,13 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 
 func postConsumeQuotaWithResult(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQuota int, sendEmail bool) (result postConsumeQuotaResult, err error) {
 
-	// 1) Consume from wallet quota OR subscription item
+	// 1) Consume from the funding source this request reserved. A package
+	// request is never a wallet request: anything that reaches this function
+	// without a BillingSession (Realtime usage, violation fees) is refused
+	// instead of being charged to the buyer's wallet (D6).
+	if relayInfo != nil && (relayInfo.BillingSource == BillingSourcePackage || relayInfo.PackageId > 0) {
+		return result, errors.New("package requests must be settled through the package entitlement, not the wallet")
+	}
 	if relayInfo != nil && relayInfo.BillingSource == BillingSourceSubscription {
 		if relayInfo.SubscriptionId == 0 {
 			return result, errors.New("subscription id is missing")

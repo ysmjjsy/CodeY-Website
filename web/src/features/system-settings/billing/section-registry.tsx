@@ -25,6 +25,7 @@ import { PaymentSettingsSection } from '../integrations/payment-settings-section
 import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { TokenPackageSettingsSection } from './token-package-settings-section'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -52,6 +53,39 @@ const getGroupDefaults = (settings: BillingSettings) => ({
   GroupSpecialUsableGroup:
     settings['group_ratio_setting.group_special_usable_group'],
 })
+
+const tokenPackageNumber = (
+  settings: BillingSettings,
+  key: string,
+  fallback: number
+) => {
+  const raw = (settings as unknown as Record<string, unknown>)[
+    `token_package_setting.${key}`
+  ]
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : fallback
+}
+
+const tokenPackageBool = (
+  settings: BillingSettings,
+  key: string,
+  fallback: boolean
+) => {
+  const raw = (settings as unknown as Record<string, unknown>)[
+    `token_package_setting.${key}`
+  ]
+  return typeof raw === 'boolean' ? raw : fallback
+}
+
+const tokenPackageList = (settings: BillingSettings, key: string) => {
+  const raw = (settings as unknown as Record<string, unknown>)[
+    `token_package_setting.${key}`
+  ]
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item))
+  }
+  return typeof raw === 'string' && raw.trim() ? raw.split(',') : []
+}
 
 const BILLING_SECTIONS = [
   {
@@ -125,6 +159,49 @@ const BILLING_SECTIONS = [
         groupDefaults={getGroupDefaults(settings)}
         toolPricesDefault={settings['tool_price_setting.prices']}
         visibleTabs={['groups']}
+      />
+    ),
+  },
+  {
+    id: 'token-package',
+    titleKey: 'Token Package Marketplace',
+    build: (settings: BillingSettings) => (
+      <TokenPackageSettingsSection
+        defaultValues={{
+          enabled: tokenPackageBool(settings, 'enabled', false),
+          admin_skip_review: tokenPackageBool(
+            settings,
+            'admin_skip_review',
+            true
+          ),
+          commission_bps: tokenPackageNumber(settings, 'commission_bps', 1000),
+          freeze_days: tokenPackageNumber(settings, 'freeze_days', 3),
+          multiplier_min: tokenPackageNumber(settings, 'multiplier_min', 0.01),
+          multiplier_max: tokenPackageNumber(settings, 'multiplier_max', 10),
+          low_balance_ratio: tokenPackageNumber(
+            settings,
+            'low_balance_ratio',
+            0.1
+          ),
+          probe_minutes: tokenPackageNumber(settings, 'probe_minutes', 10),
+          outage_threshold_minutes: tokenPackageNumber(
+            settings,
+            'outage_threshold_minutes',
+            30
+          ),
+          auto_terminate_hours: tokenPackageNumber(
+            settings,
+            'auto_terminate_hours',
+            72
+          ),
+          seller_groups: tokenPackageList(settings, 'seller_groups'),
+          allowed_channel_types: tokenPackageList(
+            settings,
+            'allowed_channel_types'
+          )
+            .map((item) => Number(item))
+            .filter((item) => Number.isInteger(item)),
+        }}
       />
     ),
   },

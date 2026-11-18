@@ -39,6 +39,7 @@ export type SecurityProofScope =
   | 'account.password.set'
   | 'account.password.change'
   | 'account.delete'
+  | 'realname.submit'
   | 'admin.user.create'
   | 'admin.user.update'
   | 'admin.user.delete'

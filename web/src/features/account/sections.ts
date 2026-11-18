@@ -25,6 +25,7 @@ export const ACCOUNT_SECTION_IDS = [
   'wallet',
   'security',
   'keys',
+  'verification',
 ] as const
 
 export type AccountSectionId = (typeof ACCOUNT_SECTION_IDS)[number]
@@ -36,6 +37,7 @@ const SECTION_LABEL_KEYS: Record<AccountSectionId, string> = {
   wallet: 'Wallet',
   security: 'Security & Access',
   keys: 'API Keys',
+  verification: 'Real-name verification',
 }
 
 export function getAccountSectionLabel(
@@ -51,7 +53,8 @@ export function getAccountSectionLabel(
  */
 export function getVisibleAccountSections(
   adminConfig: SidebarModulesAdminConfig,
-  userConfig: SidebarModulesAdminConfig | null
+  userConfig: SidebarModulesAdminConfig | null,
+  options: { tokenPackageEnabled?: boolean } = {}
 ): AccountSectionId[] {
   const visible = (section: string, module: string) => {
     const adminSection = adminConfig[section]
@@ -67,6 +70,9 @@ export function getVisibleAccountSections(
     if (section === 'profile') return true
     if (section === 'wallet') return visible('personal', 'topup')
     if (section === 'security') return visible('personal', 'security')
+    // Real-name verification exists for the token package market, where a
+    // buyer must be verified before purchasing.
+    if (section === 'verification') return options.tokenPackageEnabled === true
     return visible('console', 'token')
   })
 }

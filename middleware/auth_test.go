@@ -7,15 +7,19 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"github.com/golang-jwt/jwt/v5"
@@ -614,4 +618,68 @@ func TestApplyWebSocketSubprotocolAuthorizationReadsRepeatedHeaders(t *testing.T
 
 	assert.True(t, applyWebSocketSubprotocolAuthorization(header))
 	assert.Equal(t, "Bearer sk-later-field", header.Get("Authorization"))
+}
+
+// setupPackageTokenAuthTest opens a real SQLite database through InitDB, so
+// token lookups use the same column quoting as production.
+func setupPackageTokenAuthTest(t *testing.T) {
+	t.Helper()
+	previousDB, previousLogDB := model.DB, model.LOG_DB
+	previousType, previousLogType := common.MainDatabaseType(), common.LogDatabaseType()
+	previousMaster, previousCache, previousRedis, previousSQLite := common.IsMasterNode, common.MemoryCacheEnabled, common.RedisEnabled, common.SQLitePath
+	previousOptions := config.GlobalConfig.ExportAllConfigs()
+	t.Cleanup(func() {
+		model.DB, model.LOG_DB = previousDB, previousLogDB
+		common.SetDatabaseTypes(previousType, previousLogType)
+		common.IsMasterNode, common.MemoryCacheEnabled, common.RedisEnabled, common.SQLitePath = previousMaster, previousCache, previousRedis, previousSQLite
+		require.NoError(t, config.GlobalConfig.LoadFromDB(previousOptions))
+	})
+	t.Setenv("SQL_DSN", "")
+	t.Setenv("LOG_SQL_DSN", "")
+	common.IsMasterNode, common.MemoryCacheEnabled, common.RedisEnabled = false, false, false
+	common.SQLitePath = filepath.Join(t.TempDir(), "package-token.db")
+	require.NoError(t, model.InitDB())
+	sqlDB, err := model.DB.DB()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
+	model.LOG_DB = model.DB
+	require.NoError(t, model.DB.AutoMigrate(&model.User{}, &model.Token{}, &model.TokenPackage{}, &model.TokenPackageEntitlement{}))
+	// The marketplace switch is off: sold packages must keep serving anyway.
+	require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{token_package_setting.KeyEnabled: "false"}))
+}
+
+func callTokenAuthWithKey(key string) (*gin.Context, *httptest.ResponseRecorder) {
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	c.Request.Header.Set("Authorization", "Bearer sk-"+key)
+	TokenAuth()(c)
+	return c, recorder
+}
+
+func TestTokenAuthKeepsServingSoldPackagesWhileTheMarketIsOff(t *testing.T) {
+	setupPackageTokenAuthTest(t)
+	buyer := &model.User{Username: "package-buyer", AffCode: "package-buyer", Status: common.UserStatusEnabled, Group: "default"}
+	require.NoError(t, model.DB.Create(buyer).Error)
+	pkg := &model.TokenPackage{SellerUserId: 99, Title: "Sold package", Status: constant.TokenPackageStatusStopped}
+	require.NoError(t, model.DB.Create(pkg).Error)
+	require.NoError(t, model.DB.Create(&model.TokenPackageEntitlement{
+		UserId: buyer.Id, PackageId: pkg.Id, AmountTotal: 1000,
+		EndTime: common.GetTimestamp() + 3600, Status: constant.TokenPackageEntitlementStatusActive,
+	}).Error)
+	key := "packagetokenauthkeyalive0001"
+	require.NoError(t, model.DB.Create(&model.Token{
+		UserId: buyer.Id, Key: key, Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true,
+		PackageId: pkg.Id, Group: constant.FormatTokenPackageGroup(pkg.Id),
+	}).Error)
+
+	c, recorder := callTokenAuthWithKey(key)
+	require.False(t, c.IsAborted(), recorder.Body.String())
+	assert.Equal(t, pkg.Id, common.GetContextKeyInt(c, constant.ContextKeyTokenPackageId))
+
+	require.NoError(t, model.DB.Model(&model.TokenPackage{}).Where("id = ?", pkg.Id).
+		Update("status", constant.TokenPackageStatusTerminated).Error)
+	c, recorder = callTokenAuthWithKey(key)
+	assert.True(t, c.IsAborted(), "a terminated package stops serving")
+	assert.Equal(t, http.StatusForbidden, recorder.Code)
 }

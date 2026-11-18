@@ -160,7 +160,9 @@ func GetResponseBody(method, url string, channel *model.Channel, headers http.He
 	for k := range headers {
 		req.Header.Add(k, headers.Get(k))
 	}
-	setting := channel.GetSetting()
+	// GetUpstreamSetting marks a user-owned channel untrusted, so its base
+	// URL is fetched through the SSRF-guarded client like a relay request.
+	setting := channel.GetUpstreamSetting()
 	client, err := service.GetHttpClientWithProxySettings(setting.Proxy, setting)
 	if err != nil {
 		return nil, err
@@ -571,7 +573,7 @@ func fetchAdvancedCustomBalance(channel *model.Channel) (channelBalanceResult, e
 			request.Host = headers.Get(name)
 		}
 	}
-	setting := channel.GetSetting()
+	setting := channel.GetUpstreamSetting()
 	client, err := service.GetHttpClientWithProxySettings(setting.Proxy, setting)
 	if err != nil {
 		return channelBalanceResult{}, sanitizeFetchModelsError(err, key)
@@ -783,6 +785,9 @@ func updateAllChannelsBalance(ctx context.Context, report func(processed, total 
 	}
 	enabled := make([]*model.Channel, 0, len(channels))
 	for _, channel := range channels {
+		if channel.OwnerUserId > 0 {
+			continue
+		}
 		if channel.Status == common.ChannelStatusEnabled {
 			enabled = append(enabled, channel)
 		}

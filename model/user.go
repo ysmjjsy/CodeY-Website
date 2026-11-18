@@ -1046,6 +1046,7 @@ func deleteUserAuthenticationData(tx *gorm.DB, userId int) error {
 		&AuthFlow{},
 		&PasskeyCredential{},
 		&Token{},
+		&UserVerification{},
 	} {
 		if err := tx.Unscoped().Where("user_id = ?", userId).Delete(authenticationData).Error; err != nil {
 			return err
@@ -1535,4 +1536,46 @@ func RootUserExists() bool {
 		return false
 	}
 	return true
+}
+
+// GetUsernamesByIds resolves display names for a set of user IDs.
+// GetUserGroupsByIds returns each user's group, keyed by user id.
+func GetUserGroupsByIds(ids []int) (map[int]string, error) {
+	result := make(map[int]string, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	type userRow struct {
+		Id    int
+		Group string
+	}
+	var rows []userRow
+	// Separate column arguments let GORM quote the reserved word "group" for
+	// each dialect.
+	if err := DB.Model(&User{}).Select("id", "group").Where("id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.Id] = row.Group
+	}
+	return result, nil
+}
+
+func GetUsernamesByIds(ids []int) (map[int]string, error) {
+	result := make(map[int]string, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	type userRow struct {
+		Id       int
+		Username string
+	}
+	var rows []userRow
+	if err := DB.Model(&User{}).Select("id, username").Where("id IN ?", ids).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.Id] = row.Username
+	}
+	return result, nil
 }

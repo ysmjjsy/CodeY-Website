@@ -27,6 +27,7 @@ import { Profile } from '@/features/profile'
 import { useProfile } from '@/features/profile/hooks'
 import { Security } from '@/features/security'
 import { parseSidebarModulesAdmin } from '@/features/system-settings/maintenance/config'
+import { VerificationPanel } from '@/features/token-package/components/verification-panel'
 import { Wallet } from '@/features/wallet'
 import { useStatus } from '@/hooks/use-status'
 import { useAuthStore } from '@/stores/auth-store'
@@ -60,9 +61,12 @@ export function Account() {
       user?.permissions?.sidebar_settings === false
         ? null
         : parseSidebarModulesAdmin(user?.sidebar_modules)
-    return getVisibleAccountSections(adminConfig, userConfig)
+    return getVisibleAccountSections(adminConfig, userConfig, {
+      tokenPackageEnabled: status?.token_package_enabled === true,
+    })
   }, [
     status?.SidebarModulesAdmin,
+    status?.token_package_enabled,
     user?.permissions?.sidebar_settings,
     user?.sidebar_modules,
   ])
@@ -131,6 +135,12 @@ export function Account() {
             {activeSection === 'wallet' && <Wallet embedded />}
             {activeSection === 'security' && <Security embedded />}
             {activeSection === 'keys' && <ApiKeys embedded />}
+            {activeSection === 'verification' &&
+              visibleSections.includes('verification') && (
+                <div className='overflow-y-auto px-3 py-4 sm:px-4 sm:py-6'>
+                  <VerificationPanel />
+                </div>
+              )}
           </div>
         </section>
       </div>

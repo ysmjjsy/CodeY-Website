@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	tpkgdto "github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
@@ -20,6 +21,7 @@ import (
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 
 	"github.com/QuantumNous/new-api/constant"
 
@@ -496,7 +498,7 @@ func buildSelfUserData(user *model.User) map[string]any {
 	userSetting := user.GetSetting()
 	permissions := calculateUserPermissions(user.Role)
 	permissions["admin_permissions"] = authz.Capabilities(user.Id, user.Role)
-	return map[string]any{
+	data := map[string]any{
 		"id":                user.Id,
 		"username":          user.Username,
 		"display_name":      user.DisplayName,
@@ -525,6 +527,26 @@ func buildSelfUserData(user *model.User) map[string]any {
 		"avatar_url":        userSetting.AvatarUrl,
 		"permissions":       permissions,
 	}
+	if token_package_setting.IsEnabled() {
+		eligibility, err := service.EvaluateSellerEligibility(user.Id)
+		if err != nil {
+			common.SysLog(common.LogText("failed to build seller status for user %d: %s", user.Id, err.Error()))
+		} else {
+			status := tpkgdto.SellerStatusResponse{
+				Eligible:           eligibility.Eligible,
+				Verified:           eligibility.Verified,
+				InSellerGroup:      eligibility.InSellerGroup,
+				PublishBanned:      eligibility.PublishBanned,
+				BanReason:          eligibility.BanReason,
+				VerificationStatus: eligibility.VerificationStatus,
+			}
+			if eligibility.Reason != "" {
+				status.Reasons = []string{eligibility.Reason}
+			}
+			data["seller_status"] = status
+		}
+	}
+	return data
 }
 
 const avatarMultipartOverhead = 512 << 10

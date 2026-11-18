@@ -26,6 +26,18 @@ const (
 	SystemTaskTypeAsyncTaskPoll  = "async_task_poll"
 	SystemTaskTypeChannelBalance = "channel_balance"
 	SystemTaskTypeCleanup        = "system_task_cleanup"
+	// SystemTaskTypeTokenPackageSellerRecheck re-evaluates seller eligibility for
+	// every package that is currently selling.
+	SystemTaskTypeTokenPackageSellerRecheck = "token_package_seller_recheck"
+	SystemTaskTypeTokenPackageSettlement    = "token_package_settlement"
+	// SystemTaskTypeTokenPackageTermination refunds every entitlement of a
+	// package an administrator has terminated. It stays pending until every
+	// entitlement is closed, so a crash or a single failure retries the rest.
+	SystemTaskTypeTokenPackageTermination = "token_package_termination"
+	// SystemTaskTypeTokenPackageVersionCheck runs the connection check of every
+	// submitted package version and routes each one to review, automatic
+	// approval or back to draft.
+	SystemTaskTypeTokenPackageVersionCheck = "token_package_version_check"
 
 	systemTaskCleanupBatchSize = 500
 )

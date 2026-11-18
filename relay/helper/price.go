@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
@@ -38,6 +39,22 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) hostty
 	groupRatioInfo := hosttypes.GroupRatioInfo{
 		GroupRatio:        1.0, // default ratio
 		GroupSpecialRatio: -1,
+	}
+
+	// Package requests price by the package's per-model multiplier and never
+	// consult group ratios: the seller sets the price, the platform reference
+	// price is the base. The multiplier was resolved before channel selection.
+	if relayInfo.PackageId > 0 {
+		multiplier, ok := common.GetContextKeyType[float64](ctx, constant.ContextKeyPackageMultiplier)
+		if !ok || multiplier <= 0 {
+			logger.LogError(ctx.Request.Context(), common.LogText("token package %d request reached pricing without a multiplier", relayInfo.PackageId))
+			multiplier = 1.0
+		}
+		relayInfo.UsingGroup = constant.FormatTokenPackageGroup(relayInfo.PackageId)
+		return hosttypes.GroupRatioInfo{
+			GroupRatio:        multiplier,
+			GroupSpecialRatio: -1,
+		}
 	}
 
 	// check auto group

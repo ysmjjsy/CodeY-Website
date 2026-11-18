@@ -289,6 +289,7 @@ describe('API key expiry across editing sessions', () => {
       const first: ApiKey = {
         id: 1,
         name: 'expiring',
+        package_id: 0,
         key: '',
         status: 1,
         remain_quota: 0,

@@ -21,6 +21,15 @@ const (
 	ContextKeyTokenModelLimit        ContextKey = "token_model_limit"
 	ContextKeyTokenCrossGroupRetry   ContextKey = "token_cross_group_retry"
 	ContextKeyTokenAutoGroups        ContextKey = "token_auto_groups"
+	ContextKeyTokenPackageId         ContextKey = "token_package_id"
+	// ContextKeyPackageEntitlementId pins the entitlement chosen for pricing and
+	// funding, so an approved version published mid-request cannot re-price it.
+	ContextKeyPackageEntitlementId ContextKey = "package_entitlement_id"
+	// ContextKeyPackageMultiplier carries the per-model multiplier resolved at
+	// distribution time into the pricing layer.
+	ContextKeyPackageMultiplier ContextKey = "package_multiplier"
+	// ContextKeyPackageSellerId names the seller for admin-only log metadata.
+	ContextKeyPackageSellerId ContextKey = "package_seller_user_id"
 
 	/* channel related keys */
 	ContextKeyChannelId                ContextKey = "channel_id"

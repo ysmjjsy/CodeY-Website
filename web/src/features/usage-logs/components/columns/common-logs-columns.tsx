@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
-import { GitBranch, Sparkles, KeyRound } from 'lucide-react'
+import { GitBranch, Sparkles, KeyRound, Package } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -631,6 +631,8 @@ export function useCommonLogsColumns(
         let group = log.group
         if (!group) group = other?.group || ''
         const groupRatio = getGroupRatio(other)
+        // Package requests log the reserved pkg:<id> group instead of a group.
+        const packageId = group.startsWith('pkg:') ? group.slice(4) : ''
 
         return (
           <div className='flex max-w-[200px] flex-col gap-0.5'>
@@ -655,7 +657,15 @@ export function useCommonLogsColumns(
             </TooltipProvider>
             {(group || groupRatio != null) && (
               <span className='block max-w-full truncate text-xs leading-none'>
-                {group ? (
+                {packageId && (
+                  <span className='inline-flex items-center gap-1 align-baseline text-xs leading-none'>
+                    <Package className='size-3' />
+                    {sensitiveVisible
+                      ? t('Package #{{id}}', { id: packageId })
+                      : '••••'}
+                  </span>
+                )}
+                {group && !packageId && (
                   <GroupBadge
                     group={group}
                     label={sensitiveVisible ? undefined : '••••'}
@@ -663,7 +673,7 @@ export function useCommonLogsColumns(
                     size='sm'
                     className='inline align-baseline text-xs leading-none [&>span]:leading-none'
                   />
-                ) : null}
+                )}
                 {group && groupRatio != null ? ' ' : null}
                 {groupRatio != null ? (
                   <span className='text-muted-foreground/60 relative top-px align-baseline tabular-nums'>

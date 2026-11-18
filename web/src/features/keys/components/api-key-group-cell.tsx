@@ -43,6 +43,20 @@ export function ApiKeyGroupCell(props: ApiKeyGroupCellProps) {
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   const group = props.group?.trim() || ''
+  // A key bound to a token package carries the reserved pkg:<id> group; it is
+  // shown as the package, not as a group the user could pick.
+  if (group.startsWith('pkg:')) {
+    const label = t('Package #{{id}}', { id: group.slice(4) })
+    return (
+      <TruncatedCell
+        className={isMobile ? 'w-full' : 'max-w-50'}
+        tabIndex={0}
+        tooltipContent={label}
+      >
+        <span className='text-xs'>{label}</span>
+      </TruncatedCell>
+    )
+  }
   if (group !== 'auto') {
     const ratio =
       group && typeof props.ratio === 'number' ? props.ratio : undefined

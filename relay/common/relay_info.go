@@ -82,16 +82,22 @@ type TokenCountMeta struct {
 }
 
 type RelayInfo struct {
-	TokenId           int
-	TokenKey          string
-	TokenGroup        string
-	UserId            int
-	UsingGroup        string // 使用的分组，当auto跨分组重试时，会变动
-	UserGroup         string // 用户所在分组
-	TokenUnlimited    bool
-	StartTime         time.Time
-	FirstResponseTime time.Time
-	isFirstResponse   bool
+	TokenId    int
+	TokenKey   string
+	TokenGroup string
+	// PackageId is the token package serving this request; 0 means the request
+	// is billed as usual. PackageEntitlementId is the entitlement chosen for
+	// pricing, so an approved-version change never re-prices a sold package.
+	PackageId            int
+	PackageEntitlementId int
+	PackageSellerId      int
+	UserId               int
+	UsingGroup           string // 使用的分组，当auto跨分组重试时，会变动
+	UserGroup            string // 用户所在分组
+	TokenUnlimited       bool
+	StartTime            time.Time
+	FirstResponseTime    time.Time
+	isFirstResponse      bool
 	//SendLastReasoningResponse bool
 	IsStream               bool
 	IsGeminiBatchEmbedding bool
@@ -635,8 +641,10 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 	reasoningEffort := reasoningEffortFromRequest(request)
 	originModelName := common.GetContextKeyString(c, constant.ContextKeyOriginalModel)
 	info := &RelayInfo{
-		Request:         request,
-		ReasoningEffort: reasoningEffort,
+		Request:              request,
+		ReasoningEffort:      reasoningEffort,
+		PackageEntitlementId: common.GetContextKeyInt(c, constant.ContextKeyPackageEntitlementId),
+		PackageSellerId:      common.GetContextKeyInt(c, constant.ContextKeyPackageSellerId),
 
 		RequestId:  reqId,
 		UserId:     common.GetContextKeyInt(c, constant.ContextKeyUserId),
@@ -651,6 +659,7 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 		TokenKey:       common.GetContextKeyString(c, constant.ContextKeyTokenKey),
 		TokenUnlimited: common.GetContextKeyBool(c, constant.ContextKeyTokenUnlimited),
 		TokenGroup:     tokenGroup,
+		PackageId:      common.GetContextKeyInt(c, constant.ContextKeyTokenPackageId),
 
 		isFirstResponse: true,
 		RelayMode:       relayconstant.Path2RelayMode(c.Request.URL.Path),

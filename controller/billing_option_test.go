@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -322,4 +323,60 @@ func TestPreConsumeMultiplierRejectsInvalidRuntimeAndOverflow(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, info.Billing)
 	}
+}
+
+func TestUpdateOptionRejectsReservedPackageGroupPrefix(t *testing.T) {
+	database := modelManagementDB(t, "sqlite", "")
+	require.NoError(t, database.AutoMigrate(&model.Option{}))
+	previous := config.GlobalConfig.ExportAllConfigs()
+	t.Cleanup(func() {
+		require.NoError(t, config.GlobalConfig.LoadFromDB(previous))
+	})
+
+	cases := []struct {
+		name  string
+		key   string
+		value string
+	}{
+		{"GroupRatio", "GroupRatio", `{"default":1,"pkg:1":1}`},
+		{"group_ratio_setting.group_ratio", "group_ratio_setting.group_ratio", `{"pkg:42":1.5}`},
+		{"GroupGroupRatio outer", "GroupGroupRatio", `{"pkg:1":{"default":1}}`},
+		{"GroupGroupRatio inner", "GroupGroupRatio", `{"vip":{"pkg:2":0.8}}`},
+		{"group_ratio_setting.group_group_ratio", "group_ratio_setting.group_group_ratio", `{"vip":{"PKG:3":1}}`},
+		{"UserUsableGroups", "UserUsableGroups", `{"default":"Default","pkg:9":"Pkg"}`},
+		{"group_special_usable_group outer", "group_ratio_setting.group_special_usable_group", `{"pkg:1":{"+:vip":"VIP"}}`},
+		{"group_special_usable_group plus rule", "group_ratio_setting.group_special_usable_group", `{"vip":{"+:pkg:5":"Pkg"}}`},
+		{"group_special_usable_group minus rule", "group_ratio_setting.group_special_usable_group", `{"vip":{"-:pkg:5":""}}`},
+		{"group_special_usable_group bare rule", "group_ratio_setting.group_special_usable_group", `{"vip":{"pkg:5":"Pkg"}}`},
+		{"AutoGroups", "AutoGroups", `["default","pkg:7"]`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var response struct {
+				Success bool   `json:"success"`
+				Message string `json:"message"`
+			}
+			modelManagementRequest(t, UpdateOption, http.MethodPut, "/api/option/", OptionUpdateRequest{
+				Key:   tc.key,
+				Value: tc.value,
+			}, &response)
+			assert.False(t, response.Success, "expected %s=%s to be rejected", tc.key, tc.value)
+
+			var count int64
+			require.NoError(t, database.Model(&model.Option{}).Where(map[string]any{"key": tc.key}).Count(&count).Error)
+			assert.Equal(t, int64(0), count)
+
+			err := model.UpdateOptionsBulk(map[string]string{tc.key: tc.value})
+			require.Error(t, err)
+		})
+	}
+
+	// Coupled token_package_setting bounds update succeeds via UpdateOptionsBulk
+	require.NoError(t, model.UpdateOptionsBulk(map[string]string{
+		token_package_setting.KeyMultiplierMin: "12",
+		token_package_setting.KeyMultiplierMax: "20",
+	}))
+	assert.Equal(t, 12.0, token_package_setting.GetTokenPackageSetting().MultiplierMin)
+	assert.Equal(t, 20.0, token_package_setting.GetTokenPackageSetting().MultiplierMax)
 }

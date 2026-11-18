@@ -25,6 +25,10 @@ import {
   FlaskConical,
   LayoutDashboard,
   ListTodo,
+  Package,
+  ClipboardCheck,
+  IdCard,
+  Store,
   PlugZap,
   Radio,
   ServerCog,
@@ -36,7 +40,9 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarBadges, SidebarData } from '@/components/layout/types'
+import { useStatus } from '@/hooks/use-status'
 import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -46,6 +52,12 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const { auth } = useAuthStore()
+  const marketEnabled = Boolean(status?.token_package_enabled)
+  const canReviewPackages = Boolean(
+    auth?.user?.permissions?.admin_permissions?.token_package?.review
+  )
 
   return {
     navGroups: [
@@ -84,6 +96,25 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             url: '/usage-logs/audit',
             icon: ClipboardList,
           },
+          ...(marketEnabled
+            ? [
+                {
+                  title: t('Token market'),
+                  url: '/market',
+                  icon: Store,
+                },
+                {
+                  title: t('My token packages'),
+                  url: '/my-packages',
+                  icon: Package,
+                },
+                {
+                  title: t('Seller center'),
+                  url: '/seller',
+                  icon: Store,
+                },
+              ]
+            : []),
           {
             title: t('Task Logs'),
             url: '/usage-logs/task',
@@ -122,6 +153,20 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             url: '/subscriptions',
             icon: CreditCard,
           },
+          ...(marketEnabled && canReviewPackages
+            ? [
+                {
+                  title: t('Package reviews'),
+                  url: '/package-reviews',
+                  icon: ClipboardCheck,
+                },
+                {
+                  title: t('Real-name reviews'),
+                  url: '/verification-reviews',
+                  icon: IdCard,
+                },
+              ]
+            : []),
           {
             title: t('System Info'),
             url: '/system-info',

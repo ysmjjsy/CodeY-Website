@@ -1,11 +1,12 @@
 package setting
 
 import (
-	"encoding/json"
+	"fmt"
 	"maps"
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 )
 
 // The default descriptions are English source keys that the web console
@@ -29,19 +30,42 @@ func UserUsableGroups2JSONString() string {
 	userUsableGroupsMutex.RLock()
 	defer userUsableGroupsMutex.RUnlock()
 
-	jsonBytes, err := json.Marshal(userUsableGroups)
+	jsonBytes, err := common.Marshal(userUsableGroups)
 	if err != nil {
 		common.SysLog(common.LogText("error marshalling user groups: %s", err.Error()))
 	}
 	return string(jsonBytes)
 }
 
+func CheckUserUsableGroups(jsonStr string) error {
+	parsed := make(map[string]string)
+	if err := common.UnmarshalJsonStr(jsonStr, &parsed); err != nil {
+		return err
+	}
+	for group := range parsed {
+		if constant.HasReservedPackageGroupPrefix(group) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", group, constant.TokenPackageGroupPrefix)
+		}
+	}
+	return nil
+}
+
 func UpdateUserUsableGroupsByJSONString(jsonStr string) error {
+	parsed := make(map[string]string)
+	if err := common.UnmarshalJsonStr(jsonStr, &parsed); err != nil {
+		return err
+	}
+	for group := range parsed {
+		if constant.HasReservedPackageGroupPrefix(group) {
+			return fmt.Errorf("group name %q uses reserved prefix %q", group, constant.TokenPackageGroupPrefix)
+		}
+	}
+
 	userUsableGroupsMutex.Lock()
 	defer userUsableGroupsMutex.Unlock()
 
-	userUsableGroups = make(map[string]string)
-	return json.Unmarshal([]byte(jsonStr), &userUsableGroups)
+	userUsableGroups = parsed
+	return nil
 }
 
 func GetUsableGroupDescription(groupName string) string {

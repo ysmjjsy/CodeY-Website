@@ -39,6 +39,10 @@ type ChannelSettings struct {
 	// RequestPlugins lists the request plugin instances the channel binds,
 	// by instance id, in run order.
 	RequestPlugins []string `json:"request_plugins,omitempty"`
+	// UntrustedUpstream marks a channel whose base URL a user supplied. It is
+	// derived per request from the channel owner and never persisted, so it
+	// stays out of the stored settings JSON.
+	UntrustedUpstream bool `json:"-"`
 }
 
 // BindsTaskPlugin reports whether the channel is bound to the task plugin,

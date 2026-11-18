@@ -954,4 +954,21 @@ export const STATIC_I18N_KEYS = [
   'Channel priorities changed. Refresh and try again.',
   'Invalid channel priority move',
   'Channel priority is outside the sortable range',
+  // Home page labels passed to t through scene constants.
+  'EVERY CALL TRACKED',
+  'MODEL INPUT',
+  'ONE ENDPOINT',
+  'Price published',
+  'UNIFIED API',
+  'USAGE LEDGER',
+  // Buyer real-name notices (token package market), passed to t at runtime.
+  'Real-name verification is required to buy',
+  'Verify your real name once before your first purchase.',
+  'Verify now',
+  'Your real-name verification is under review',
+  'You can buy packages once it is approved. You will be notified.',
+  'View status',
+  'Your real-name verification was rejected',
+  'Correct your details and submit again.',
+  'Submit again',
 ] as const

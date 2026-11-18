@@ -223,6 +223,9 @@ func identityFilterRequiresKey(filters []dto.ChannelFilter) bool {
 }
 
 func (channel *Channel) AddAbilities(tx *gorm.DB) error {
+	if channel.OwnerUserId > 0 {
+		return nil
+	}
 	models_ := strings.Split(channel.Models, ",")
 	groups_ := strings.Split(channel.Group, ",")
 	abilitySet := make(map[string]struct{})
@@ -294,6 +297,13 @@ func (channel *Channel) UpdateAbilities(tx *gorm.DB) error {
 		return err
 	}
 
+	if channel.OwnerUserId > 0 {
+		if isNewTx {
+			return tx.Commit().Error
+		}
+		return nil
+	}
+
 	// Then add new abilities
 	models_ := channel.GetModels()
 	groups_ := strings.Split(channel.Group, ",")
@@ -344,7 +354,8 @@ func UpdateAbilityStatus(channelId int, status bool) error {
 }
 
 func UpdateAbilityStatusByTag(tag string, status bool) error {
-	return DB.Model(&Ability{}).Where("tag = ?", tag).Select("enabled").Update("enabled", status).Error
+	platformChannelIDs := DB.Model(&Channel{}).Select("id").Where("owner_user_id = ?", 0)
+	return DB.Model(&Ability{}).Where("tag = ? AND channel_id IN (?)", tag, platformChannelIDs).Select("enabled").Update("enabled", status).Error
 }
 
 func UpdateAbilityByTag(tag string, newTag *string, priority *int64, weight *uint) error {
@@ -358,7 +369,8 @@ func UpdateAbilityByTag(tag string, newTag *string, priority *int64, weight *uin
 	if weight != nil {
 		ability.Weight = *weight
 	}
-	return DB.Model(&Ability{}).Where("tag = ?", tag).Updates(ability).Error
+	platformChannelIDs := DB.Model(&Channel{}).Select("id").Where("owner_user_id = ?", 0)
+	return DB.Model(&Ability{}).Where("tag = ? AND channel_id IN (?)", tag, platformChannelIDs).Updates(ability).Error
 }
 
 var fixLock = sync.Mutex{}
@@ -385,8 +397,8 @@ func FixAbility() (int, int, error) {
 		}
 	}
 	var channels []*Channel
-	// Find all channels
-	err := DB.Model(&Channel{}).Find(&channels).Error
+	// Find all platform channels (user-owned channels never enter abilities)
+	err := DB.Model(&Channel{}).Where("owner_user_id = ?", 0).Find(&channels).Error
 	if err != nil {
 		return 0, 0, err
 	}

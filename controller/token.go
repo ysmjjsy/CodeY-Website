@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/token_package_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -296,6 +297,65 @@ func GetTokenUsage(c *gin.Context) {
 	})
 }
 
+// applyTokenPackageBinding enforces the package-token rules and, for a bound
+// token, rewrites the group to "pkg:<id>". The group stays the fail-closed
+// marker read by older binaries; PackageId is what new code trusts.
+// previousPackageId is the binding the token already had (0 for a new token):
+// with the marketplace switched off a buyer may still edit a key bound to a
+// package they bought, but cannot bind a key to another package.
+func applyTokenPackageBinding(c *gin.Context, token *model.Token, previousPackageId int) bool {
+	userId := c.GetInt("id")
+	if token.PackageId <= 0 {
+		if constant.HasReservedPackageGroupPrefix(token.Group) {
+			common.ApiErrorT(c, "The {{group}} group is reserved for token packages", map[string]any{"group": token.Group})
+			return false
+		}
+		return true
+	}
+	if !token_package_setting.IsEnabled() && token.PackageId != previousPackageId {
+		common.ApiErrorT(c, "The token package marketplace is not enabled")
+		return false
+	}
+	pkg, err := model.GetTokenPackageById(token.PackageId)
+	if err != nil {
+		common.ApiError(c, err)
+		return false
+	}
+	if pkg.Status == constant.TokenPackageStatusTerminated {
+		common.ApiErrorT(c, "This package has been terminated and cannot be used by a new key")
+		return false
+	}
+	active, err := service.UserHasActivePackageEntitlement(userId, pkg.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return false
+	}
+	if !active {
+		common.ApiErrorT(c, "You do not own an active package for this key")
+		return false
+	}
+	if token.ModelLimitsEnabled && len(token.GetModelLimits()) > 0 {
+		allowed, err := service.PackageModelNamesForUser(token.UserId, pkg.Id)
+		if err != nil {
+			common.ApiError(c, err)
+			return false
+		}
+		for _, modelName := range token.GetModelLimits() {
+			if _, ok := allowed[modelName]; !ok {
+				common.ApiErrorT(c, "Model {{model}} is not included in this package", map[string]any{"model": modelName})
+				return false
+			}
+		}
+	}
+	token.Group = constant.FormatTokenPackageGroup(pkg.Id)
+	token.CrossGroupRetry = false
+	if err := token.SetAutoGroups(nil); err != nil {
+		common.ApiError(c, err)
+		return false
+	}
+	return true
+}
+
 func AddToken(c *gin.Context) {
 	request := tokenRequest{}
 	err := c.ShouldBindJSON(&request)
@@ -341,6 +401,9 @@ func AddToken(c *gin.Context) {
 		token.CrossGroupRetry = false
 		_ = token.SetAutoGroups(nil)
 	}
+	if !applyTokenPackageBinding(c, &token, 0) {
+		return
+	}
 	key, err := common.GenerateKey()
 	if err != nil {
 		common.ApiErrorT(c, "Failed to generate token")
@@ -360,6 +423,7 @@ func AddToken(c *gin.Context) {
 		ModelLimits:        token.ModelLimits,
 		AllowIps:           token.AllowIps,
 		Group:              token.Group,
+		PackageId:          token.PackageId,
 		CrossGroupRetry:    token.CrossGroupRetry,
 		AutoGroups:         token.AutoGroups,
 	}
@@ -460,6 +524,7 @@ func UpdateToken(c *gin.Context) {
 			cleanToken.AllowUserQuotaQuery = *request.AllowUserQuotaQuery
 		}
 		cleanToken.Group = token.Group
+		cleanToken.PackageId = token.PackageId
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
 		if token.Group != "auto" {
 			cleanToken.CrossGroupRetry = false
@@ -469,6 +534,9 @@ func UpdateToken(c *gin.Context) {
 				return
 			}
 		}
+	}
+	if statusOnly == "" && !applyTokenPackageBinding(c, cleanToken, previous.PackageId) {
+		return
 	}
 	err = cleanToken.Update()
 	if err != nil {
@@ -496,6 +564,7 @@ func UpdateToken(c *gin.Context) {
 			{"group", previous.Group != cleanToken.Group},
 			{"cross_group_retry", previous.CrossGroupRetry != cleanToken.CrossGroupRetry},
 			{"auto_groups", previous.AutoGroups != cleanToken.AutoGroups},
+			{"package_id", previous.PackageId != cleanToken.PackageId},
 		} {
 			if field.changed {
 				changedFields = append(changedFields, field.name)

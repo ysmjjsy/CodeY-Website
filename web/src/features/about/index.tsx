@@ -22,16 +22,12 @@ import { useTranslation } from 'react-i18next'
 
 import { PublicLayout } from '@/components/layout'
 
-const REPOSITORY_URL = 'https://github.com/ysmjjsy/CodeY-Website'
-
 /**
  * CodeGuys, the company and the gateway. CodeY appears here only as one of
  * its products, with the full explanation living on the product page.
  */
 export function About() {
   const { t } = useTranslation()
-  const year = new Date().getFullYear()
-
   const points = [
     {
       title: t('One protocol, many providers'),
@@ -106,21 +102,6 @@ export function About() {
           <ArrowRight className='mt-0.5 ml-auto size-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5' />
         </Link>
 
-        <h2 className='mt-16 text-xl font-semibold tracking-tight'>
-          {t('Contact')}
-        </h2>
-        <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
-          {t('Questions and issues go to the project repository.')}{' '}
-          <a
-            href={REPOSITORY_URL}
-            target='_blank'
-            rel='noopener noreferrer'
-            className='text-foreground underline underline-offset-4'
-          >
-            github.com/ysmjjsy/CodeY-Website
-          </a>
-        </p>
-        <p className='text-muted-foreground mt-10 text-xs'>CodeGuys © {year}</p>
       </article>
     </PublicLayout>
   )

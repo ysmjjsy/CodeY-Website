@@ -98,35 +98,72 @@ func calcViolationFeeQuota(amount, groupRatio float64) int {
 	return quota
 }
 
-// ChargeViolationFeeIfNeeded charges an additional fee after the normal flow finishes (including refund).
-// It uses Grok fee settings as the fee policy.
-func ChargeViolationFeeIfNeeded(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError) bool {
-	if ctx == nil || relayInfo == nil || apiErr == nil {
-		return false
+// violationFeeFor returns the fee a failed request owes under the Grok
+// violation policy, or false when no fee applies.
+func violationFeeFor(relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError) (feeQuota int, groupRatio, baseAmount float64, ok bool) {
+	if relayInfo == nil || apiErr == nil || !shouldChargeViolationFee(apiErr) {
+		return 0, 0, 0, false
 	}
-	//if relayInfo.IsPlayground {
-	//	return false
-	//}
-	if !shouldChargeViolationFee(apiErr) {
-		return false
-	}
-
 	settings := model_setting.GetGrokSettings()
 	if settings == nil || !settings.ViolationDeductionEnabled {
-		return false
+		return 0, 0, 0, false
 	}
-
-	groupRatio := relayInfo.PriceData.GroupRatioInfo.GroupRatio
-	feeQuota := calcViolationFeeQuota(settings.ViolationDeductionAmount, groupRatio)
+	groupRatio = relayInfo.PriceData.GroupRatioInfo.GroupRatio
+	feeQuota = calcViolationFeeQuota(settings.ViolationDeductionAmount, groupRatio)
 	if feeQuota <= 0 {
+		return 0, 0, 0, false
+	}
+	return feeQuota, groupRatio, settings.ViolationDeductionAmount, true
+}
+
+// ChargeViolationFeeIfNeeded charges an additional fee after the normal flow finishes (including refund).
+// It uses Grok fee settings as the fee policy. Package requests are settled by
+// SettlePackageViolationFee instead and never reach the wallet here (D6).
+func ChargeViolationFeeIfNeeded(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError) bool {
+	if ctx == nil || relayInfo == nil || relayInfo.PackageId > 0 || relayInfo.BillingSource == BillingSourcePackage {
 		return false
 	}
-
+	feeQuota, groupRatio, baseAmount, ok := violationFeeFor(relayInfo, apiErr)
+	if !ok {
+		return false
+	}
 	if err := PostConsumeQuota(relayInfo, feeQuota, 0, true); err != nil {
 		logger.LogError(ctx, common.LogText("failed to charge violation fee: %s", err.Error()))
 		return false
 	}
+	recordViolationFee(ctx, relayInfo, apiErr, feeQuota, groupRatio, baseAmount)
+	return true
+}
 
+// SettlePackageViolationFee settles a failed package request at the violation
+// fee instead of refunding it. Settling and refunding the same reservation must
+// not race: the session settles once, to the fee, and a later refund of that
+// session does nothing. It returns false when no fee applies or the fee could
+// not be taken, and the caller then refunds the request as usual.
+func SettlePackageViolationFee(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError) bool {
+	if ctx == nil || relayInfo == nil || relayInfo.PackageId <= 0 {
+		return false
+	}
+	feeQuota, groupRatio, baseAmount, ok := violationFeeFor(relayInfo, apiErr)
+	if !ok {
+		return false
+	}
+	session, ok := relayInfo.Billing.(*BillingSession)
+	if !ok || session == nil {
+		logger.LogError(ctx, common.LogText("violation fee skipped: package request has no billing session"))
+		return false
+	}
+	if err := session.Settle(feeQuota); err != nil {
+		logger.LogError(ctx, common.LogText("failed to charge package violation fee: %s", err.Error()))
+		return false
+	}
+	recordViolationFee(ctx, relayInfo, apiErr, feeQuota, groupRatio, baseAmount)
+	return true
+}
+
+// recordViolationFee writes the consume log and usage counters for a fee that
+// has already been taken from its funding source.
+func recordViolationFee(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError, feeQuota int, groupRatio, baseAmount float64) {
 	model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, feeQuota)
 	model.UpdateChannelUsedQuota(relayInfo.ChannelId, feeQuota)
 
@@ -139,7 +176,7 @@ func ChargeViolationFeeIfNeeded(ctx *gin.Context, relayInfo *relaycommon.RelayIn
 		"violation_fee":        true,
 		"violation_fee_code":   string(types.ErrorCodeViolationFeeGrokCSAM),
 		"fee_quota":            feeQuota,
-		"base_amount":          settings.ViolationDeductionAmount,
+		"base_amount":          baseAmount,
 		"group_ratio":          groupRatio,
 		"status_code":          apiErr.StatusCode,
 		"upstream_error_type":  oai.Type,
@@ -159,6 +196,4 @@ func ChargeViolationFeeIfNeeded(ctx *gin.Context, relayInfo *relaycommon.RelayIn
 		Group:          relayInfo.UsingGroup,
 		Other:          other,
 	})
-
-	return true
 }

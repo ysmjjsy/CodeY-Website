@@ -68,16 +68,16 @@ export function TmHero(props: TmHeroProps) {
       <div className='tm-hero-copy'>
         <p className='tm-label'>
           <span className='tm-live-dot' />
-          {t('Model call market')}
+          {t('CodeGuys')}
         </p>
         <h1>
-          {t('AI capability,')}
+          {t('Model access')}
           <br />
-          <span className='tm-h1-accent'>{t('called on demand.')}</span>
+          <span className='tm-h1-accent'>{t('and trading platform.')}</span>
         </h1>
         <p className='tm-hero-description'>
           {t(
-            'Discover models from different providers. Top up for call credit, then use them at the listed price and metering. Every call — its usage, cost, and balance change — is recorded.'
+            'Providers connect their services and set prices; buyers purchase on demand and call directly; CodeGuys handles billing, records, and settlement.'
           )}
         </p>
         <div className='tm-hero-actions'>

@@ -381,6 +381,15 @@ func migrateDB() error {
 		&CasbinRule{},
 		&AuthzRole{},
 		&UserAccessToken{},
+		&UserVerification{},
+		&SellerProfile{},
+		&TokenPackage{},
+		&TokenPackageVersion{},
+		&TokenPackageChannel{},
+		&TokenPackageEntitlement{},
+		&TokenPackagePreconsumeRecord{},
+		&TokenPackageOrder{},
+		&SellerLedgerEntry{},
 	)
 	if err != nil {
 		return err

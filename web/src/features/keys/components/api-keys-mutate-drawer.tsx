@@ -52,6 +52,13 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -63,9 +70,12 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { RelatedPolicyLink } from '@/features/system-settings/request-policies/related-policy-link'
+import { fetchMyEntitlements } from '@/features/token-package/api'
+import { groupPackageEntitlements } from '@/features/token-package/lib/package-options'
 import { useStatus } from '@/hooks/use-status'
 import { getUserModels, getUserGroups } from '@/lib/api'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
+import { formatQuota, formatTimestampToDate } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 import {
   requireServerSuccess,
@@ -268,6 +278,27 @@ export function ApiKeysMutateDrawer({
     isUpdate && currentRow ? `update:${currentRow.id}` : 'create'
   const isFormInitialized = initializedTarget === formTarget
   const selectedGroup = form.watch('group')
+  const selectedPackageId = form.watch('package_id') || 0
+  const marketEnabled = status?.token_package_enabled === true
+  const { data: entitlementsData } = useQuery({
+    queryKey: ['package-entitlements'],
+    enabled: marketEnabled,
+    queryFn: async () =>
+      requireServerSuccess(await fetchMyEntitlements()).data || [],
+  })
+  // One option per package: a buyer who bought the same package twice sees it
+  // once, with the credit left across its entitlements. A package that is used
+  // up or expired stays listed, disabled, so a key bound to it shows what it is
+  // bound to; renewing makes the same key work again.
+  const packageOptions = useMemo(
+    () => groupPackageEntitlements(entitlementsData || []),
+    [entitlementsData]
+  )
+  const selectedPackage = packageOptions.find(
+    (option) => option.packageId === selectedPackageId
+  )
+  // A package key may only be limited to models the package serves.
+  const limitModels = selectedPackage ? selectedPackage.models : models
 
   // Correct group after groups load: if the form value is not in available groups, fall back
   useEffect(() => {
@@ -414,37 +445,116 @@ export function ApiKeysMutateDrawer({
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name='group'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('Group')}</FormLabel>
-                    <FormControl>
-                      <ApiKeyGroupCombobox
-                        options={groups}
-                        value={field.value}
-                        onValueChange={(group) => {
-                          field.onChange(group)
-                          if (group === 'auto') {
-                            form.setValue('cross_group_retry', true, {
+              {marketEnabled && (
+                <FormField
+                  control={form.control}
+                  name='package_id'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Usage mode')}</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={String(field.value || 0)}
+                          onValueChange={(value) => {
+                            const next = Number(value ?? 0)
+                            field.onChange(next)
+                            if (next <= 0) return
+                            form.setValue('group', '', { shouldDirty: true })
+                            const served = new Set(
+                              packageOptions.find(
+                                (option) => option.packageId === next
+                              )?.models || []
+                            )
+                            form.setValue(
+                              'model_limits',
+                              (form.getValues('model_limits') || []).filter(
+                                (name: string) => served.has(name)
+                              ),
+                              { shouldDirty: true }
+                            )
+                          }}
+                        >
+                          <SelectTrigger
+                            className='w-full'
+                            aria-label={t('Usage mode')}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='0'>
+                              {t('Platform balance')}
+                            </SelectItem>
+                            {packageOptions.map((option) => (
+                              <SelectItem
+                                key={option.packageId}
+                                value={String(option.packageId)}
+                                disabled={!option.active}
+                              >
+                                {option.active
+                                  ? t(
+                                      '{{title}} · {{remaining}} left · until {{date}}',
+                                      {
+                                        title: option.title,
+                                        remaining: formatQuota(
+                                          option.remaining
+                                        ),
+                                        date: formatTimestampToDate(
+                                          option.endTime
+                                        ),
+                                      }
+                                    )
+                                  : t('{{title}} · used up or expired', {
+                                      title: option.title,
+                                    })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'Package keys spend the purchased package quota and never fall back to your balance.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {!selectedPackageId && (
+                <FormField
+                  control={form.control}
+                  name='group'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Group')}</FormLabel>
+                      <FormControl>
+                        <ApiKeyGroupCombobox
+                          options={groups}
+                          value={field.value}
+                          onValueChange={(group) => {
+                            field.onChange(group)
+                            if (group === 'auto') {
+                              form.setValue('cross_group_retry', true, {
+                                shouldDirty: true,
+                              })
+                              return
+                            }
+                            form.setValue('cross_group_retry', false, {
                               shouldDirty: true,
                             })
-                            return
-                          }
-                          form.setValue('cross_group_retry', false, {
-                            shouldDirty: true,
-                          })
-                        }}
-                        placeholder={t('Select a group')}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                          }}
+                          placeholder={t('Select a group')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              {selectedGroup === 'auto' && (
+              {!selectedPackageId && selectedGroup === 'auto' && (
                 <FormField
                   control={form.control}
                   name='auto_groups'
@@ -485,7 +595,7 @@ export function ApiKeysMutateDrawer({
                 />
               )}
 
-              {selectedGroup === 'auto' && (
+              {!selectedPackageId && selectedGroup === 'auto' && (
                 <FormField
                   control={form.control}
                   name='cross_group_retry'
@@ -701,7 +811,7 @@ export function ApiKeysMutateDrawer({
                           <FormLabel>{t('Model Limits')}</FormLabel>
                           <FormControl>
                             <MultiSelect
-                              options={models.map((m) => ({
+                              options={limitModels.map((m) => ({
                                 label: m,
                                 value: m,
                               }))}

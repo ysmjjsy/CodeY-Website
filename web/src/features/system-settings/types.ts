@@ -357,6 +357,18 @@ export type BillingSettings = {
   'checkin_setting.enabled': boolean
   'checkin_setting.min_quota': number
   'checkin_setting.max_quota': number
+  'token_package_setting.enabled': boolean
+  'token_package_setting.admin_skip_review': boolean
+  'token_package_setting.commission_bps': number
+  'token_package_setting.freeze_days': number
+  'token_package_setting.multiplier_min': number
+  'token_package_setting.multiplier_max': number
+  'token_package_setting.low_balance_ratio': number
+  'token_package_setting.probe_minutes': number
+  'token_package_setting.outage_threshold_minutes': number
+  'token_package_setting.auto_terminate_hours': number
+  'token_package_setting.seller_groups': string[]
+  'token_package_setting.allowed_channel_types': number[]
 }
 
 export type OperationsSettings = {

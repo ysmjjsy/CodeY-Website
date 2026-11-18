@@ -25,8 +25,10 @@ func (token Token) cacheMAC() (string, error) {
 	}{token, token.AutoGroups, token.CacheExpiresAt})
 }
 
+// getTokenCacheKey changed shape with package_id, so the prefix carries a
+// version: a rollout must never read a hash written by the previous field set.
 func getTokenCacheKey(key string) string {
-	return fmt.Sprintf("token:%s", common.GenerateHMAC(key))
+	return fmt.Sprintf("token:v2:%s", common.GenerateHMAC(key))
 }
 
 // The fence uses the cache key as its hash tag so cacheInitToken's script
@@ -108,7 +110,7 @@ redis.call('HSET', KEYS[1],
   'CreatedTime', ARGV[5], 'ExpiredTime', ARGV[7],
   'UnlimitedQuota', ARGV[8], 'ModelLimitsEnabled', ARGV[9], 'ModelLimits', ARGV[10],
   'AllowIps', ARGV[11], 'Group', ARGV[12], 'CrossGroupRetry', ARGV[13],
-  'AutoGroups', ARGV[14], 'AllowUserQuotaQuery', ARGV[17],
+  'AutoGroups', ARGV[14], 'AllowUserQuotaQuery', ARGV[17], 'PackageId', ARGV[23],
   'CacheExpiresAt', ARGV[19], 'CacheMAC', ARGV[20])
 for _, counter in ipairs({{'AccessedTime', ARGV[6]}, {'RemainQuota', ARGV[15]}, {'UsedQuota', ARGV[16]}}) do
   if not string.match(redis.call('HGET', KEYS[1], counter[1]) or '', '^-?%d+$') then
@@ -131,7 +133,7 @@ return 1`
 		token.AutoGroups, token.RemainQuota, token.UsedQuota,
 		strconv.FormatBool(token.AllowUserQuotaQuery),
 		tokenCacheTTLSeconds(),
-		token.CacheExpiresAt, mac, strconv.FormatBool(repair), existing.CacheMAC,
+		token.CacheExpiresAt, mac, strconv.FormatBool(repair), existing.CacheMAC, token.PackageId,
 	).Int()
 }
 

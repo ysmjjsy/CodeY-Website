@@ -58,6 +58,7 @@ function channel(name: string): Channel {
     balance: 0,
     balance_updated_time: 0,
     models: 'gpt-4o',
+    owner_user_id: 0,
     group: 'vip',
     used_quota: 0,
     other_info: '',

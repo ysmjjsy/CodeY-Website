@@ -15,6 +15,8 @@ func TestBuildGoogleModelURLUsesTheLocationHost(t *testing.T) {
 		{"us-central1", "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-4-argon:generateContent"},
 		{"us", "https://aiplatform.us.rep.googleapis.com/v1/projects/my-project/locations/us/publishers/google/models/gemini-4-argon:generateContent"},
 		{"eu", "https://aiplatform.eu.rep.googleapis.com/v1/projects/my-project/locations/eu/publishers/google/models/gemini-4-argon:generateContent"},
+		// A region that is not a location id never reaches the host name.
+		{"evil.example/x#", "https://aiplatform.googleapis.com/v1/projects/my-project/locations/global/publishers/google/models/gemini-4-argon:generateContent"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.region, func(t *testing.T) {

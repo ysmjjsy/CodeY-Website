@@ -307,6 +307,9 @@ type ChannelSelectError struct {
 // callers. The caller still applies SetupContextForSelectedChannel.
 func SelectChannelForRequest(c *gin.Context, modelName string, retry *RetryParam) (*model.Channel, string, *ChannelSelectError) {
 	constraints := GetChannelConstraints(c)
+	if packageId := common.GetContextKeyInt(c, constant.ContextKeyTokenPackageId); packageId > 0 {
+		return selectPackageChannelForRequest(c, packageId, modelName, retry, constraints)
+	}
 	if pin, found, overridden := constraints.ResolvedPin(); found {
 		for _, lost := range overridden {
 			logger.LogWarn(c, common.LogText(
@@ -414,4 +417,42 @@ func pinnedChannelUnavailable(pin dto.ChannelPin, statusCode int, messageID stri
 // trail, which the retry log and the consume log's admin_info both read.
 func AppendUsedChannel(c *gin.Context, channelID int) {
 	c.Set("use_channel", append(c.GetStringSlice("use_channel"), fmt.Sprintf("%d", channelID)))
+}
+
+// selectPackageChannelForRequest keeps package traffic inside the package's own
+// channels: no pin, no auto group, no group cache. Affinity uses the package
+// group as its key so two packages never share a remembered channel.
+func selectPackageChannelForRequest(c *gin.Context, packageId int, modelName string, retry *RetryParam, constraints *dto.ChannelConstraints) (*model.Channel, string, *ChannelSelectError) {
+	packageGroup := constant.FormatTokenPackageGroup(packageId)
+	if retry.GetRetry() == 0 {
+		if preferredChannelID, found := GetPreferredChannelByAffinity(c, modelName, packageGroup); found {
+			affinityUsable := false
+			preferred, err := model.CacheGetChannel(preferredChannelID)
+			if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled {
+				if satisfied, _ := model.ChannelSatisfiesFilters(preferred, modelName, constraints.Filters); satisfied &&
+					model.IsChannelEnabledForPackageModel(packageId, modelName, preferred.Id) {
+					MarkChannelAffinityUsed(c, packageGroup, preferred.Id)
+					affinityUsable = true
+					return preferred, packageGroup, nil
+				}
+			}
+			if !affinityUsable && !ShouldKeepChannelAffinityOnChannelDisabled() {
+				ClearCurrentChannelAffinityCache(c)
+			}
+		}
+	}
+	channel, err := model.GetRandomSatisfiedPackageChannel(packageId, modelName, retry.GetRetry(), constraints.Filters)
+	if err != nil {
+		return nil, packageGroup, &ChannelSelectError{
+			StatusCode: http.StatusInternalServerError, Code: types.ErrorCodeUpdateDataError, MessageID: i18n.MsgDistributorGetChannelFailed,
+			Params: map[string]any{"Group": packageGroup, "Model": modelName, "Error": err.Error()},
+		}
+	}
+	if channel == nil {
+		return nil, packageGroup, &ChannelSelectError{
+			StatusCode: http.StatusServiceUnavailable, Code: types.ErrorCodePackageUnavailable, MessageID: i18n.MsgPackageNoAvailableChannel,
+			Params: map[string]any{"Group": packageGroup, "Model": modelName}, NoAvailableChannel: true,
+		}
+	}
+	return channel, packageGroup, nil
 }

@@ -60,6 +60,11 @@ func RefundFailedRequestBilling(c *gin.Context, info *relaycommon.RelayInfo, api
 		return nil
 	}
 	apiErr = service.NormalizeViolationFeeError(apiErr)
+	// A package request that owes a violation fee is settled at the fee in
+	// place of the refund; refunding first would race with charging it.
+	if service.SettlePackageViolationFee(c, info, apiErr) {
+		return apiErr
+	}
 	if info.Billing != nil {
 		info.Billing.Refund(c)
 	}

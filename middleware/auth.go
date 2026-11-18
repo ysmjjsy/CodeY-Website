@@ -621,7 +621,39 @@ func TokenAuth() func(c *gin.Context) {
 
 		userGroup := userCache.Group
 		tokenGroup := token.Group
-		if tokenGroup != "" {
+		if token.PackageId > 0 {
+			// A package token never falls back to group routing or wallet
+			// billing: the package id and the pkg: group marker must agree, the
+			// package must still exist, and the buyer must hold an active
+			// entitlement. Everything else fails closed.
+			// The marketplace switch stops new sales and publishing only;
+			// keys bound to packages already sold keep working while it is off.
+			expectedGroup := constant.FormatTokenPackageGroup(token.PackageId)
+			if tokenGroup != expectedGroup {
+				abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgPackageUnavailable), types.ErrorCodePackageUnavailable)
+				return
+			}
+			pkg, err := model.GetTokenPackageById(token.PackageId)
+			if err != nil || pkg.Status == constant.TokenPackageStatusTerminated {
+				abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgPackageUnavailable), types.ErrorCodePackageUnavailable)
+				return
+			}
+			activeEntitlement, err := service.UserHasActivePackageEntitlement(token.UserId, pkg.Id)
+			if err != nil {
+				common.SysLog(common.LogText("TokenAuth package entitlement error for user %d package %d: %v", token.UserId, pkg.Id, err))
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, common.TranslateMessage(c, i18n.MsgDatabaseError))
+				return
+			}
+			if !activeEntitlement {
+				abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgPackageExpired), types.ErrorCodePackageExpired)
+				return
+			}
+			common.SetContextKey(c, constant.ContextKeyTokenPackageId, pkg.Id)
+			userGroup = expectedGroup
+		} else if constant.HasReservedPackageGroupPrefix(tokenGroup) {
+			abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgPackageUnavailable), types.ErrorCodePackageUnavailable)
+			return
+		} else if tokenGroup != "" {
 			// check common.UserUsableGroups[userGroup]
 			if _, ok := service.GetUserUsableGroups(userGroup)[tokenGroup]; !ok {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthTokenGroupForbidden, map[string]any{"Group": tokenGroup}))

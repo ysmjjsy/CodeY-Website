@@ -176,9 +176,10 @@ func applyChannelStatusFilter(query *gorm.DB, statusFilter int) *gorm.DB {
 	return query
 }
 
-func buildChannelListQuery(group string, statusFilter int, typeFilter int) *gorm.DB {
+func buildChannelListQuery(group string, statusFilter int, typeFilter int, ownerFilter model.ChannelOwnerFilter) *gorm.DB {
 	query := model.DB.Model(&model.Channel{})
 	query = model.ApplyChannelGroupFilter(query, group)
+	query = model.ApplyChannelOwnerFilter(query, ownerFilter)
 	query = applyChannelStatusFilter(query, statusFilter)
 	if typeFilter >= 0 {
 		query = query.Where("type = ?", typeFilter)
@@ -226,6 +227,11 @@ func GetAllChannels(c *gin.Context) {
 	sortOptions := model.NewChannelSortOptions(c.Query("sort_by"), c.Query("sort_order"), idSort)
 	enableTagMode, _ := strconv.ParseBool(c.Query("tag_mode"))
 	groupFilter := model.NormalizeChannelGroupFilter(c.Query("group"))
+	ownerFilter, err := model.ParseChannelOwnerFilter(c.Query("owner"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	statusParam := c.Query("status")
 	// statusFilter: -1 all, 1 enabled, 0 disabled (include auto & manual)
 	statusFilter := parseStatusFilter(statusParam)
@@ -241,13 +247,13 @@ func GetAllChannels(c *gin.Context) {
 	var total int64
 
 	if enableTagMode {
-		tags, err := model.GetPaginatedChannelTags(buildChannelListQuery(groupFilter, statusFilter, typeFilter), pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+		tags, err := model.GetPaginatedChannelTags(buildChannelListQuery(groupFilter, statusFilter, typeFilter, ownerFilter), pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 		if err != nil {
 			common.SysError(common.LogText("failed to get paginated tags: %s", err.Error()))
 			common.ApiErrorT(c, "Failed to fetch tags. Please try again later")
 			return
 		}
-		total, err = model.CountChannelTags(buildChannelListQuery(groupFilter, statusFilter, typeFilter))
+		total, err = model.CountChannelTags(buildChannelListQuery(groupFilter, statusFilter, typeFilter, ownerFilter))
 		if err != nil {
 			common.SysError(common.LogText("failed to count tags: %s", err.Error()))
 			common.ApiErrorT(c, "Failed to count tags. Please try again later")
@@ -258,7 +264,7 @@ func GetAllChannels(c *gin.Context) {
 				continue
 			}
 			var tagChannels []*model.Channel
-			err := sortOptions.Apply(buildChannelListQuery(groupFilter, statusFilter, typeFilter).Where("tag = ?", *tag)).
+			err := sortOptions.Apply(buildChannelListQuery(groupFilter, statusFilter, typeFilter, ownerFilter).Where("tag = ?", *tag)).
 				Omit("key").
 				Find(&tagChannels).Error
 			if err != nil {
@@ -269,13 +275,13 @@ func GetAllChannels(c *gin.Context) {
 			channelData = append(channelData, tagChannels...)
 		}
 	} else {
-		if err := buildChannelListQuery(groupFilter, statusFilter, typeFilter).Count(&total).Error; err != nil {
+		if err := buildChannelListQuery(groupFilter, statusFilter, typeFilter, ownerFilter).Count(&total).Error; err != nil {
 			common.SysError(common.LogText("failed to count channels: %s", err.Error()))
 			common.ApiErrorT(c, "Failed to count channels. Please try again later")
 			return
 		}
 
-		err := sortOptions.Apply(buildChannelListQuery(groupFilter, statusFilter, typeFilter)).
+		err := sortOptions.Apply(buildChannelListQuery(groupFilter, statusFilter, typeFilter, ownerFilter)).
 			Limit(pageInfo.GetPageSize()).
 			Offset(pageInfo.GetStartIdx()).
 			Omit("key").
@@ -291,7 +297,7 @@ func GetAllChannels(c *gin.Context) {
 		clearChannelInfo(datum)
 	}
 
-	countQuery := buildChannelListQuery(groupFilter, statusFilter, -1)
+	countQuery := buildChannelListQuery(groupFilter, statusFilter, -1, ownerFilter)
 	var results []struct {
 		Type  int64
 		Count int64
@@ -395,6 +401,11 @@ func SearchChannels(c *gin.Context) {
 	keyword := c.Query("keyword")
 	group := c.Query("group")
 	modelKeyword := c.Query("model")
+	ownerFilter, err := model.ParseChannelOwnerFilter(c.Query("owner"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	statusParam := c.Query("status")
 	statusFilter := parseStatusFilter(statusParam)
 	idSort, _ := strconv.ParseBool(c.Query("id_sort"))
@@ -402,7 +413,7 @@ func SearchChannels(c *gin.Context) {
 	enableTagMode, _ := strconv.ParseBool(c.Query("tag_mode"))
 	channelData := make([]*model.Channel, 0)
 	if enableTagMode {
-		tags, err := model.SearchTags(keyword, group, modelKeyword, idSort)
+		tags, err := model.SearchTagsWithOwner(keyword, group, modelKeyword, idSort, ownerFilter)
 		if err != nil {
 			common.ApiError(c, err)
 			return
@@ -410,7 +421,7 @@ func SearchChannels(c *gin.Context) {
 		for _, tag := range tags {
 			if tag != nil && *tag != "" {
 				var tagChannels []*model.Channel
-				err := sortOptions.Apply(buildChannelListQuery(group, -1, -1).Where("tag = ?", *tag)).
+				err := sortOptions.Apply(buildChannelListQuery(group, -1, -1, ownerFilter).Where("tag = ?", *tag)).
 					Omit("key").
 					Find(&tagChannels).Error
 				if err != nil {
@@ -421,7 +432,7 @@ func SearchChannels(c *gin.Context) {
 			}
 		}
 	} else {
-		channels, err := model.SearchChannels(keyword, group, modelKeyword, idSort, sortOptions)
+		channels, err := model.SearchChannelsWithOwner(keyword, group, modelKeyword, idSort, ownerFilter, sortOptions)
 		if err != nil {
 			common.ApiError(c, err)
 			return
@@ -821,6 +832,11 @@ func AddChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	// The admin API creates platform channels only; seller channels are made
+	// through the marketplace endpoints, which apply the seller restrictions.
+	if addChannelRequest.Channel != nil {
+		addChannelRequest.Channel.OwnerUserId = 0
+	}
 
 	// Binding a plugin needs the same permission on a CodeGuys channel as the
 	// type-61 channel dedicated to it.
@@ -1011,13 +1027,14 @@ func DeleteChannel(c *gin.Context) {
 func DeleteDisabledChannel(c *gin.Context) {
 	var ids []int
 	if err := model.DB.Model(&model.Channel{}).
+		Where("owner_user_id = ?", 0).
 		Where("status = ? or status = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled).
 		Pluck("id", &ids).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	var revoked []*model.Channel
-	if err := model.DB.Where("(status = ? or status = ?) AND type = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled, constant.ChannelTypeTaskPlugin).
+	if err := model.DB.Where("owner_user_id = ? AND (status = ? or status = ?) AND type = ?", 0, common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled, constant.ChannelTypeTaskPlugin).
 		Find(&revoked).Error; err != nil {
 		common.ApiError(c, err)
 		return
@@ -1254,6 +1271,16 @@ func UpdateChannel(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	if originChannel.OwnerUserId > 0 {
+		if _, hasGroup := requestData["group"]; hasGroup && strings.TrimSpace(channel.Group) != "" {
+			common.ApiErrorT(c, "Cannot set group or tag for user-owned channel")
+			return
+		}
+		if _, hasTag := requestData["tag"]; hasTag && channel.Tag != nil && strings.TrimSpace(*channel.Tag) != "" {
+			common.ApiErrorT(c, "Cannot set group or tag for user-owned channel")
+			return
+		}
 	}
 	originProxy := originChannel.GetSetting().Proxy
 	proxyChanged := false
@@ -1832,6 +1859,10 @@ func CopyChannel(c *gin.Context) {
 	if err != nil {
 		common.SysError(common.LogText("failed to get channel by id: %s", err.Error()))
 		common.ApiErrorT(c, "Failed to fetch channel. Please try again later")
+		return
+	}
+	if origin.OwnerUserId > 0 {
+		common.ApiErrorT(c, "Cannot copy user-owned channel")
 		return
 	}
 	if (origin.Type == constant.ChannelTypeTaskPlugin || len(origin.GetSetting().TaskPluginBindings()) > 0) &&
